@@ -246,15 +246,11 @@ function resetQuizState() {
 
 function leavePage() {
   if (syncingResult.value) return
-  if (taskId) {
-    Taro.redirectTo({ url: `/pages/theory/review?taskId=${encodeURIComponent(taskId)}` })
-    return
-  }
   const pages = Taro.getCurrentPages()
   if (pages.length > 1) {
     Taro.navigateBack()
   } else {
-    Taro.switchTab({ url: '/pages/question/index' })
+    Taro.switchTab({ url: '/pages/index/index' })
   }
 }
 
@@ -329,7 +325,12 @@ async function startQuiz(articleId: string) {
       leavePage()
       return
     }
-    questions.value = qs
+    const part = Number(router.params?.part || 0)
+    questions.value = part >= 1 && part <= 4 ? qs.slice((part - 1) * 5, part * 5) : qs
+    if (!questions.value.length) {
+      showToast('该分辑暂无题目', 'error')
+      leavePage()
+    }
   } finally {
     loading.value = false
   }

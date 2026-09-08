@@ -1,14 +1,14 @@
 <template>
   <view class="page-quiz page-with-tabbar" :class="themeClass">
-    <view class="mode-panel">
-      <view class="task-card">
-        <text class="task-title">今日练习</text>
-        <text class="task-desc">已答 {{ questionStore.answeredToday }} 题 · 错题 {{ questionStore.wrongCount }} 道</text>
-      </view>
+    <view class="quiz-header">
+      <text class="task-title">今日练习</text>
+      <text class="task-desc">已答 {{ questionStore.answeredToday }} 题 · 错题 {{ questionStore.wrongCount }} 道</text>
+    </view>
 
+    <view class="mode-panel">
       <view class="hub-section">
         <text class="hub-title">时政刷题</text>
-        <text class="hub-sub">随机抽题，或按文章练</text>
+        <text class="hub-sub">按文章练，或随机抽题</text>
         <view class="mode-grid">
           <view
             v-for="item in quizModes"
@@ -25,7 +25,7 @@
         </view>
       </view>
 
-      <view class="hub-section">
+      <view v-if="SHOW_ZILIAO" class="hub-section">
         <text class="hub-title">资料分析</text>
         <text class="hub-sub">公式技巧 · 材料组专项练</text>
         <view class="entry-list">
@@ -49,10 +49,18 @@
       </view>
 
       <view class="hub-section">
-        <text class="hub-title">套卷与错题</text>
-        <text class="hub-sub">整卷演练 · 薄弱回顾</text>
+        <text class="hub-title">错题与申论</text>
+        <text class="hub-sub">时政错题重练 · 时评精拆阶梯训练</text>
         <view class="entry-list">
-          <view class="entry-row" @tap="goPage('/pages/exam/list')">
+          <view class="entry-row" @tap="goPage('/pages/question/article-pick')">
+            <view class="entry-icon"><Order :color="brandColor" size="18" /></view>
+            <view class="entry-text">
+              <text class="entry-name">按文章练</text>
+              <text class="entry-desc">选一篇文章出题</text>
+            </view>
+            <text class="entry-arrow">›</text>
+          </view>
+          <view v-if="SHOW_EXAM" class="entry-row" @tap="goPage('/pages/exam/list')">
             <view class="entry-icon"><Order :color="brandColor" size="18" /></view>
             <view class="entry-text">
               <text class="entry-name">真题套卷</text>
@@ -68,7 +76,7 @@
             </view>
             <text class="entry-arrow">›</text>
           </view>
-          <view class="entry-row" @tap="goPage('/pages/question/manual-list')">
+          <view v-if="SHOW_MANUAL_WRONG" class="entry-row" @tap="goPage('/pages/question/manual-list')">
             <view class="entry-icon"><Edit :color="brandColor" size="18" /></view>
             <view class="entry-text">
               <text class="entry-name">行测错题本</text>
@@ -105,8 +113,10 @@ import {
 } from '@nutui/icons-vue-taro'
 import AppTabBar from '@/components/AppTabBar.vue'
 import { QUIZ_MODES } from '@/constants/article'
+import { SHOW_EXAM, SHOW_MANUAL_WRONG, SHOW_ZILIAO } from '@/constants/featureVisibility'
 import { useQuestionStore } from '@/store/question'
 import type { QuizMode } from '@/types'
+import { isLoggedIn } from '@/utils/auth'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
@@ -120,7 +130,7 @@ const modeIcons = { Refresh, Category } as const
 
 async function load() {
   await bootstrapApp()
-  await questionStore.loadWrongQuestions()
+  if (isLoggedIn()) await questionStore.loadWrongQuestions()
 }
 
 function goPage(url: string) {
@@ -137,7 +147,7 @@ function onSelectMode(mode: QuizMode) {
 
 onMounted(load)
 useDidShow(() => {
-  void questionStore.loadWrongQuestions()
+  if (isLoggedIn()) void questionStore.loadWrongQuestions()
 })
 </script>
 
@@ -146,16 +156,31 @@ useDidShow(() => {
 
 .page-quiz {
   @include page-padding;
-  .mode-panel {
-    .task-card {
-      @include card;
-      padding: 16px;
-      margin-bottom: 16px;
-      border-radius: $radius-lg;
-      background: linear-gradient(135deg, $primary-light, $primary-faint);
-      .task-title { display: block; font-size: 16px; font-weight: 600; margin-bottom: 6px; color: $text-primary; }
-      .task-desc { font-size: 13px; color: $text-secondary; }
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
+
+  .quiz-header {
+    margin-bottom: 16px;
+    padding: 28px 16px 22px;
+    background: linear-gradient(168deg, $primary-color 0%, $primary-mid 48%, $primary-dark 100%);
+    color: $on-primary;
+    .task-title {
+      display: block;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: $on-primary;
     }
+    .task-desc {
+      font-size: 13px;
+      color: $on-primary;
+      opacity: 0.82;
+    }
+  }
+
+  .mode-panel {
+    padding: 0 16px;
     .hub-section {
       margin-bottom: 20px;
       .hub-title {

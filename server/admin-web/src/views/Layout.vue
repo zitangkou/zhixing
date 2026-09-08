@@ -69,7 +69,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Expand, Fold } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { NAV_GROUPS, ROUTE_TITLES, canAccess } from '@/config/nav'
+import { visibleNavGroups, ROUTE_TITLES, canAccess } from '@/config/nav'
 import type { NavGroup } from '@/config/nav'
 
 const COLLAPSE_KEY = 'zhengkao_admin_aside_collapsed'
@@ -82,12 +82,14 @@ const collapsed = ref(localStorage.getItem(COLLAPSE_KEY) === '1')
 const asideWidth = computed(() => (collapsed.value ? '64px' : '220px'))
 
 const visibleGroups = computed<NavGroup[]>(() =>
-  NAV_GROUPS.map((group) => ({
-    ...group,
-    children: group.children.filter(
-      (item) => auth.isSuperAdmin || canAccess(auth.permissions, item.permissions),
-    ),
-  })).filter((group) => group.children.length > 0),
+  visibleNavGroups()
+    .map((group) => ({
+      ...group,
+      children: group.children.filter(
+        (item) => auth.isSuperAdmin || canAccess(auth.permissions, item.permissions),
+      ),
+    }))
+    .filter((group) => group.children.length > 0),
 )
 
 /** 默认展开当前路由所在分组；无匹配时展开第一个分组 */

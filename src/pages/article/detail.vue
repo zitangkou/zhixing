@@ -87,7 +87,15 @@
       >
         {{ finishReadLabel }}
       </nut-button>
-      <nut-button plain type="primary" block @click="goQuiz">开始答题</nut-button>
+      <nut-button
+        plain
+        type="primary"
+        block
+        :disabled="!canQuiz"
+        @click="goQuiz"
+      >
+        {{ canQuiz ? '开始答题' : '读完后练习' }}
+      </nut-button>
     </view>
     <CorpusSelectCapture
       v-if="article"
@@ -165,6 +173,19 @@ const readProgress = computed(() => {
 })
 
 const currentPagerSection = computed(() => readableSections.value[pagerIndex.value] || null)
+
+const sectionsAllRead = computed(() => {
+  if (!article.value) return false
+  const ids = readableSections.value.map((s) => s.id)
+  if (!ids.length) return readDone.value
+  return articleStore.isAllSectionsRead(article.value.id, ids)
+})
+
+const canQuiz = computed(() => {
+  if (!article.value) return false
+  if (taskId.value && !dailyReadDone.value) return false
+  return sectionsAllRead.value || readDone.value
+})
 
 const finishReadLabel = computed(() => {
   if (taskId.value) {
@@ -276,7 +297,7 @@ onMounted(async () => {
 async function finishRead() {
   if (!article.value) return
   const allIds = readableSections.value.map((s) => s.id)
-  if (!articleStore.isAllSectionsRead(article.value.id, allIds)) {
+  if (allIds.length && !articleStore.isAllSectionsRead(article.value.id, allIds)) {
     showToast(`请先读完所有小节（${readSectionCount.value}/${allIds.length}）`)
     return
   }
@@ -300,8 +321,8 @@ async function finishRead() {
 
 function goQuiz() {
   if (!article.value) return
-  if (taskId.value && !dailyReadDone.value) {
-    showToast('请先完成本次原文精读')
+  if (!canQuiz.value) {
+    showToast('请先读完原文再练习')
     return
   }
   const taskQuery = taskId.value ? `&taskId=${encodeURIComponent(taskId.value)}` : ''

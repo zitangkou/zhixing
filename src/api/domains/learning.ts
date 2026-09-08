@@ -22,13 +22,25 @@ export const apiLearning = {
   getQuestions(articleId: string): Promise<d.ApiRes<d.Question[]>> {
     return d.isMock
       ? d.mockService.getQuestions(articleId)
-      : d.request(`/api/questions?articleId=${articleId}`)
+      : d.request(`/api/questions?articleId=${articleId}`, { auth: false })
+  },
+
+  getTheoryPacks(): Promise<d.ApiRes<Array<{
+    articleId: string
+    title: string
+    description: string
+    questionCount: number
+    parts: Array<{ number: number; title: string; questionIds: string[] }>
+  }>>> {
+    return d.isMock
+      ? Promise.resolve({ code: 0, message: 'ok', data: [] })
+      : d.request('/api/theory/packs', { auth: false })
   },
 
   getQuizByMode(mode: string, count = 10): Promise<d.ApiRes<d.Question[]>> {
     return d.isMock
       ? d.mockService.getQuizByMode(mode, count)
-      : d.request(`/api/quiz?mode=${mode}&count=${count}`)
+      : d.request(`/api/quiz?mode=${mode}&count=${count}`, { auth: false })
   },
 
   submitAnswer(questionId: string, answer: string | string[]): Promise<d.ApiRes<d.AnswerResult>> {

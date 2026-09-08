@@ -8,14 +8,14 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/zhixing.db"
     secret_key: str = "dev-secret-key-change-in-production"
     access_token_expire_minutes: int = 1440
-    cors_origins: str = "http://localhost:10086,http://localhost:10087,http://localhost:10088,http://localhost:10089"
+    cors_origins: str = "http://localhost:10087"
     admin_username: str = "admin"
     admin_password: str = "admin123"
     # 是否开放移动端自助注册；生产建议 false，由管理员开通账号
     allow_register: bool = True
     # 多产品：旧客户端不传 Header 时继续使用综合版。
     default_product_key: str = "general"
-    enabled_product_keys: str = "general,shenlun,theory"
+    enabled_product_keys: str = "general"
     # 知识框架本地目录（开发可用 Obsidian；生产留空则走 data/knowledge + 管理端上传）
     knowledge_kb_dir: str = ""
 

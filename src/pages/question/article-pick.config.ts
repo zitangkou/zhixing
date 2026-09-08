@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '按文章练',
+  navigationBarTitleText: '时政阅读',
 })

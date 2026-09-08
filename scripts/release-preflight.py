@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""知行日知 / 知行策论发布前只读检查，不输出任何密钥值。"""
+"""知行公考发布前只读检查，不输出任何密钥值。"""
 from __future__ import annotations
 
 import argparse
@@ -9,12 +9,6 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-
-
-EXPECTED_APPS = {
-    "theory": ("wx987f43ac6993012e", "知行日知"),
-    "shenlun": ("wx5d75ef07d8241d84", "知行策论"),
-}
 
 
 class Report:
@@ -54,26 +48,25 @@ def parse_env(path: Path) -> dict[str, str]:
 
 
 def check_source(root: Path, report: Report) -> None:
-    for key, (expected_appid, label) in EXPECTED_APPS.items():
-        path = root / "apps" / f"{key}-app" / "project.config.json"
-        if not path.is_file():
-            report.error(f"{label} 缺少 project.config.json")
-            continue
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            report.error(f"{label} project.config.json 无法读取: {exc}")
-            continue
-        if data.get("appid") != expected_appid:
-            report.error(f"{label} AppID 与登记值不一致，请到微信后台重新核对")
-        else:
-            report.ok(f"{label} AppID 已登记（{expected_appid}）")
-        if data.get("compileType") != "miniprogram" or data.get("miniprogramRoot") != "dist/":
-            report.error(f"{label} 小程序编译目录配置不正确")
-        else:
-            report.ok(f"{label} 小程序编译目录为 dist/")
-        if data.get("setting", {}).get("urlCheck") is False:
-            report.warn(f"{label} urlCheck=false；本地联调可用，正式真机验收必须验证合法域名")
+    path = root / "project.config.json"
+    if not path.is_file():
+        report.error("缺少 project.config.json")
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        report.error(f"project.config.json 无法读取: {exc}")
+        return
+    if data.get("compileType") != "miniprogram" or data.get("miniprogramRoot") != "dist/":
+        report.error("小程序编译目录配置不正确")
+    else:
+        report.ok("小程序编译目录为 dist/")
+    if data.get("setting", {}).get("urlCheck") is False:
+        report.warn("urlCheck=false；本地联调可用，正式真机验收必须验证合法域名")
+    if data.get("appid") in (None, "", "touristappid"):
+        report.warn("AppID 仍为 touristappid；正式发布需填写真实 AppID")
+    else:
+        report.ok("AppID 已配置")
 
 
 def check_env(path: Path, report: Report) -> None:
@@ -121,18 +114,16 @@ def check_artifacts(path: Path, report: Report) -> None:
         report.ok("发布清单 RELEASE.txt 存在")
     else:
         report.error("发布清单 RELEASE.txt 缺失")
-    for key, (_, label) in EXPECTED_APPS.items():
-        h5_index = path / "h5" / key / "index.html"
-        mini_app = path / "weapp" / key / "dist" / "app.json"
-        project = path / "weapp" / key / "project.config.json"
-        if h5_index.is_file():
-            report.ok(f"{label} H5 产物存在")
-        else:
-            report.error(f"{label} H5 缺少 index.html")
-        if mini_app.is_file() and project.is_file():
-            report.ok(f"{label} 微信小程序产物可导入")
-        else:
-            report.error(f"{label} 微信小程序产物不完整")
+    if (path / "h5" / "index.html").is_file():
+        report.ok("综合 H5 产物存在")
+    else:
+        report.error("综合 H5 缺少 index.html")
+    mini_app = path / "weapp" / "dist" / "app.json"
+    project = path / "weapp" / "project.config.json"
+    if mini_app.is_file() and project.is_file():
+        report.ok("微信小程序产物可导入")
+    else:
+        report.error("微信小程序产物不完整")
 
 
 def check_url(base_url: str, report: Report) -> None:
@@ -143,12 +134,11 @@ def check_url(base_url: str, report: Report) -> None:
     routes = {
         "/health": "健康检查",
         "/api/config": "学员 API",
-        "/theory/": "知行日知 H5",
-        "/shenlun/": "知行策论 H5",
+        "/": "综合 H5",
         "/manage/": "管理后台",
     }
     for route, label in routes.items():
-        url = f"{base}{route}"
+        url = f"{base}{route}" if route != "/" else f"{base}/"
         try:
             request = urllib.request.Request(url, headers={"User-Agent": "zhixing-release-preflight/1.0"})
             with urllib.request.urlopen(request, timeout=15) as response:

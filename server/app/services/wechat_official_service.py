@@ -98,8 +98,9 @@ def _with_link(title: str, description: str, url: str) -> str:
 
 
 def decide_reply(message: InboundMessage, public_base_url: str) -> ReplyDecision:
-    theory_url = _link(public_base_url, "/theory/")
-    shenlun_url = _link(public_base_url, "/shenlun/")
+    theory_url = _link(public_base_url, "/#/pages/index/index")
+    shenlun_url = _link(public_base_url, "/#/pages/rmrb/index")
+    today_url = _link(public_base_url, "/#/pages/today/index")
 
     if message.msg_type == "event":
         if message.event == "subscribe":
@@ -129,17 +130,17 @@ def decide_reply(message: InboundMessage, public_base_url: str) -> ReplyDecision
     if text in aliases["today"]:
         return ReplyDecision(
             "today",
-            _with_link("今日学习", "今日任务\n阅读重点内容，再完成一组 5 题练习。", theory_url),
+            _with_link("今日学习", "今日入口\n时政读文刷题，或人民日报三刀拆解。", today_url),
         )
     if text in aliases["theory"]:
         return ReplyDecision(
             "theory",
-            _with_link("时政学习", "学习路径\n阅读全文 → 提炼重点 → 5 题分辑／同文合集", theory_url),
+            _with_link("时政学习", "学习路径\n阅读全文 → 提炼重点 → 按文刷题 / 错题重练", theory_url),
         )
     if text in aliases["shenlun"]:
         return ReplyDecision(
             "shenlun",
-            _with_link("申论学习", "学习路径\n阅读全文 → 三刀剖析 → 一次短练习", shenlun_url),
+            _with_link("申论学习", "学习路径\n阅读时评 → 三刀解剖 → 开采本 / 词库 / 阶梯训练", shenlun_url),
         )
     if text in aliases["menu"]:
         return ReplyDecision(

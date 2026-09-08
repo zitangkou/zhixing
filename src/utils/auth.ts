@@ -3,9 +3,7 @@ import { LOGIN_REDIRECT_KEY, normalizePagePath } from '@/constants/guestAccess'
 import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
 
 const TAB_PATHS = new Set([
-  '/pages/today/index',
   '/pages/index/index',
-  '/pages/question/index',
   '/pages/user/index',
 ])
 
@@ -48,11 +46,12 @@ export function requireLogin(redirectUrl?: string): boolean {
   const current = pages[pages.length - 1]
   const fallback = current?.route ? `/${current.route}` : PRODUCT_HOME_ROUTE
   rememberLoginRedirect(redirectUrl || fallback)
+  if (isAuthPageRoute(current?.route)) return false
   Taro.navigateTo({ url: '/pages/auth/login' })
   return false
 }
 
-/** 登录成功后回到原功能，否则进首页 */
+/** 登录成功后回到原功能（含查询串），否则进首页 */
 export function enterAfterAuth(): void {
   const redirect = consumeLoginRedirect()
   const path = normalizePagePath(redirect)
@@ -61,7 +60,8 @@ export function enterAfterAuth(): void {
     return
   }
   if (path && !path.includes('/pages/auth/')) {
-    Taro.redirectTo({ url: path })
+    const url = redirect.startsWith('/') ? redirect : `/${redirect}`
+    Taro.redirectTo({ url })
     return
   }
   Taro.switchTab({ url: PRODUCT_HOME_ROUTE })

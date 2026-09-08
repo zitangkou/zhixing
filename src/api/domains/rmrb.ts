@@ -38,11 +38,18 @@ export const apiRmrb = {
   listRmrbArticles(tag?: string): Promise<d.ApiRes<d.RmrbArticle[]>> {
     if (d.isMock) return d.mockService.listRmrbArticles(tag)
     const q = tag ? `?tag=${encodeURIComponent(tag)}` : ''
-    return d.request(`/api/rmrb/articles${q}`)
+    return d.request(`/api/rmrb/articles${q}`, { auth: false })
+  },
+
+  listRmrbToday(): Promise<d.ApiRes<d.RmrbArticle[]>> {
+    if (d.isMock) return d.mockService.listRmrbToday()
+    return d.request('/api/rmrb/articles/today', { auth: false })
   },
 
   getRmrbArticle(id: string): Promise<d.ApiRes<d.RmrbArticle>> {
-    return d.isMock ? d.mockService.getRmrbArticle(id) : d.request(`/api/rmrb/articles/${id}`)
+    return d.isMock
+      ? d.mockService.getRmrbArticle(id)
+      : d.request(`/api/rmrb/articles/${id}`, { auth: false })
   },
 
   listRmrbMines(): Promise<d.ApiRes<d.ShenlunMineLog[]>> {

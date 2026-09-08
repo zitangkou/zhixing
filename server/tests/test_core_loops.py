@@ -677,68 +677,42 @@ def test_ziliao_drill_submit_and_stats():
         assert overview["todayCorrect"] >= total - 1
 
 
-def test_daily_task_state_machine_and_product_isolation():
-    """今日任务：按产品隔离，草稿可恢复，状态只能顺序推进。"""
+def test_daily_task_state_machine():
+    """今日任务：草稿可恢复，状态只能顺序推进。"""
     task_date = "2026-08-23"
     with TestClient(app) as client:
         user = _register(client)
-        shenlun_headers = {**user["headers"], "X-Product-Key": "shenlun"}
-        theory_headers = {**user["headers"], "X-Product-Key": "theory"}
+        headers = {**user["headers"], "X-Product-Key": "general"}
 
         with SessionLocal() as db:
-            db.add_all(
-                [
-                    DailyLearningTask(
-                        id="dlt-shenlun-loop",
-                        product_key="shenlun",
-                        task_date=task_date,
-                        task_type="daily_training",
-                        title="今日三刀训练",
-                        description="精读并完成概括",
-                        content_type="rmrb_article",
-                        content_id="rmrb-test",
-                        estimated_minutes=15,
-                        total_steps=5,
-                        status="published",
-                    ),
-                    DailyLearningTask(
-                        id="dlt-theory-loop",
-                        product_key="theory",
-                        task_date=task_date,
-                        task_type="daily_pack",
-                        title="今日政治理论",
-                        estimated_minutes=12,
-                        total_steps=4,
-                        status="published",
-                    ),
-                ]
+            db.add(
+                DailyLearningTask(
+                    id="dlt-general-loop",
+                    product_key="general",
+                    task_date=task_date,
+                    task_type="daily_training",
+                    title="今日训练",
+                    description="精读并完成概括",
+                    content_type="rmrb_article",
+                    content_id="rmrb-test",
+                    estimated_minutes=15,
+                    total_steps=5,
+                    status="published",
+                )
             )
             db.commit()
 
-        shenlun = _ok(
-            client.get(
-                "/api/product/daily-tasks",
-                params={"date": task_date},
-                headers=shenlun_headers,
-            )
+        listing = _ok(
+            client.get("/api/product/daily-tasks", params={"date": task_date}, headers=headers)
         )
-        assert shenlun["productKey"] == "shenlun"
-        assert [task["id"] for task in shenlun["tasks"]] == ["dlt-shenlun-loop"]
-        assert shenlun["tasks"][0]["progress"]["state"] == "not_started"
-
-        theory = _ok(
-            client.get(
-                "/api/product/daily-tasks",
-                params={"date": task_date},
-                headers=theory_headers,
-            )
-        )
-        assert [task["id"] for task in theory["tasks"]] == ["dlt-theory-loop"]
+        assert listing["productKey"] == "general"
+        assert [task["id"] for task in listing["tasks"]] == ["dlt-general-loop"]
+        assert listing["tasks"][0]["progress"]["state"] == "not_started"
 
         started = _ok(
             client.post(
-                "/api/product/daily-tasks/dlt-shenlun-loop/progress",
-                headers=shenlun_headers,
+                "/api/product/daily-tasks/dlt-general-loop/progress",
+                headers=headers,
                 json={"event": "start"},
             )
         )
@@ -746,31 +720,23 @@ def test_daily_task_state_machine_and_product_isolation():
 
         saved = _ok(
             client.post(
-                "/api/product/daily-tasks/dlt-shenlun-loop/progress",
-                headers=shenlun_headers,
-                json={
-                    "event": "save",
-                    "currentStep": 2,
-                    "draft": {"answer": "基层协同机制仍需完善"},
-                },
+                "/api/product/daily-tasks/dlt-general-loop/progress",
+                headers=headers,
+                json={"event": "save", "currentStep": 2, "draft": {"answer": "基层协同机制仍需完善"}},
             )
         )
         assert saved["progress"]["currentStep"] == 2
 
         restored = _ok(
-            client.get(
-                "/api/product/daily-tasks",
-                params={"date": task_date},
-                headers=shenlun_headers,
-            )
+            client.get("/api/product/daily-tasks", params={"date": task_date}, headers=headers)
         )
         progress = restored["tasks"][0]["progress"]
         assert progress["state"] == "in_progress"
         assert progress["draft"]["answer"] == "基层协同机制仍需完善"
 
         invalid = client.post(
-            "/api/product/daily-tasks/dlt-shenlun-loop/progress",
-            headers=shenlun_headers,
+            "/api/product/daily-tasks/dlt-general-loop/progress",
+            headers=headers,
             json={"event": "complete"},
         )
         assert invalid.status_code == 200
@@ -783,206 +749,36 @@ def test_daily_task_state_machine_and_product_isolation():
         ):
             updated = _ok(
                 client.post(
-                    "/api/product/daily-tasks/dlt-shenlun-loop/progress",
-                    headers=shenlun_headers,
+                    "/api/product/daily-tasks/dlt-general-loop/progress",
+                    headers=headers,
                     json={"event": event},
                 )
             )
             assert updated["progress"]["state"] == expected
 
         completed = _ok(
-            client.get(
-                "/api/product/daily-tasks",
-                params={"date": task_date},
-                headers=shenlun_headers,
-            )
+            client.get("/api/product/daily-tasks", params={"date": task_date}, headers=headers)
         )
         assert completed["completion"] == 100
         assert completed["completedCount"] == 1
 
-        cross_product = client.post(
-            "/api/product/daily-tasks/dlt-shenlun-loop/progress",
-            headers=theory_headers,
-            json={"event": "start"},
-        )
-        assert cross_product.status_code == 200
-        assert cross_product.json()["code"] == 400
-
-
-def test_shenlun_home_provisions_one_daily_article_task():
-    """申论首页为今日选择一篇已审核文章，重复加载不重复编排。"""
-    task_date = today()
-    with TestClient(app) as client:
-        user = _register(client)
-        headers = {**user["headers"], "X-Product-Key": "shenlun"}
-        with SessionLocal() as db:
-            existing_ids = [
-                row[0]
-                for row in db.query(DailyLearningTask.id).filter(
-                    DailyLearningTask.product_key == "shenlun",
-                    DailyLearningTask.task_date == task_date,
-                )
-            ]
-            if existing_ids:
-                db.query(UserDailyTaskProgress).filter(
-                    UserDailyTaskProgress.task_id.in_(existing_ids)
-                ).delete(synchronize_session=False)
-            db.query(DailyLearningTask).filter(
-                DailyLearningTask.product_key == "shenlun",
-                DailyLearningTask.task_date == task_date,
-            ).delete(synchronize_session=False)
-            db.add(
-                RmrbArticle(
-                    id="rmrb-daily-home",
-                    title="以务实行动答好民生考题",
-                    source="人民时评",
-                    publish_date=task_date,
-                    summary="从群众关切出发，把好事实事办到心坎上。",
-                    content="测试文章正文",
-                    tags='["民生", "基层治理"]',
-                    is_published=True,
-                    sort_order=999,
-                )
-            )
-            db.commit()
-
-        first = _ok(client.get("/api/product/daily-tasks", headers=headers))
-        second = _ok(client.get("/api/product/daily-tasks", headers=headers))
-
-        assert first["date"] == task_date
-        assert first["totalCount"] == 1
-        assert second["totalCount"] == 1
-        task = first["tasks"][0]
-        assert task["taskType"] == "shenlun_article_training"
-        assert task["contentId"] == "rmrb-daily-home"
-        assert task["totalSteps"] == 4
-        assert task["metadata"]["tags"] == ["民生", "基层治理"]
-        assert task["metadata"]["question"]["maxLength"] == 120
-        assert len(task["metadata"]["question"]["checks"]) == 3
-
-
-def test_theory_home_only_provisions_evidence_backed_pack():
-    """政治理论学习包至少含3道已审核且有原文依据的题。"""
-    task_date = today()
-    with TestClient(app) as client:
-        user = _register(client)
-        headers = {**user["headers"], "X-Product-Key": "theory"}
-        with SessionLocal() as db:
-            existing_ids = [
-                row[0]
-                for row in db.query(DailyLearningTask.id).filter(
-                    DailyLearningTask.product_key == "theory",
-                    DailyLearningTask.task_date == task_date,
-                )
-            ]
-            if existing_ids:
-                db.query(UserDailyTaskProgress).filter(
-                    UserDailyTaskProgress.task_id.in_(existing_ids)
-                ).delete(synchronize_session=False)
-                db.query(DailyLearningTask).filter(
-                    DailyLearningTask.id.in_(existing_ids)
-                ).delete(synchronize_session=False)
-            article = Article(
-                id="art-theory-daily",
-                title="准确把握高质量发展的实践要求",
-                source="权威理论文章",
-                publish_date=task_date,
-                summary="理解主体、目标和政策边界。",
-                content="理论文章正文",
-                sections="[]",
-                tags='["高质量发展", "新发展理念"]',
-                status="published",
-                allow_quiz=True,
-                is_published=True,
-                is_daily=True,
-                importance=5,
-            )
-            db.add(article)
-            for index in range(3):
-                db.add(
-                    Question(
-                        id=f"q-theory-evidence-{index}",
-                        article_id=article.id,
-                        type="single",
-                        stem=f"第{index + 1}道审核题",
-                        options='["A", "B"]',
-                        correct_answer='"A"',
-                        analysis="依据原文可知。",
-                        source_sentence=f"原文依据{index + 1}",
-                        status="approved",
-                        origin="manual",
-                        is_active=True,
-                    )
-                )
-            db.add(
-                Question(
-                    id="q-theory-without-evidence",
-                    article_id=article.id,
-                    type="single",
-                    stem="尚未补齐依据的题目",
-                    options='["A", "B"]',
-                    correct_answer='"A"',
-                    analysis="待补依据。",
-                    source_sentence="",
-                    status="approved",
-                    origin="manual",
-                    is_active=True,
-                )
-            )
-            db.commit()
-
-        first = _ok(client.get("/api/product/daily-tasks", headers=headers))
-        second = _ok(client.get("/api/product/daily-tasks", headers=headers))
-
-        assert first["totalCount"] == 1
-        assert second["totalCount"] == 1
-        task = first["tasks"][0]
-        assert task["taskType"] == "theory_daily_pack"
-        assert task["contentId"] == "art-theory-daily"
-        assert task["metadata"]["questionCount"] == 3
-        assert task["metadata"]["evidenceCount"] == 3
-        assert task["metadata"]["focuses"] == ["高质量发展", "新发展理念"]
-
-        theory_questions = _ok(
-            client.get(
-                "/api/questions",
-                params={"articleId": "art-theory-daily"},
-                headers=headers,
-            )
-        )
-        general_questions = _ok(
-            client.get(
-                "/api/questions",
-                params={"articleId": "art-theory-daily"},
-                headers={**user["headers"], "X-Product-Key": "general"},
-            )
-        )
-        assert len(theory_questions) == 3
-        assert len(general_questions) == 4
 
 
 def test_product_topics_served_and_switchable():
-    """专题下发：默认只给方法类专题，管理端改设置即可切换，无需发版。"""
+    """专题下发：默认方法类专题，管理端改设置即可切换。"""
     with TestClient(app) as client:
         user = _register(client)
-        theory_headers = {**user["headers"], "X-Product-Key": "theory"}
-        shenlun_headers = {**user["headers"], "X-Product-Key": "shenlun"}
+        headers = {**user["headers"], "X-Product-Key": "general"}
 
-        theory = _ok(client.get("/api/product/topics", headers=theory_headers))
-        assert theory["productKey"] == "theory"
-        titles = [t["title"] for t in theory["items"]]
-        assert titles == ["理论文章怎么读", "易混表述辨析", "规范表述积累"]
+        data = _ok(client.get("/api/product/topics", headers=headers))
+        assert data["productKey"] == "general"
+        titles = [t["title"] for t in data["items"]]
+        assert titles == ["学习方法与路径", "每日练习与复盘"]
 
-        # 提审期红线：默认专题不得出现政治专题名与「时政」字样
-        blob = json.dumps(theory, ensure_ascii=False)
-        for word in ("习近平", "马克思主义", "党和国家", "时政"):
+        blob = json.dumps(data, ensure_ascii=False)
+        for word in ("习近平", "马克思主义", "党和国家"):
             assert word not in blob
 
-        # 按产品隔离：申论拿到自己的方法专题
-        shenlun = _ok(client.get("/api/product/topics", headers=shenlun_headers))
-        assert shenlun["items"][0]["title"] == "材料怎么拆"
-
-        # 管理端改设置 → 立即切换，不需要发版或重启
         admin_login = _ok(
             client.post(
                 "/admin/auth/login",
@@ -991,28 +787,27 @@ def test_product_topics_served_and_switchable():
         )
         admin_headers = {"Authorization": f"Bearer {admin_login['access_token']}"}
         switched_value = json.dumps(
-            [{"no": "新", "title": "新时代中国特色社会主义思想", "desc": "体系化学习核心要义"}],
+            [{"no": "新", "title": "框架先行再刷题", "desc": "先建知识树再做练习"}],
             ensure_ascii=False,
         )
         _ok(
             client.put(
-                "/admin/settings/topics.theory",
+                "/admin/settings/topics.general",
                 headers=admin_headers,
                 json={"value": switched_value},
             )
         )
-        switched = _ok(client.get("/api/product/topics", headers=theory_headers))
-        assert [t["title"] for t in switched["items"]] == ["新时代中国特色社会主义思想"]
+        switched = _ok(client.get("/api/product/topics", headers=headers))
+        assert [t["title"] for t in switched["items"]] == ["框架先行再刷题"]
 
-        # 配置写坏时回落默认，保证前端不出现空页
         _ok(
             client.put(
-                "/admin/settings/topics.theory",
+                "/admin/settings/topics.general",
                 headers=admin_headers,
                 json={"value": "not-json"},
             )
         )
-        fallback = _ok(client.get("/api/product/topics", headers=theory_headers))
+        fallback = _ok(client.get("/api/product/topics", headers=headers))
         assert [t["title"] for t in fallback["items"]] == titles
 
 
@@ -1020,7 +815,7 @@ def test_feedback_persisted_and_handled_by_admin():
     """反馈：学员提交真实落库，管理端查看并显式采纳加分（不再随机判定）。"""
     with TestClient(app) as client:
         user = _register(client)
-        theory_headers = {**user["headers"], "X-Product-Key": "theory"}
+        theory_headers = {**user["headers"], "X-Product-Key": "general"}
 
         submitted = _ok(
             client.post("/api/feedback", headers=theory_headers, json={"content": "第 3 题答案应为 B"})
@@ -1040,11 +835,11 @@ def test_feedback_persisted_and_handled_by_admin():
         admin_headers = {"Authorization": f"Bearer {admin_login['access_token']}"}
 
         listing = _ok(
-            client.get("/admin/feedbacks", params={"productKey": "theory"}, headers=admin_headers)
+            client.get("/admin/feedbacks", params={"productKey": "general"}, headers=admin_headers)
         )
         assert listing["total"] >= 1
         assert listing["items"][0]["content"] == "第 3 题答案应为 B"
-        assert listing["items"][0]["productKey"] == "theory"
+        assert listing["items"][0]["productKey"] == "general"
 
         before = _ok(client.get("/api/user/me", headers=user["headers"]))
         handled = _ok(

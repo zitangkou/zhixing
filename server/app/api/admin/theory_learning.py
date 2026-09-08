@@ -1,6 +1,6 @@
 """时政单篇学习入口编排管理。"""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -36,6 +36,28 @@ def entries(
     db: Session = Depends(get_db),
 ):
     return ApiResponse.ok(list_admin_entries(db))
+
+
+class T0cImportBody(BaseModel):
+    payload: dict
+    pending: bool = False
+
+
+@router.post("/import-t0c")
+def import_t0c(
+    body: T0cImportBody,
+    _admin=Depends(require_permission("article:write")),
+    db: Session = Depends(get_db),
+):
+    from app.services.t0c_import_service import import_t0c_pack
+
+    try:
+        result = import_t0c_pack(db, body.payload, pending=body.pending)
+    except ValueError as exc:
+        return ApiResponse.fail(str(exc), code=400)
+    except HTTPException as exc:
+        return ApiResponse.fail(str(exc.detail), code=400)
+    return ApiResponse.ok(result)
 
 
 @router.put("/entries/{article_id}")

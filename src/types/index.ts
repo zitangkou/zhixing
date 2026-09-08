@@ -297,6 +297,18 @@ export interface ReviewHub {
   totalCount: number
 }
 
+export interface ShenlunExamAnchor {
+  theme: string
+  titleDevice: string
+  stancePath: string
+}
+
+export interface ShenlunTransferGuide {
+  examFit: string
+  caution: string
+  imitateDemo: string
+}
+
 export interface RmrbArticle {
   id: string
   title: string
@@ -307,10 +319,12 @@ export interface RmrbArticle {
   /** 主题标签：政绩观、社会治理、乡村振兴等 */
   tags: string[]
   isPublished: boolean
+  isDaily?: boolean
   sortOrder: number
   readCount: number
   createdAt: string
   updatedAt: string
+  teachingExample?: ShenlunTeachingExample | null
 }
 
 export interface ShenlunMineTermItem {
@@ -368,6 +382,8 @@ export interface ShenlunArgumentSkeleton {
   overviewMethod?: string
   /** 总论点论证模板 */
   overviewTemplate?: string
+  openingPattern?: string
+  transition?: string
   fields: ShenlunArgumentFieldValue[]
   points: ShenlunArgumentPoint[]
 }
@@ -378,6 +394,20 @@ export interface ShenlunTemplateItem {
   original: string
   template: string
   imitate: string
+}
+
+export interface ShenlunTeachingExample {
+  id: string
+  version: string
+  sourceExcerpt: string
+  argument: ShenlunArgumentSkeleton
+  terms: ShenlunMineTermItem[]
+  quotes: ShenlunQuoteItem[]
+  verbs: ShenlunVerbItem[]
+  templates: ShenlunTemplateItem[]
+  examAnchor: ShenlunExamAnchor
+  transferGuide: ShenlunTransferGuide
+  displayHtml?: string
 }
 
 export interface ShenlunSkeletonFieldDef {

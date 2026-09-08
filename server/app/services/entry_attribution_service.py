@@ -41,7 +41,7 @@ def _append_query(path: str, values: dict[str, str]) -> str:
 
 
 def _fallback(product_key: str, code: str, message: str) -> dict:
-    root = "/theory/" if product_key == "theory" else "/shenlun/"
+    root = "/"
     return {
         "valid": False,
         "reasonCode": code,

@@ -48,8 +48,6 @@ bash deploy/install-backup.sh
 备案前：公网 80 → 项目容器 Nginx
 正式：公网 80/443 → 宿主机 Nginx → 127.0.0.1:8081 → 项目容器 Nginx
    ├── /          → 综合 H5 静态页
-   ├── /shenlun/  → 知行策论 H5
-   ├── /theory/   → 知行日知 H5
    ├── /api/      → FastAPI 学员端接口（uvicorn:8000）
    ├── /admin/    → FastAPI 管理端接口（JWT + RBAC）
    ├── /manage/   → 管理后台静态页（admin-dist）
@@ -62,8 +60,6 @@ bash deploy/install-backup.sh
 | 路由 | 说明 | 容器内处理 |
 |---|---|---|
 | `/` | 学员端 H5 | nginx 静态 `try_files` |
-| `/shenlun/` | 知行策论 H5 | nginx 子目录静态 `try_files` |
-| `/theory/` | 知行日知 H5 | nginx 子目录静态 `try_files` |
 | `/api/*` | 学员端 API | nginx → uvicorn:8000 |
 | `/admin/*` | 管理端 API | nginx → uvicorn:8000 |
 | `/manage/*` | 管理后台 | nginx → FastAPI 挂载 admin-dist |
@@ -106,11 +102,11 @@ cd zhixing-gongkao
 # 一次性：安装 Docker / Compose + 配置镜像加速
 bash deploy/setup-docker.sh
 
-# 一键：生成 .env → 构建 → 启动 → 验证双 H5、API 与管理后台
+# 一键：生成 .env → 构建 → 启动 → 验证 H5、API 与管理后台
 bash deploy.sh
 ```
 
-部署完成后可分别访问 `https://你的域名/shenlun/` 与 `https://你的域名/theory/`。两套前端独立构建、独立路由，但账号、内容审核、题库、任务进度和运营后台复用同一个后端。
+部署完成后访问 `https://你的域名/`（H5）与 `https://你的域名/manage/`（管理后台）。
 
 首次执行 `deploy.sh` 会自动生成 `.env`（随机 `SECRET_KEY` 与 `ADMIN_PASSWORD`，密码会打印在终端），随后建议：
 
@@ -203,9 +199,9 @@ npm run dev:h5
 cd server/admin-web && npm run dev
 ```
 
-## 10. 双产品发布产物与上线检查
+## 10. 发布产物与上线检查
 
-两个应用的 H5 和微信小程序构建都会写入各自的 `dist`，不能并行构建，也不能构建完两种目标后只取最后一个 `dist`。使用以下命令顺序构建并立即归档：
+综合版 H5 和微信小程序构建都会写入 `dist`，不能并行构建，也不能构建完两种目标后只取最后一个 `dist`。使用以下命令顺序构建并立即归档：
 
 ```bash
 bash scripts/build-release-artifacts.sh --api-url https://你的正式域名
@@ -214,10 +210,8 @@ bash scripts/build-release-artifacts.sh --api-url https://你的正式域名
 默认输出到系统临时目录，并包含：
 
 ```text
-h5/theory
-h5/shenlun
-weapp/theory/project.config.json + dist
-weapp/shenlun/project.config.json + dist
+h5/index.html
+weapp/project.config.json + dist
 RELEASE.txt
 ```
 

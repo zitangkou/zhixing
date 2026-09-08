@@ -13,13 +13,9 @@ Slogan：**以「上岸」为唯一目标**
 
 **全量功能说明（各模块明细）→ [FEATURES.md](./FEATURES.md)** ｜ 项目进度 → [PROGRESS.md](./PROGRESS.md)
 
-后续产品化方向：以本项目为能力母体，按申论、政治理论、资料分析、数量关系、言语理解、判断推理孵化独立垂直小程序，并共用内容运营中台。产品定义见 [PRODUCT_SPLIT_PLAN.md](./PRODUCT_SPLIT_PLAN.md)，结合 2025 国考真题资产的工程实施方案见 [DETAILED_IMPLEMENTATION_PLAN.md](./DETAILED_IMPLEMENTATION_PLAN.md)（两份均为 2026-08 历史战略文档）。
+现行执行计划：[docs/plans/xingce-data-roadmap-2026.md](./docs/plans/xingce-data-roadmap-2026.md)（行测数据/出题调度中枢）、[docs/plans/optimization-plan-2026-09.md](./docs/plans/optimization-plan-2026-09.md)（项目级优化总盘）。
 
-当前执行范围已收敛为政治理论、申论两个首发垂直产品。方案同时覆盖“简单而深入、简洁大气、方便优雅、连贯舒适”的体验规范、可扩展题型底座、账号内容运营闭环、具体 MVP、数据改造与 8–12 周排期，见 [TWO_PRODUCT_MVP_PLAN.md](./TWO_PRODUCT_MVP_PLAN.md)（Sprint 1 已执行完毕）。**现行执行计划**：[docs/plans/xingce-data-roadmap-2026.md](./docs/plans/xingce-data-roadmap-2026.md)（行测数据/出题调度中枢）、[docs/plans/optimization-plan-2026-09.md](./docs/plans/optimization-plan-2026-09.md)（项目级优化总盘）。
-
-开发级需求文档：[`申论 PRD`](./docs/products/shenlun-prd.md)、[`政治理论 PRD`](./docs/products/theory-prd.md)、[`共享底座技术设计`](./docs/architecture/product-foundation.md)。
-
-微信公众号订阅号、小红书、抖音、B站的固定栏目模板、跨平台内容包、双审核、内容日历和连续生产方案见 [CONTENT_OPERATIONS_PLAN.md](./CONTENT_OPERATIONS_PLAN.md)。其中公众号作为连接两个小程序的核心私域入口。
+微信公众号订阅号等内容运营方案见 [CONTENT_OPERATIONS_PLAN.md](./CONTENT_OPERATIONS_PLAN.md)。
 
 ## 快速开始
 

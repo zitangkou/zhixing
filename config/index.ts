@@ -21,8 +21,7 @@ export default defineConfig<'vite'>(async (merge) => {
       USE_MOCK: JSON.stringify(process.env.USE_MOCK === 'true'),
       // 空字符串表示 Docker 同域 /api；仅 undefined 时用本地开发地址
       API_BASE_URL: JSON.stringify(process.env.TARO_APP_API_URL ?? 'http://127.0.0.1:8001'),
-      // general（综合版）/ shenlun（申论）/ theory（政治理论）
-      PRODUCT_KEY: JSON.stringify(process.env.TARO_APP_PRODUCT_KEY ?? 'general'),
+      PRODUCT_KEY: JSON.stringify('general'),
     },
     copy: {
       // 兜底：确保 tab 图标进入产物（H5 生产路径为 /static/images/）

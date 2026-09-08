@@ -13,6 +13,7 @@ import {
   Promotion,
   User,
 } from '@element-plus/icons-vue'
+import { isAdminNavVisible } from '@/config/featureVisibility'
 
 export interface NavItem {
   path: string
@@ -72,7 +73,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: '素材积累',
     icon: Notebook,
     children: [
-      { path: '/rmrb', title: '人民日报', icon: Notebook, permissions: ['rmrb:read'] },
+      { path: '/rmrb', title: '时评精拆', icon: Notebook, permissions: ['rmrb:read'] },
       { path: '/corpus', title: '语料本', icon: Collection, permissions: ['corpus:read'] },
       { path: '/events', title: '时事事件', icon: TrendCharts, permissions: ['events:read'] },
     ],
@@ -112,7 +113,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/practice/proto': '练习闭环原型',
   '/analytics/dashboard': '学习反馈看板',
   '/analytics/error-paths': '错因归集',
-  '/rmrb': '人民日报',
+  '/rmrb': '时评精拆',
   '/corpus': '语料本',
   '/events': '时事事件',
   '/settings': '系统设置',
@@ -122,4 +123,15 @@ export function canAccess(userPerms: string[], required: string[]): boolean {
   if (!required.length) return true
   if (userPerms.includes('*')) return true
   return required.some((p) => userPerms.includes(p))
+}
+
+export function visibleNavGroups(): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    children: group.children.filter((item) => isAdminNavVisible(item.path)),
+  })).filter((group) => group.children.length > 0)
+}
+
+export function visibleNavItems(): NavItem[] {
+  return visibleNavGroups().flatMap((g) => g.children)
 }

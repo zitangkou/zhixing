@@ -3,8 +3,11 @@
     <el-card shadow="never">
       <template #header>
         <div class="header-row">
-          <div><strong>时政学习入口</strong><div class="sub">编排单篇文章的五题分辑、今日入口和长期重点，不创建套卷。</div></div>
+          <div><strong>时政学习入口</strong><div class="sub">编排单篇文章的五题分辑、今日入口和长期重点。可用 T0c JSON 一键导入纲要专项卷。</div></div>
+          <div>
+          <el-button @click="openImport">导入 T0c JSON</el-button>
           <el-button type="primary" @click="openCreate">新建入口</el-button>
+          </div>
         </div>
       </template>
       <el-table v-loading="loading" :data="entries" stripe>
@@ -57,6 +60,14 @@
       </el-form>
       <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
     </el-dialog>
+
+    <el-dialog v-model="importVisible" title="导入纲要专项 T0c JSON" width="640px">
+      <el-input v-model="importJson" type="textarea" :rows="16" placeholder="粘贴 20 题 JSON 全文" />
+      <template #footer>
+        <el-button @click="importVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importing" @click="doImport">导入并发布</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -67,6 +78,7 @@ import { fetchArticles, fetchQuestions } from '@/api/articles'
 import type { Article, Question } from '@/types'
 import {
   fetchTheoryLearningEntries,
+  importT0cPack,
   saveTheoryLearningEntry,
   type LearningPart,
   type TheoryLearningEntry,
@@ -78,6 +90,9 @@ const availableQuestions = ref<Question[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
+const importVisible = ref(false)
+const importJson = ref('')
+const importing = ref(false)
 const editing = ref(false)
 const dateRange = ref<string[]>([])
 const questionIdsText = ref('')
@@ -111,6 +126,30 @@ function reset() {
   availableQuestions.value = []
 }
 function openCreate() { reset(); editing.value = false; dialogVisible.value = true }
+function openImport() {
+  importJson.value = ''
+  importVisible.value = true
+}
+async function doImport() {
+  let payload: Record<string, unknown>
+  try {
+    payload = JSON.parse(importJson.value)
+  } catch {
+    ElMessage.error('JSON 无法解析')
+    return
+  }
+  importing.value = true
+  try {
+    const res = await importT0cPack(payload, false)
+    ElMessage.success(`已导入 ${res.title}（${res.questionCount} 题）`)
+    importVisible.value = false
+    await load()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '导入失败')
+  } finally {
+    importing.value = false
+  }
+}
 async function openEdit(row: TheoryLearningEntry) {
   reset(); editing.value = true
   Object.assign(form, row)

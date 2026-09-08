@@ -1,5 +1,6 @@
 <template>
   <div class="page">
+    <h2 class="page-title">时评精拆</h2>
     <el-tabs v-model="activeTab">
       <el-tab-pane label="时评文章" name="articles">
         <ArticlesTab />
@@ -34,3 +35,11 @@ import ThreeKnifeImportTab from './ThreeKnifeImportTab.vue'
 
 const activeTab = ref('articles')
 </script>
+
+<style scoped>
+.page-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+</style>

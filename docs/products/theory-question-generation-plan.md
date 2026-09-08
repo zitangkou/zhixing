@@ -4,7 +4,7 @@
 > 日期：2026-09-02  
 > 状态：方案设计，尚未进入功能开发  
 > 适用产品：政治理论垂直应用  
-> 关联文档：[政治理论垂直小程序 PRD](./theory-prd.md)、[政治理论出题规律分析](../../xingce-structured-data/analysis/政治理论出题规律分析.md)、[真题数据规范](../../xingce-structured-data/_schema/conventions.md)
+> 关联文档：[政治理论出题规律分析](../../xingce-structured-data/analysis/政治理论出题规律分析.md)、[真题数据规范](../../xingce-structured-data/_schema/conventions.md)
 
 ## 0. 方案摘要
 

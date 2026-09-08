@@ -10,6 +10,7 @@ export interface RmrbArticle {
   content: string
   tags: string[]
   isPublished: boolean
+  isDaily?: boolean
   sortOrder: number
   readCount: number
   createdAt: string
@@ -82,6 +83,7 @@ export function createRmrbArticle(data: {
   content?: string
   tags?: string[]
   isPublished?: boolean
+  isDaily?: boolean
   sortOrder?: number
 }) {
   return getData<RmrbArticle>(http.post('/admin/rmrb/article', data))
@@ -201,6 +203,7 @@ export interface ThreeKnifeSummary {
   verbsCount: number
   pointsCount: number
   templatesCount: number
+  incompleteReasons: string[]
 }
 
 export interface ThreeKnifePreviewResult {
@@ -209,18 +212,20 @@ export interface ThreeKnifePreviewResult {
 }
 
 export interface ThreeKnifeImportResult {
-  mine: Record<string, unknown>
+  articleId: string
+  exampleId: string
+  example: Record<string, unknown>
   summary: ThreeKnifeSummary
 }
 
-export function previewThreeKnife(markdown: string, userId?: string) {
+export function previewThreeKnife(markdown: string, sourceUrl?: string) {
   return getData<ThreeKnifePreviewResult>(
-    http.post('/admin/rmrb/preview-three-knife', { markdown, userId }),
+    http.post('/admin/rmrb/preview-three-knife', { markdown, sourceUrl }),
   )
 }
 
-export function importThreeKnife(markdown: string, userId?: string) {
+export function importThreeKnife(markdown: string, displayHtml?: string, sourceUrl?: string) {
   return getData<ThreeKnifeImportResult>(
-    http.post('/admin/rmrb/import-three-knife', { markdown, userId }),
+    http.post('/admin/rmrb/import-three-knife', { markdown, displayHtml, sourceUrl }),
   )
 }

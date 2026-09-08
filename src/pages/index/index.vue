@@ -10,15 +10,16 @@
           </view>
         </view>
         <PointsBadge
+          v-if="loggedIn"
           :points="userStore.points"
           show-label
           tone="on-brand"
           @tap="goPoints"
         />
       </view>
-      <view class="banner-today" @tap="go('/pages/plan/today')">
-        <text class="today-label">今日学习</text>
-        <text class="today-desc">打开清单 · 按计划推进主线</text>
+      <view class="banner-today" @tap="go('/pages/question/article-pick')">
+        <text class="today-label">今日时政</text>
+        <text class="today-desc">卡片列表阅读 · 读完再练习</text>
         <text class="today-arrow">›</text>
       </view>
     </view>
@@ -28,33 +29,26 @@
         <view class="action-icon-wrap">
           <Date :color="brandColor" size="20" />
         </view>
-        <text>{{ userStore.hasSignedToday ? '已签到' : '签到' }}</text>
+        <text>{{ userStore.hasSignedToday ? '已签到' : '今日签到' }}</text>
       </view>
-      <view class="action-item" @tap="goQuiz">
+      <view class="action-item" @tap="go('/pages/question/article-pick')">
         <view class="action-icon-wrap">
           <Edit :color="brandColor" size="20" />
         </view>
-        <text>去练习</text>
+        <text>时政练习</text>
       </view>
-      <view class="action-item" @tap="go('/pages/plan/today')">
+      <view class="action-item" @tap="go('/pages/rmrb/article-list')">
         <view class="action-icon-wrap">
           <CheckChecked :color="brandColor" size="20" />
         </view>
-        <text>今日清单</text>
-      </view>
-      <view class="action-item" @tap="goRank">
-        <view class="action-icon-wrap">
-          <Fabulous :color="brandColor" size="20" />
-        </view>
-        <text>排行</text>
+        <text>时评精拆</text>
       </view>
     </view>
 
-    <!-- 公考主线（home-* 类名避免被其它页未 scoped 的 .section 污染） -->
-    <view class="home-block">
+    <view v-if="SHOW_HOME_DOMAINS" class="home-block">
       <view class="home-block-title">
-        <text>公考主线</text>
-        <text class="home-block-meta">核心任务</text>
+        <text>学习入口</text>
+        <text class="home-block-meta">时政 / 申论</text>
       </view>
       <view class="domain-grid">
         <view
@@ -72,73 +66,68 @@
       </view>
     </view>
 
-    <!-- 能力拓展 -->
+    <view class="home-block home-block-rmrb">
+      <view class="home-block-title">
+        <text>今日时评</text>
+      </view>
+      <nut-skeleton v-if="todayRmrbLoading && !todayRmrbCards.length" rows="2" />
+      <template v-else-if="todayRmrbCards.length">
+        <ArticleCard
+          v-for="article in todayRmrbCards"
+          :key="article.id"
+          :article="article"
+          @tap="goRmrbArticle"
+        />
+      </template>
+      <view v-else class="empty-rmrb">
+        <text class="empty-title">暂无时评</text>
+        <text class="empty-desc">请管理员在后台「时评精拆」发布文章</text>
+      </view>
+    </view>
+
     <view class="home-block">
       <view class="home-block-title">
-        <text>能力拓展</text>
+        <text>今日时政</text>
       </view>
-      <view class="domain-grid domain-grid-3">
-        <view
-          v-for="item in extraDomains"
-          :key="item.url"
-          class="domain-item"
-          @tap="go(item.url)"
-        >
-          <view class="domain-icon" :class="item.tone">
-            <component :is="item.icon" :color="brandColor" size="20" />
-          </view>
-          <text class="domain-name">{{ item.name }}</text>
-          <text class="domain-desc">{{ item.desc }}</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="home-block home-block-review" @tap="go('/pages/review/hub')">
-      <view class="home-block-title">
-        <text>今日复习中心</text>
-        <text v-if="reviewHubLoading && !reviewHub" class="home-block-meta">加载中</text>
-        <text v-else-if="reviewHubTotal > 0" class="home-block-meta warn">{{ reviewHubTotal }} 项待办</text>
-        <text v-else class="home-block-meta">今日已清</text>
-      </view>
-      <view class="review-hub-row">
-        <view class="review-hub-stat">
-          <text class="n">{{ reviewStat('knowledgeDueCount') }}</text>
-          <text class="l">知识</text>
-        </view>
-        <view class="review-hub-stat">
-          <text class="n">{{ reviewStat('articleReviewCount') }}</text>
-          <text class="l">文章</text>
-        </view>
-        <view class="review-hub-stat">
-          <text class="n">{{ reviewWrongStat }}</text>
-          <text class="l">错题</text>
-        </view>
-        <view class="review-hub-stat">
-          <text class="n">{{ reviewStat('corpusInboxCount') }}</text>
-          <text class="l">语料</text>
-        </view>
-        <text class="review-hub-arrow">›</text>
+      <nut-skeleton v-if="articleStore.dailyLoading && !todayTheoryCards.length" rows="2" />
+      <template v-else-if="todayTheoryCards.length">
+        <ArticleCard
+          v-for="article in todayTheoryCards"
+          :key="article.id"
+          :article="article"
+          @tap="goArticle"
+        />
+      </template>
+      <view v-else class="empty-rmrb">
+        <text class="empty-title">暂无时政文章</text>
+        <text class="empty-desc">下拉刷新试试，或稍后再来</text>
       </view>
     </view>
 
-    <view class="home-block home-block-must-read">
+    <view class="home-block home-block-rmrb">
       <view class="home-block-title">
-        <text>时政必读</text>
+        <text>时评原文</text>
+        <text class="home-block-meta is-link" @tap="go('/pages/rmrb/article-list')">查看全部</text>
       </view>
-      <nut-skeleton v-if="showMustReadSkeleton" rows="3" />
-      <FeaturedCarousel
-        v-else
-        :articles="articleStore.featuredArticles"
-        @tap="goArticle"
-      />
+      <nut-skeleton v-if="rmrbLoading && !rmrbCards.length" rows="2" />
+      <template v-else-if="rmrbCards.length">
+        <ArticleCard
+          v-for="article in rmrbCards"
+          :key="article.id"
+          :article="article"
+          @tap="goRmrbArticle"
+        />
+      </template>
+      <view v-else class="empty-rmrb">
+        <text class="empty-title">暂无时评原文</text>
+        <text class="empty-desc">请管理员在后台「时评精拆」发布文章</text>
+      </view>
     </view>
 
     <view class="home-block home-block-recommended">
       <view class="home-block-title">
-        <text>推荐阅读</text>
-        <text v-if="articleStore.recommendedTotal" class="home-block-meta">
-          共 {{ articleStore.recommendedTotal }} 篇
-        </text>
+        <text>时政阅读</text>
+        <text class="home-block-meta is-link" @tap="go('/pages/question/article-pick')">查看全部</text>
       </view>
       <nut-skeleton v-if="showRecommendedSkeleton" rows="4" />
       <template v-else-if="articleStore.recommendedList.length">
@@ -155,7 +144,7 @@
         <view v-else class="list-status muted">已加载全部</view>
       </template>
       <view v-else class="empty-recommended">
-        <text class="empty-title">暂无推荐文章</text>
+        <text class="empty-title">暂无时政文章</text>
         <text class="empty-desc">下拉刷新试试，或稍后再来</text>
       </view>
     </view>
@@ -169,55 +158,45 @@ import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow, usePullDownRefresh, useReachBottom } from '@tarojs/taro'
 import { Skeleton as NutSkeleton } from '@nutui/nutui-taro'
 import {
-  Category,
   CheckChecked,
   Date,
   Edit,
-  Fabulous,
   Order,
 } from '@nutui/icons-vue-taro'
 import AppTabBar from '@/components/AppTabBar.vue'
 import ArticleCard from '@/components/ArticleCard.vue'
-import FeaturedCarousel from '@/components/FeaturedCarousel.vue'
 import PointsBadge from '@/components/PointsBadge.vue'
-import logoSrc from '@/assets/logo/logo.png'
 import { api } from '@/api'
+import logoSrc from '@/assets/logo/logo.png'
 import { APP_NAME, APP_SLOGAN } from '@/constants/brand'
+import { SHOW_CORPUS_MENU, SHOW_EVENTS, SHOW_HOME_DOMAINS } from '@/constants/featureVisibility'
 import { useUserStore } from '@/store/user'
 import { useArticleStore } from '@/store/article'
-import { useQuestionStore } from '@/store/question'
-import { showToast, tryNotify } from '@/utils/platform'
+import type { RmrbArticle } from '@/types'
+import { rmrbToCard } from '@/utils/rmrbCard'
+import { showToast } from '@/utils/platform'
+import { isLoggedIn } from '@/utils/auth'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
-import type { ReviewHub } from '@/types'
 
 definePageConfig({ navigationBarTitleText: '知行' })
 
 const { themeClass } = useThemeClass()
 const userStore = useUserStore()
 const articleStore = useArticleStore()
-const questionStore = useQuestionStore()
 const { brandColor } = useBrandColor()
+const loggedIn = computed(() => isLoggedIn() && !!userStore.userInfo?.id)
 
 const pageReady = ref(false)
-const reviewHub = ref<ReviewHub | null>(null)
-const reviewHubLoading = ref(false)
-const reviewHubTotal = computed(() => reviewHub.value?.totalCount ?? 0)
+const rmrbLoading = ref(false)
+const todayRmrbLoading = ref(false)
+const rmrbPreview = ref<RmrbArticle[]>([])
+const todayRmrbList = ref<RmrbArticle[]>([])
+const RMRB_HOME_LIMIT = 3
 
-function reviewStat(key: keyof ReviewHub) {
-  if (!reviewHub.value) return '—'
-  const v = reviewHub.value[key]
-  return typeof v === 'number' ? v : 0
-}
-
-const reviewWrongStat = computed(() => {
-  if (!reviewHub.value) return '—'
-  return reviewHub.value.wrongRecommendCount ?? reviewHub.value.wrongReviewCount ?? 0
-})
-
-const showMustReadSkeleton = computed(
-  () => articleStore.dailyLoading && articleStore.featuredArticles.length === 0,
-)
+const rmrbCards = computed(() => rmrbPreview.value.map(rmrbToCard))
+const todayRmrbCards = computed(() => todayRmrbList.value.map(rmrbToCard))
+const todayTheoryCards = computed(() => articleStore.dailyArticles.slice(0, 1))
 
 const showRecommendedSkeleton = computed(
   () => articleStore.recommendedLoading && articleStore.recommendedList.length === 0,
@@ -233,39 +212,35 @@ type DomainItem = {
 }
 
 const examDomains: DomainItem[] = [
-  { name: '时政阅读', desc: '继续上次', url: '', icon: Order, tone: 'tone-red', special: 'featured' },
-  { name: '时事印象', desc: '事件挂框架', url: '/pages/events/index', icon: Date, tone: 'tone-amber' },
-  { name: '人民日报', desc: '开采与训练', url: '/pages/rmrb/index', icon: Edit, tone: 'tone-amber' },
-  { name: '语料本', desc: '专名成语金句', url: '/pages/corpus/index', icon: Edit, tone: 'tone-blue' },
+      { name: '时政阅读', desc: '读完再练', url: '/pages/question/article-pick', icon: Order, tone: 'tone-red' },
+  ...(SHOW_EVENTS
+    ? [{ name: '时事印象', desc: '事件挂框架', url: '/pages/events/index', icon: Date, tone: 'tone-amber' } as DomainItem]
+    : []),
+  { name: '时评精拆', desc: '先读原文', url: '/pages/rmrb/article-list', icon: Edit, tone: 'tone-amber' },
+  ...(SHOW_CORPUS_MENU
+    ? [{ name: '语料本', desc: '专名成语金句', url: '/pages/corpus/index', icon: Edit, tone: 'tone-blue' } as DomainItem]
+    : []),
 ]
 
-const extraDomains: DomainItem[] = [
-  { name: '知识框架', desc: '考点导图', url: '/pages/knowledge/index', icon: Order, tone: 'tone-blue' },
-  { name: '资料分析', desc: '公式刷题', url: '/pages/ziliao/index', icon: Category, tone: 'tone-green' },
-  { name: '错题本', desc: '行测错题', url: '/pages/question/wrong', icon: Edit, tone: 'tone-red' },
-  { name: '本周计划', desc: '节奏安排', url: '/pages/plan/week', icon: Date, tone: 'tone-amber' },
-]
-
-async function fetchReviewHub() {
-  reviewHubLoading.value = true
+async function fetchRmrbPreview() {
+  rmrbLoading.value = true
   try {
-    const res = await api.getReviewHub()
+    const res = await api.listRmrbArticles()
     if (res.code === 0 && res.data) {
-      reviewHub.value = {
-        ...res.data,
-        wrongWaitingCount: res.data.wrongWaitingCount ?? 0,
-        wrongRecommendCount: res.data.wrongRecommendCount ?? res.data.wrongReviewCount ?? 0,
-      }
+      rmrbPreview.value = res.data.slice(0, RMRB_HOME_LIMIT)
     }
   } finally {
-    reviewHubLoading.value = false
+    rmrbLoading.value = false
   }
 }
 
-function notifyReviews() {
-  const total = reviewHubTotal.value
-  if (total > 0) {
-    tryNotify(APP_NAME, `您有 ${total} 项复习/内化待完成`)
+async function fetchTodayRmrb() {
+  todayRmrbLoading.value = true
+  try {
+    const res = await api.listRmrbToday()
+    if (res.code === 0 && res.data) todayRmrbList.value = res.data
+  } finally {
+    todayRmrbLoading.value = false
   }
 }
 
@@ -273,26 +248,24 @@ async function fetchPageData() {
   await Promise.all([
     articleStore.fetchDailyArticles(),
     articleStore.fetchRecommendedArticles(true),
-    questionStore.fetchReviewTasks(),
-    questionStore.loadWrongQuestions(),
-    fetchReviewHub(),
+    fetchTodayRmrb(),
+    fetchRmrbPreview(),
   ])
 }
 
 async function loadInitial() {
   await bootstrapApp(true)
   await fetchPageData()
-  notifyReviews()
 }
 
 async function refreshOnShow() {
+  const authed = isLoggedIn()
   await Promise.all([
     articleStore.fetchDailyArticles(),
     articleStore.fetchRecommendedArticles(true),
-    articleStore.syncStudyData(),
-    questionStore.fetchReviewTasks(),
-    questionStore.loadWrongQuestions(),
-    fetchReviewHub(),
+    fetchTodayRmrb(),
+    fetchRmrbPreview(),
+    authed ? articleStore.syncStudyData() : Promise.resolve(),
   ])
 }
 
@@ -319,7 +292,7 @@ useReachBottom(() => {
 })
 
 function go(url: string) {
-  if (url.startsWith('/pages/index') || url.startsWith('/pages/question/index') || url.startsWith('/pages/user/index')) {
+  if (url.startsWith('/pages/index') || url.startsWith('/pages/user/index')) {
     Taro.switchTab({ url })
     return
   }
@@ -334,12 +307,8 @@ function goSignIn() {
   Taro.navigateTo({ url: '/pages/user/signin' })
 }
 
-function goQuiz() {
-  Taro.switchTab({ url: '/pages/question/index' })
-}
-
-function goRank() {
-  Taro.navigateTo({ url: '/pages/user/rank' })
+function goRmrbArticle(id: string) {
+  Taro.navigateTo({ url: `/pages/rmrb/article-detail?id=${id}` })
 }
 
 function goPoints() {
@@ -481,6 +450,7 @@ function onExamDomain(item: DomainItem) {
         font-weight: 400;
         color: $text-muted;
         &.warn { color: $primary-color; font-weight: 600; }
+        &.is-link { color: $primary-color; }
       }
     }
   }
@@ -573,6 +543,15 @@ function onExamDomain(item: DomainItem) {
       color: $text-primary;
     }
     .review-arrow { color: $text-muted; }
+  }
+  .home-block-rmrb {
+    .empty-rmrb {
+      @include card;
+      padding: 20px 16px;
+      text-align: center;
+      .empty-title { display: block; font-size: 14px; color: $text-secondary; margin-bottom: 6px; }
+      .empty-desc { display: block; font-size: 12px; color: $text-muted; line-height: 1.5; }
+    }
   }
   .home-block-recommended {
     .list-status {

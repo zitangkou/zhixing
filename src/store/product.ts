@@ -18,7 +18,7 @@ function fallbackConfig(): ProductPublicConfig {
 export const useProductStore = defineStore('product', {
   state: () => ({
     config: fallbackConfig(),
-    allowRegister: false,
+    allowRegister: true,
     loaded: false,
     loadError: '',
   }),

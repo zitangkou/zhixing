@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Clock, Edit, Home, My } from '@nutui/icons-vue-taro'
+import { Home, My } from '@nutui/icons-vue-taro'
 import AppFeedback from '@/components/AppFeedback.vue'
 import { CURRENT_PRODUCT_TABS, type ProductTabKey } from '@/constants/productNavigation'
 import { useBrandColor } from '@/utils/brandColor'
@@ -38,16 +38,16 @@ const showCustomTabs = process.env.TARO_ENV === 'h5'
 
 const props = withDefaults(
   defineProps<{
-    /** 当前 tab：today | home | quiz | user */
+    /** 当前 tab：home | user */
     active?: ProductTabKey
   }>(),
   { active: undefined },
 )
 
-const selected = ref<ProductTabKey>(props.active || 'today')
+const selected = ref<ProductTabKey>(props.active || 'home')
 const { brandColor: activeColor, mutedColor } = useBrandColor()
 
-const iconMap = { clock: Clock, home: Home, edit: Edit, user: My }
+const iconMap = { home: Home, user: My }
 const tabs = CURRENT_PRODUCT_TABS.map((item) => ({ ...item, icon: iconMap[item.icon] }))
 
 function syncFromRoute() {

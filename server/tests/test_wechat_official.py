@@ -93,7 +93,7 @@ def test_text_and_subscribe_replies(monkeypatch):
     assert parsed.to_user == "user_openid"
     assert parsed.from_user == "gh_duhengge"
     assert "杜衡阁｜时政学习" in parsed.content
-    assert "http://203.0.113.10/theory/" in parsed.content
+    assert "http://203.0.113.10/" in parsed.content
     assert "欢迎来到「杜衡阁」" in parse_message(subscribe.content).content
 
 
@@ -119,9 +119,10 @@ def test_numeric_menu_and_navigation(monkeypatch):
     assert "1  今日学习" in menu_text
     assert "2  时政学习" in menu_text
     assert "3  申论学习" in menu_text
-    assert "今日任务" in parse_message(today.content).content
-    assert "/theory/" in parse_message(theory.content).content
-    assert "三刀剖析" in parse_message(shenlun.content).content
+    assert "今日入口" in parse_message(today.content).content
+    assert "/#/pages/index/index" in parse_message(theory.content).content
+    assert "/#/pages/rmrb/index" in parse_message(shenlun.content).content
+    assert "三刀解剖" in parse_message(shenlun.content).content
 
 
 def test_fallback_unsupported_and_unsubscribe(monkeypatch):

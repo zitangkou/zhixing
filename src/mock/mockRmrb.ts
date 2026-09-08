@@ -128,6 +128,10 @@ export const mockRmrb = {
     ]
     return m.ok(tag ? all.filter((a) => (a.tags || []).includes(tag)) : all)
   },
+  async listRmrbToday(): Promise<import('@/types').ApiRes<import('@/types').RmrbArticle[]>> {
+    const list = await this.listRmrbArticles()
+    return m.ok((list.data || []).slice(0, 3))
+  },
   async getRmrbArticle(
     id: string,
   ): Promise<import('@/types').ApiRes<import('@/types').RmrbArticle>> {

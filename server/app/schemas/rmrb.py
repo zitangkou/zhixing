@@ -16,10 +16,12 @@ class RmrbArticleOut(BaseModel):
     content: str
     tags: list[str] = []
     isPublished: bool
+    isDaily: bool = False
     sortOrder: int
     readCount: int
     createdAt: datetime
     updatedAt: datetime
+    teachingExample: dict[str, Any] | None = None
 
 
 class RmrbArticleCreate(BaseModel):
@@ -31,6 +33,7 @@ class RmrbArticleCreate(BaseModel):
     content: str = ""
     tags: list[str] = []
     isPublished: bool = True
+    isDaily: bool = False
     sortOrder: int = 0
 
 
@@ -43,6 +46,7 @@ class RmrbArticleUpdate(BaseModel):
     content: str | None = None
     tags: list[str] | None = None
     isPublished: bool | None = None
+    isDaily: bool | None = None
     sortOrder: int | None = None
 
 
@@ -88,8 +92,22 @@ class ShenlunArgumentSkeleton(BaseModel):
     conclusion: str = ""  # 总结
     overviewMethod: str = ""  # 总论点论证方法
     overviewTemplate: str = ""  # 总论点论证模板
+    openingPattern: str = ""  # v2.18 开头范式
+    transition: str = ""  # v2.18 过渡技巧
     fields: list[ShenlunArgumentFieldValue] = []
     points: list[ShenlunArgumentPoint] = []
+
+
+class ShenlunExamAnchor(BaseModel):
+    theme: str = ""
+    titleDevice: str = ""
+    stancePath: str = ""
+
+
+class ShenlunTransferGuide(BaseModel):
+    examFit: str = ""
+    caution: str = ""
+    imitateDemo: str = ""
 
 
 class ShenlunTemplateItem(BaseModel):
@@ -129,6 +147,8 @@ class ShenlunMineLogUpsert(BaseModel):
     verbs: list[ShenlunVerbItem] = []
     argument: ShenlunArgumentSkeleton | None = None
     templates: list[ShenlunTemplateItem] = []
+    examAnchor: ShenlunExamAnchor = ShenlunExamAnchor()
+    transferGuide: ShenlunTransferGuide = ShenlunTransferGuide()
 
 
 class ShenlunMineLogUpdate(BaseModel):

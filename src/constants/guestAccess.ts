@@ -3,8 +3,6 @@
 export const LOGIN_REDIRECT_KEY = 'zhixing_login_redirect'
 
 const GUEST_PREFIXES = [
-  '/pages/today/index',
-  '/pages/index/index',
   '/pages/article/',
   '/pages/auth/',
   '/pages/rmrb/article-list',
@@ -15,8 +13,12 @@ const GUEST_EXACT = new Set([
   '/pages/today/index',
   '/pages/index/index',
   '/pages/question/index',
+  '/pages/question/theory-packs',
+  '/pages/question/article-pick',
   '/pages/user/index',
+  '/pages/rmrb/index',
   '/pages/rmrb/article-list',
+  '/pages/rmrb/article-detail',
 ])
 
 export function normalizePagePath(url: string): string {

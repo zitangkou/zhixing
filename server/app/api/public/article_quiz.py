@@ -1,27 +1,24 @@
 from app.api.public._deps import *  # noqa: F401,F403
 from app.models import Feedback
 from app.product import ProductContext
-
 router = APIRouter()
 
 @router.get("/articles/daily")
 def daily_articles(db: Session = Depends(get_db)):
+    published = db.query(Article).filter(
+        Article.is_published.is_(True),
+        Article.status == "published",
+    )
     rows = (
-        db.query(Article)
-        .filter(
-            Article.is_published.is_(True),
-            Article.status == "published",
-            Article.is_daily.is_(True),
-        )
-        .order_by(Article.is_featured.desc(), Article.publish_date.desc(), Article.created_at.desc())
+        published.filter(Article.is_daily.is_(True))
+        .order_by(Article.publish_date.desc(), Article.created_at.desc())
+        .limit(1)
         .all()
     )
     if not rows:
         rows = (
-            db.query(Article)
-            .filter(Article.is_published.is_(True), Article.status == "published")
-            .order_by(Article.created_at.desc())
-            .limit(3)
+            published.order_by(Article.publish_date.desc(), Article.created_at.desc())
+            .limit(1)
             .all()
         )
     return ApiResponse.ok([article_to_out(a).model_dump() for a in rows])
@@ -38,9 +35,8 @@ def recommended_articles(
         .filter(
             Article.is_published.is_(True),
             Article.status == "published",
-            Article.is_featured.is_(False),
         )
-        .order_by(Article.publish_date.desc(), Article.created_at.desc())
+        .order_by(Article.is_featured.desc(), Article.publish_date.desc(), Article.created_at.desc())
     )
     total = base.count()
     rows = base.offset(offset).limit(limit).all()
@@ -124,10 +120,28 @@ def list_questions(
             Question.status == "approved",
         )
     )
-    if product.key == "theory":
-        query = query.filter(Question.source_sentence != "")
-    rows = query.all()
+    rows = query.order_by(Question.created_at.asc(), Question.id.asc()).all()
     return ApiResponse.ok([question_to_out(q).model_dump() for q in rows])
+
+
+@router.get("/theory/packs")
+def theory_packs(db: Session = Depends(get_db)):
+    from app.services.theory_learning_entry_service import list_public_entries
+
+    return ApiResponse.ok(list_public_entries(db))
+
+
+@router.get("/theory/packs/{article_id}")
+def theory_pack_detail(article_id: str, db: Session = Depends(get_db)):
+    from app.services.theory_learning_entry_service import get_public_entry
+
+    row, parts = get_public_entry(db, article_id)
+    article = db.get(Article, article_id)
+    if not article:
+        return ApiResponse.fail("学习入口尚未开放", code=404)
+    from app.services.theory_learning_entry_service import _entry_out
+
+    return ApiResponse.ok(_entry_out(row, article, parts))
 
 
 @router.post("/answer")

@@ -61,6 +61,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="publishDate" label="日期" width="110" />
+      <el-table-column label="标记" width="80">
+        <template #default="{ row }">
+          <el-tag v-if="row.isDaily" size="small" type="danger">今日</el-tag>
+          <span v-else style="color: #999">—</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="router.push(`/articles/${row.id}`)">编辑</el-button>

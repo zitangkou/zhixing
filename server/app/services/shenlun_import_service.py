@@ -1,403 +1,285 @@
-"""三刀解剖法 Markdown 导入解析服务
-
-将用户按模板书写的三刀解剖 Markdown 解析为 ShenlunMineLogUpsert 结构化数据。
-模板结构：
-  一、原文关键信息提取（表格）
-  二、第一刀：剜出"万能规范词"（分类表格 + 金句 + 动词）
-  三、第二刀：剔出"论证骨架"（总骨架 + 分论点）
-  四、第三刀：割下"万能句式"（句型 A/B/C/D）
-  五、申论核心启示总结
-"""
+"""解析运营 v2.18 三刀解剖 Markdown。"""
 
 from __future__ import annotations
 
 import re
 from datetime import date
 
-from app.schemas import (
+from app.schemas.rmrb import (
     ShenlunArgumentPoint,
     ShenlunArgumentSkeleton,
+    ShenlunExamAnchor,
     ShenlunMineLogUpsert,
     ShenlunMineTermItem,
     ShenlunQuoteItem,
     ShenlunTemplateItem,
+    ShenlunTransferGuide,
     ShenlunVerbItem,
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _strip_bold(text: str) -> str:
-    """Remove markdown bold markers."""
-    return re.sub(r"\*\*(.+?)\*\*", r"\1", text).strip()
+def _strip(text: str) -> str:
+    return re.sub(r"\*\*(.+?)\*\*", r"\1", text or "").strip()
 
 
-def _extract_table_rows(block: str) -> list[list[str]]:
-    """Extract data rows from a markdown table (skip header + separator)."""
+def _front_matter(md: str) -> tuple[dict[str, str], str]:
+    if not md.startswith("---"):
+        return {}, md
+    end = md.find("\n---", 3)
+    if end < 0:
+        return {}, md
+    meta: dict[str, str] = {}
+    for line in md[3:end].splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, val = line.split(":", 1)
+        meta[key.strip()] = val.strip()
+    return meta, md[end + 4 :]
+
+
+def _split_h2(md: str) -> dict[str, str]:
+    sections: dict[str, str] = {}
+    current = ""
+    lines: list[str] = []
+    for line in md.splitlines():
+        m = re.match(r"^##\s+(.+)", line)
+        if m:
+            if current:
+                sections[current] = "\n".join(lines)
+            current = m.group(1).strip()
+            lines = []
+        else:
+            lines.append(line)
+    if current:
+        sections[current] = "\n".join(lines)
+    return sections
+
+
+def _split_h3(block: str) -> dict[str, str]:
+    subs: dict[str, str] = {}
+    current = ""
+    lines: list[str] = []
+    for line in block.splitlines():
+        m = re.match(r"^###\s+(.+)", line)
+        if m:
+            if current:
+                subs[current] = "\n".join(lines)
+            current = m.group(1).strip()
+            lines = []
+        else:
+            lines.append(line)
+    if current:
+        subs[current] = "\n".join(lines)
+    return subs
+
+
+def _section(sections: dict[str, str], *keys: str) -> str:
+    for name, body in sections.items():
+        if any(k in name for k in keys):
+            return body
+    return ""
+
+
+def _field(block: str, *labels: str) -> str:
+    """解析 `- 标签：值` / `标签：值`，兼容加粗与中英文冒号。"""
+    if not block:
+        return ""
+    for label in labels:
+        escaped = re.escape(label)
+        patterns = (
+            rf"^[\-\*\u2022·]\s*(?:\*\*)?{escaped}(?:\*\*)?\s*[：:]\s*(.+)$",
+            rf"^(?:\*\*)?{escaped}(?:\*\*)?\s*[：:]\s*(.+)$",
+        )
+        for pat in patterns:
+            m = re.search(pat, block, re.M)
+            if m:
+                return _strip(m.group(1))
+    return ""
+
+
+def _bullet(block: str, label: str) -> str:
+    return _field(block, label)
+
+
+def theme_tags_from_anchor(theme: str) -> list[str]:
+    parts = re.split(r"[｜|/、，,]+", theme or "")
+    tags: list[str] = []
+    seen: set[str] = set()
+    for raw in ["时评精拆", *parts]:
+        item = raw.strip()
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        tags.append(item)
+    return tags[:8]
+
+
+def _table_rows(block: str) -> list[list[str]]:
     rows: list[list[str]] = []
     for line in block.splitlines():
         line = line.strip()
         if not line.startswith("|"):
             continue
-        cells = [c.strip() for c in line.split("|")[1:-1]]
-        # skip separator row (---|---)
+        cells = [_strip(c) for c in line.split("|")[1:-1]]
         if all(re.match(r"^[-:]+$", c) for c in cells if c):
             continue
         rows.append(cells)
     return rows
 
 
-def _split_sections(md: str) -> dict[str, str]:
-    """Split markdown by ## headings, return {heading_text: content}."""
-    sections: dict[str, str] = {}
-    current_key = ""
-    current_lines: list[str] = []
-    for line in md.splitlines():
-        m = re.match(r"^##\s+(.+)", line)
-        if m:
-            if current_key:
-                sections[current_key] = "\n".join(current_lines)
-            current_key = m.group(1).strip()
-            current_lines = []
-        else:
-            current_lines.append(line)
-    if current_key:
-        sections[current_key] = "\n".join(current_lines)
-    return sections
-
-
-def _split_subsections(block: str) -> dict[str, str]:
-    """Split by ### headings within a section."""
-    subs: dict[str, str] = {}
-    current_key = ""
-    current_lines: list[str] = []
-    for line in block.splitlines():
-        m = re.match(r"^###\s+(.+)", line)
-        if m:
-            if current_key:
-                subs[current_key] = "\n".join(current_lines)
-            current_key = m.group(1).strip()
-            current_lines = []
-        else:
-            current_lines.append(line)
-    if current_key:
-        subs[current_key] = "\n".join(current_lines)
-    return subs
-
-
-def _split_subsubsections(block: str) -> dict[str, str]:
-    """Split by #### headings."""
-    subs: dict[str, str] = {}
-    current_key = ""
-    current_lines: list[str] = []
-    for line in block.splitlines():
-        m = re.match(r"^####\s+(.+)", line)
-        if m:
-            if current_key:
-                subs[current_key] = "\n".join(current_lines)
-            current_key = m.group(1).strip()
-            current_lines = []
-        else:
-            current_lines.append(line)
-    if current_key:
-        subs[current_key] = "\n".join(current_lines)
-    return subs
-
-
-# ---------------------------------------------------------------------------
-# Parsers per section
-# ---------------------------------------------------------------------------
-
-def _parse_title(md: str) -> str:
-    """Extract article title from header metadata."""
-    # Pattern: **文章标题：《xxx》（yyy）** or **文章标题：《xxx》**
-    m = re.search(r"文章标题[：:]\s*《(.+?)》", md)
-    if m:
-        return m.group(1).strip()
-    # Fallback: first # heading
-    m = re.search(r"^#\s+(.+)", md, re.MULTILINE)
-    return m.group(1).strip() if m else ""
-
-
-def _parse_date(md: str) -> str:
-    """Extract practice date."""
-    m = re.search(r"练习日期[：:]\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", md)
-    if m:
-        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-    m = re.search(r"练习日期[：:]\s*(\d{4}-\d{2}-\d{2})", md)
-    if m:
-        return m.group(1)
-    return date.today().isoformat()
-
-
-def _parse_source_excerpt(section: str) -> str:
-    """Parse 原文关键信息提取 table into a summary string."""
-    rows = _extract_table_rows(section)
-    parts: list[str] = []
-    for row in rows:
-        if len(row) >= 2:
-            key = _strip_bold(row[0])
-            val = _strip_bold(row[1])
-            if key in ("维度", "内容"):
-                continue
-            parts.append(f"【{key}】{val}")
-    return "\n".join(parts)
-
-
 def _parse_terms(section: str) -> list[ShenlunMineTermItem]:
-    """Parse 第一刀 section: category tables → terms."""
-    terms: list[ShenlunMineTermItem] = []
-    subsections = _split_subsubsections(section)
-    for heading, block in subsections.items():
-        # Determine category from heading like "1. 问题与积弊"
-        cat_match = re.match(r"\d+\.\s*(.+)", heading)
-        category = cat_match.group(1).strip() if cat_match else heading.strip()
-        # Skip 金句 and 动词 sections (parsed separately)
-        if "金句" in category or "动词" in category:
+    items: list[ShenlunMineTermItem] = []
+    for row in _table_rows(section):
+        if len(row) < 2:
             continue
-        rows = _extract_table_rows(block)
-        for row in rows:
-            if len(row) >= 2:
-                term = _strip_bold(row[0])
-                plain = _strip_bold(row[1])
-                if term in ("规范词", "可替换的普通词/语境"):
-                    continue
-                terms.append(ShenlunMineTermItem(term=term, category=category, plainWord=plain))
-    return terms
+        term, category = row[0], row[1] if len(row) > 1 else "其他"
+        plain = row[2] if len(row) > 2 else ""
+        if term in ("词语", "规范词") or term.startswith("待补充"):
+            continue
+        items.append(ShenlunMineTermItem(term=term, category=category or "其他", plainWord=plain))
+    return items
 
 
 def _parse_quotes(section: str) -> list[ShenlunQuoteItem]:
-    """Parse 经典金句 table."""
     quotes: list[ShenlunQuoteItem] = []
-    subsections = _split_subsubsections(section)
-    for heading, block in subsections.items():
-        if "金句" not in heading:
+    for heading, block in _split_h3(section).items():
+        if "语录" not in heading:
             continue
-        rows = _extract_table_rows(block)
-        for row in rows:
-            if len(row) >= 2:
-                text = _strip_bold(row[0])
-                source = _strip_bold(row[1])
-                if text in ("金句", "出处/解释"):
-                    continue
-                # Try to split "清代万斯大：有利于百姓的事..." into source + meaning
-                meaning = ""
-                if "：" in source:
-                    src_part, meaning = source.split("：", 1)
-                    source = src_part.strip()
-                elif ":" in source:
-                    src_part, meaning = source.split(":", 1)
-                    source = src_part.strip()
-                quotes.append(ShenlunQuoteItem(text=text, source=source, meaning=meaning.strip()))
-    return quotes
+        quotes.append(
+            ShenlunQuoteItem(
+                text=_bullet(block, "原文"),
+                source=_bullet(block, "出处"),
+                meaning=_bullet(block, "释义"),
+            )
+        )
+    return [q for q in quotes if q.text]
 
 
 def _parse_verbs(section: str) -> list[ShenlunVerbItem]:
-    """Parse 高频动词 table."""
     verbs: list[ShenlunVerbItem] = []
-    subsections = _split_subsubsections(section)
-    for heading, block in subsections.items():
-        if "动词" not in heading:
+    for row in _table_rows(section):
+        if len(row) < 2:
             continue
-        rows = _extract_table_rows(block)
-        for row in rows:
-            if len(row) >= 2:
-                verb = _strip_bold(row[0])
-                usage = _strip_bold(row[1])
-                if verb in ("动词", "适用语境"):
-                    continue
-                verbs.append(ShenlunVerbItem(verb=verb, usage=usage, category="高频动词"))
+        verb, usage = row[0], row[1]
+        category = row[2] if len(row) > 2 else "其他"
+        if verb in ("动词",) or verb.startswith("待补充"):
+            continue
+        verbs.append(ShenlunVerbItem(verb=verb, usage=usage, category=category or "其他"))
     return verbs
 
 
-def _parse_argument(section: str) -> ShenlunArgumentSkeleton:
-    """Parse 第二刀 section: 总骨架 + 分论点."""
-    subsections = _split_subsections(section)
-    overview = ""
-    conclusion = ""
-    points: list[ShenlunArgumentPoint] = []
-
-    for heading, block in subsections.items():
-        if "总骨架" in heading or "全文" in heading:
-            # Extract overview text (first meaningful paragraph)
-            lines = [l.strip() for l in block.splitlines() if l.strip() and not l.strip().startswith("#")]
-            overview = "\n".join(lines[:10])  # keep first 10 lines as overview
-        elif "分论点" in heading:
-            point = _parse_single_point(heading, block)
-            points.append(point)
-
-    # Try to extract conclusion from 总结升华
-    if "总结升华" in section:
-        m = re.search(r"总结升华[：:]\s*(.+?)(?:\n|$)", section)
-        if m:
-            conclusion = m.group(1).strip()
-
-    return ShenlunArgumentSkeleton(
-        mode="points",
-        overview=overview,
-        conclusion=conclusion,
-        points=points,
-    )
-
-
-def _parse_single_point(heading: str, block: str) -> ShenlunArgumentPoint:
-    """Parse a single 分论点 subsection."""
-    # Extract title from heading like "2. 分论点1的论证小骨架（经典模板）"
-    title_match = re.match(r"\d+\.\s*(.+)", heading)
-    title = title_match.group(1).strip() if title_match else heading
-
-    # Extract method name
-    method = ""
-    method_note = ""
-    m = re.search(r"方法命名[：:]\s*(.+)", block)
-    if m:
-        method = m.group(1).strip()
-        # Method explanation: lines after 方法命名 until a keyword line
-        start = m.end()
-        note_lines: list[str] = []
-        for line in block[start:].splitlines():
-            ls = line.strip()
-            if not ls:
-                continue
-            if re.match(r"^(Step|套用|方法|点例|排比|类比|问题|典型)", ls):
-                break
-            note_lines.append(ls)
-        method_note = "\n".join(note_lines[:10])
-
-    # Extract template
-    template = ""
-    m = re.search(r"套用模板[：:]\s*(.*)", block)
-    if m:
-        # Collect from match to end of block or next ### heading
-        start = m.end()
-        tpl_lines: list[str] = []
-        first = m.group(1).strip()
-        if first:
-            tpl_lines.append(first)
-        for line in block[start:].splitlines():
-            if line.strip().startswith("###") or line.strip().startswith("##"):
-                break
-            tpl_lines.append(line.strip())
-        template = "\n".join(l for l in tpl_lines if l).strip()
-
-    # Evidence: collect Step lines
-    evidence_lines: list[str] = []
-    for line in block.splitlines():
-        if re.match(r"^Step\s*\d+", line) or re.match(r"^├|^└", line):
-            evidence_lines.append(line.strip())
-    evidence = "\n".join(evidence_lines[:20])
-
-    return ShenlunArgumentPoint(
-        title=title,
-        evidence=evidence,
-        method=method,
-        methodNote=method_note,
-        template=template,
-    )
-
-
 def _parse_templates(section: str) -> list[ShenlunTemplateItem]:
-    """Parse 第三刀 section: 句型 A/B/C/D."""
     templates: list[ShenlunTemplateItem] = []
-    subsections = _split_subsections(section)
+    for _heading, block in _split_h3(section).items():
+        type_code = _bullet(block, "类型") or "dialectic"
+        templates.append(
+            ShenlunTemplateItem(
+                type=type_code.split()[0],
+                typeName=_bullet(block, "类型名"),
+                original=_bullet(block, "原文"),
+                template=_bullet(block, "模板"),
+                imitate=_bullet(block, "仿写"),
+            )
+        )
+    return [t for t in templates if t.original or t.template]
 
-    for heading, block in subsections.items():
-        # heading like "句型A：对比转折型（引出问题、强调改变）"
-        type_match = re.match(r"句型\s*([A-Z])[：:]\s*(.+)", heading)
-        if not type_match:
+
+def _parse_points(section: str) -> list[ShenlunArgumentPoint]:
+    points: list[ShenlunArgumentPoint] = []
+    for heading, block in _split_h3(section).items():
+        if "分论点" not in heading:
             continue
-        type_code = type_match.group(1).lower()
-        type_name = type_match.group(2).strip()
-        # Remove parenthetical
-        type_name = re.sub(r"（.*?）", "", type_name).strip()
-
-        original = ""
-        template = ""
-        imitate = ""
-
-        for line in block.splitlines():
-            line_s = line.strip()
-            if line_s.startswith("- **原文：**") or line_s.startswith("- **原文:**"):
-                original = re.sub(r"^-\s*\*\*原文[：:]\*\*\s*", "", line_s).strip()
-            elif line_s.startswith("- **套用模板：**") or line_s.startswith("- **套用模板:**"):
-                template = re.sub(r"^-\s*\*\*套用模板[：:]\*\*\s*", "", line_s).strip()
-            elif line_s.startswith("- **仿写示例：**") or line_s.startswith("- **仿写示例:**"):
-                imitate = re.sub(r"^-\s*\*\*仿写示例[：:]\*\*\s*", "", line_s).strip()
-
-        # Also check for multi-line imitate examples (indented bullets)
-        if not imitate:
-            imitate_lines: list[str] = []
-            in_imitate = False
-            for line in block.splitlines():
-                if "仿写示例" in line:
-                    in_imitate = True
-                    # Check if content is on same line
-                    after = re.sub(r".*仿写示例[：:]\*{0,2}\s*", "", line.strip())
-                    if after:
-                        imitate_lines.append(after)
-                    continue
-                if in_imitate:
-                    if line.strip().startswith("- ") and "原文" in line:
-                        break
-                    if line.strip().startswith("- "):
-                        imitate_lines.append(line.strip().lstrip("- ").strip())
-                    elif line.strip() and not line.strip().startswith("#"):
-                        imitate_lines.append(line.strip())
-            imitate = "\n".join(imitate_lines[:5])
-
-        templates.append(ShenlunTemplateItem(
-            type=type_code,
-            typeName=type_name,
-            original=original,
-            template=template,
-            imitate=imitate,
-        ))
-
-    return templates
+        points.append(
+            ShenlunArgumentPoint(
+                title=_bullet(block, "标题"),
+                evidence=_bullet(block, "论据"),
+                summary=_bullet(block, "小结"),
+                method=_bullet(block, "论证方法"),
+                methodNote=_bullet(block, "方法说明"),
+                template=_bullet(block, "套用模板"),
+            )
+        )
+    return points
 
 
-# ---------------------------------------------------------------------------
-# Main entry
-# ---------------------------------------------------------------------------
+def _overview_line(section: str) -> str:
+    m = re.search(r"^总论点[：:]\s*(.+)", section, re.M)
+    return _strip(m.group(1)) if m else ""
+
 
 def parse_three_knife_markdown(md: str) -> ShenlunMineLogUpsert:
-    """Parse a full three-knife dissection markdown into structured data."""
-    title = _parse_title(md)
-    mine_date = _parse_date(md)
-    sections = _split_sections(md)
+    meta, body = _front_matter(md.strip())
+    sections = _split_h2(body)
+    exam_sec = _section(sections, "考题定位")
+    excerpt_sec = _section(sections, "原文摘录")
+    skeleton_sec = _section(sections, "总骨架")
+    summary_sec = _section(sections, "总结")
+    terms_sec = _section(sections, "规范词")
+    quotes_sec = _section(sections, "语录")
+    verbs_sec = _section(sections, "高频动词")
+    tpl_sec = _section(sections, "句式")
+    transfer_sec = _section(sections, "迁移指南")
 
-    # Find sections by keyword matching (headings may have numbering)
-    excerpt_section = ""
-    terms_section = ""
-    argument_section = ""
-    templates_section = ""
+    excerpt = _strip(excerpt_sec)
+    excerpt = re.sub(r"^>\s*", "", excerpt, flags=re.M).strip()
 
-    for key, content in sections.items():
-        if "原文" in key and "提取" in key:
-            excerpt_section = content
-        elif "第一刀" in key or "规范词" in key:
-            terms_section = content
-        elif "第二刀" in key or "骨架" in key:
-            argument_section = content
-        elif "第三刀" in key or "句式" in key:
-            templates_section = content
+    title = meta.get("article_title") or ""
+    if not title:
+        m = re.search(r"文章标题[：:]\s*《(.+?)》", md)
+        title = m.group(1).strip() if m else ""
+    mine_date = meta.get("mine_date") or date.today().isoformat()
 
-    source_excerpt = _parse_source_excerpt(excerpt_section) if excerpt_section else ""
-    terms: list[ShenlunMineTermItem | str] = list(_parse_terms(terms_section)) if terms_section else []
-    quotes = _parse_quotes(terms_section) if terms_section else []
-    verbs = _parse_verbs(terms_section) if terms_section else []
-    argument = _parse_argument(argument_section) if argument_section else ShenlunArgumentSkeleton()
-    templates = _parse_templates(templates_section) if templates_section else []
-
+    argument = ShenlunArgumentSkeleton(
+        mode="points",
+        openingPattern=_bullet(skeleton_sec, "开头范式"),
+        transition=_bullet(skeleton_sec, "过渡技巧"),
+        overview=_overview_line(skeleton_sec),
+        conclusion=_strip(summary_sec),
+        points=_parse_points(skeleton_sec),
+    )
     return ShenlunMineLogUpsert(
         mineDate=mine_date,
+        articleId=meta.get("article_id") or None,
         articleTitle=title,
-        sourceExcerpt=source_excerpt,
-        terms=terms,
-        quotes=quotes,
-        verbs=verbs,
+        sourceExcerpt=excerpt,
+        terms=_parse_terms(terms_sec),
+        quotes=_parse_quotes(quotes_sec),
+        verbs=_parse_verbs(verbs_sec),
         argument=argument,
-        templates=templates,
+        templates=_parse_templates(tpl_sec),
+        examAnchor=ShenlunExamAnchor(
+            theme=_field(exam_sec, "主题归类", "主题"),
+            titleDevice=_field(exam_sec, "标题机关"),
+            stancePath=_field(exam_sec, "立意路径"),
+        ),
+        transferGuide=ShenlunTransferGuide(
+            examFit=_bullet(transfer_sec, "适用考题"),
+            caution=_bullet(transfer_sec, "套用警示"),
+            imitateDemo=_bullet(transfer_sec, "今日仿写示范"),
+        ),
     )
+
+
+def v218_incomplete_reasons(parsed: ShenlunMineLogUpsert) -> list[str]:
+    reasons: list[str] = []
+    a = parsed.argument or ShenlunArgumentSkeleton()
+    if not parsed.articleTitle:
+        reasons.append("文章标题")
+    if not parsed.sourceExcerpt:
+        reasons.append("原文摘录")
+    if not parsed.examAnchor.theme or not parsed.examAnchor.titleDevice or not parsed.examAnchor.stancePath:
+        reasons.append("考题定位")
+    if not a.openingPattern or not a.transition or not a.overview or not a.conclusion or not a.points:
+        reasons.append("总骨架")
+    if not parsed.terms:
+        reasons.append("规范词")
+    if not parsed.quotes:
+        reasons.append("语录")
+    if not parsed.verbs:
+        reasons.append("高频动词")
+    if not parsed.templates:
+        reasons.append("句式模板")
+    if not parsed.transferGuide.examFit or not parsed.transferGuide.caution or not parsed.transferGuide.imitateDemo:
+        reasons.append("迁移指南")
+    return reasons

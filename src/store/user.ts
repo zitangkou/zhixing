@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import Taro from '@tarojs/taro'
 import { api, initUserFromMock, isMock } from '@/api'
-import { clearToken, setToken } from '@/utils/auth'
+import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
+import { clearToken, getToken, setToken } from '@/utils/auth'
 import { calcSignStreak, formatDate } from '@/utils/memoryCurve'
 import type { PointsLog, SignStatus, UserInfo } from '@/types'
 
@@ -42,6 +43,7 @@ export const useUserStore = defineStore('user', {
 
     async bootstrap() {
       if (isMock) return true
+      if (!getToken()) return false
       const res = await api.getUserMe()
       if (res.code !== 0 || !res.data) return false
       this.applyUserMe(res.data)
@@ -111,7 +113,7 @@ export const useUserStore = defineStore('user', {
 
     logout() {
       this.clearSession()
-      Taro.switchTab({ url: '/pages/today/index' })
+      Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
     },
 
     async signIn() {

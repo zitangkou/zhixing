@@ -5,7 +5,7 @@ import json
 
 from sqlalchemy.orm import Session
 
-from app.models import RmrbArticle, gen_id
+from app.models import RmrbArticle, ShenlunTeachingExample, gen_id
 from app.schemas import RmrbArticleCreate, RmrbArticleOut, RmrbArticleUpdate
 from app.timezone import today as today_str
 
@@ -45,6 +45,7 @@ def _to_out(a: RmrbArticle) -> RmrbArticleOut:
         content=a.content or "",
         tags=_parse_tags(getattr(a, "tags", None)),
         isPublished=bool(a.is_published),
+        isDaily=bool(getattr(a, "is_daily", False)),
         sortOrder=a.sort_order or 0,
         readCount=a.read_count or 0,
         createdAt=a.created_at,
@@ -67,6 +68,16 @@ def list_articles(
         t = tag.strip()
         outs = [o for o in outs if t in (o.tags or [])]
     return outs
+
+
+def list_today_articles(db: Session, *, limit: int = 1) -> list[RmrbArticleOut]:
+    """优先后台「今日推荐」；没有则按发布日期取最近一篇。"""
+    published = list_articles(db, published_only=True)
+    flagged = [a for a in published if a.isDaily]
+    if flagged:
+        flagged.sort(key=lambda a: a.publishDate or "", reverse=True)
+        return flagged[:limit]
+    return published[:limit]
 
 
 def list_theme_tags(db: Session, *, published_only: bool = False) -> list[str]:
@@ -92,6 +103,8 @@ def list_theme_tags(db: Session, *, published_only: bool = False) -> list[str]:
 
 
 def get_article(db: Session, article_id: str, *, bump_read: bool = False) -> RmrbArticleOut | None:
+    from app.services.shenlun_learning_service import published_example_for_article
+
     a = db.get(RmrbArticle, article_id)
     if not a:
         return None
@@ -99,7 +112,9 @@ def get_article(db: Session, article_id: str, *, bump_read: bool = False) -> Rmr
         a.read_count = (a.read_count or 0) + 1
         db.commit()
         db.refresh(a)
-    return _to_out(a)
+    out = _to_out(a)
+    out.teachingExample = published_example_for_article(db, a.id)
+    return out
 
 
 def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
@@ -113,6 +128,7 @@ def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
         content=body.content or "",
         tags=_dump_tags(body.tags),
         is_published=body.isPublished,
+        is_daily=body.isDaily,
         sort_order=body.sortOrder,
     )
     db.add(a)
@@ -130,6 +146,7 @@ def update_article(db: Session, article_id: str, body: RmrbArticleUpdate) -> Rmr
         "publishDate": "publish_date",
         "sourceUrl": "source_url",
         "isPublished": "is_published",
+        "isDaily": "is_daily",
         "sortOrder": "sort_order",
     }
     for k, v in data.items():
@@ -146,6 +163,9 @@ def delete_article(db: Session, article_id: str) -> bool:
     a = db.get(RmrbArticle, article_id)
     if not a:
         return False
+    db.query(ShenlunTeachingExample).filter(ShenlunTeachingExample.article_id == article_id).delete(
+        synchronize_session=False
+    )
     db.delete(a)
     db.commit()
     return True

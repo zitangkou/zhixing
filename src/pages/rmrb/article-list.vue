@@ -1,6 +1,6 @@
 <template>
   <view class="page-rmrb-list" :class="themeClass">
-    <view class="hint">只收录评论/人民时评。按主题归类，读完后可「三刀解剖」写入开采本。</view>
+    <text class="hint">先读原文，读完后在文末进入时评解析。</text>
 
     <scroll-view v-if="tagOptions.length" class="tag-scroll" scroll-x :show-scrollbar="false">
       <view class="tag-row">
@@ -22,21 +22,15 @@
     <view v-if="loading" class="empty">加载中...</view>
     <view v-else-if="!list.length" class="empty">
       <text class="empty-title">{{ activeTag ? `暂无「${activeTag}」时评` : '暂无时评' }}</text>
-      <text class="empty-desc">请管理员在后台「人民日报」中发布并打上主题标签</text>
-      <nut-button size="small" type="primary" class="mt" @click="goPaste">粘贴开采</nut-button>
+      <text class="empty-desc">请管理员在后台「时评精拆」发布文章</text>
     </view>
     <view v-else class="list">
-      <view v-for="a in list" :key="a.id" class="card" @tap="goDetail(a.id)">
-        <view class="row">
-          <text class="source">{{ a.source || '人民时评' }}</text>
-          <text class="date">{{ a.publishDate }}</text>
-        </view>
-        <text class="title">{{ a.title }}</text>
-        <view v-if="a.tags?.length" class="tags">
-          <text v-for="t in a.tags" :key="t" class="tag">{{ t }}</text>
-        </view>
-        <text v-if="a.summary" class="summary">{{ a.summary }}</text>
-      </view>
+      <ArticleCard
+        v-for="article in cards"
+        :key="article.id"
+        :article="article"
+        @tap="goDetail"
+      />
     </view>
   </view>
 </template>
@@ -44,12 +38,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Button as NutButton } from '@nutui/nutui-taro'
+import ArticleCard from '@/components/ArticleCard.vue'
 import { api } from '@/api'
 import type { RmrbArticle } from '@/types'
+import { rmrbToCard } from '@/utils/rmrbCard'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '时评阅读' })
+definePageConfig({ navigationBarTitleText: '时评原文' })
 
 const { themeClass } = useThemeClass()
 const loading = ref(false)
@@ -60,6 +55,8 @@ const list = computed(() => {
   if (!activeTag.value) return allList.value
   return allList.value.filter((a) => (a.tags || []).includes(activeTag.value))
 })
+
+const cards = computed(() => list.value.map(rmrbToCard))
 
 const tagOptions = computed(() => {
   const set = new Set<string>()
@@ -89,10 +86,6 @@ function goDetail(id: string) {
   Taro.navigateTo({ url: `/pages/rmrb/article-detail?id=${id}` })
 }
 
-function goPaste() {
-  Taro.navigateTo({ url: '/pages/rmrb/mine-edit' })
-}
-
 onMounted(load)
 useDidShow(load)
 </script>
@@ -106,6 +99,7 @@ useDidShow(load)
 }
 
 .hint {
+  display: block;
   font-size: 12px;
   color: $text-muted;
   margin-bottom: 12px;
@@ -144,35 +138,7 @@ useDidShow(load)
   color: $text-muted;
   .empty-title { display: block; font-size: 15px; color: $text-primary; margin-bottom: 6px; }
   .empty-desc { font-size: 13px; line-height: 1.5; display: block; }
-  .mt { margin-top: 16px; }
 }
 
-.list { display: flex; flex-direction: column; gap: 10px; }
-
-.card {
-  @include card;
-  padding: 14px;
-  .row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-    .source { font-size: 12px; color: $primary-color; }
-    .date { font-size: 12px; color: $text-muted; }
-  }
-  .title { display: block; font-size: 16px; font-weight: 700; line-height: 1.4; margin-bottom: 6px; }
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 6px;
-    .tag {
-      font-size: 11px;
-      color: $primary-color;
-      background: $primary-light;
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-  }
-  .summary { font-size: 13px; color: $text-secondary; line-height: 1.45; display: block; }
-}
+.list { display: flex; flex-direction: column; }
 </style>

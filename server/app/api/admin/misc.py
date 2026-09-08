@@ -5,7 +5,24 @@ router = APIRouter()
 
 class ThreeKnifeImportBody(BaseModel):
     markdown: str
-    userId: str | None = None  # 指定用户；为空则用管理员关联的默认用户
+    displayHtml: str | None = None
+    sourceUrl: str | None = None
+    userId: str | None = None  # 兼容旧字段，导入教研示范时忽略
+
+
+def _three_knife_summary(parsed) -> dict:
+    from app.services.shenlun_import_service import v218_incomplete_reasons
+
+    return {
+        "articleTitle": parsed.articleTitle,
+        "mineDate": parsed.mineDate,
+        "termsCount": len(parsed.terms),
+        "quotesCount": len(parsed.quotes),
+        "verbsCount": len(parsed.verbs),
+        "pointsCount": len(parsed.argument.points) if parsed.argument else 0,
+        "templatesCount": len(parsed.templates),
+        "incompleteReasons": v218_incomplete_reasons(parsed),
+    }
 
 
 @router.post("/rmrb/import-three-knife")
@@ -14,26 +31,15 @@ def admin_rmrb_import_three_knife(
     _admin=Depends(require_permission("rmrb:write")),
     db: Session = Depends(get_db),
 ):
-    """解析三刀解剖 Markdown 并存入开采本（ShenlunMineLog）。"""
-    from app.services.shenlun_import_service import parse_three_knife_markdown
-    from app.services.shenlun_service import upsert_mine
-
+    """解析 v2.18 三刀解剖 Markdown，写入时评文章绑定的教研示范。"""
     md = (body.markdown or "").strip()
     if not md:
         return ApiResponse.fail("Markdown 内容不能为空", code=400)
 
-    # 确定目标用户
-    if body.userId:
-        user = db.get(AppUser, body.userId)
-        if not user:
-            return ApiResponse.fail("指定用户不存在", code=404)
-    else:
-        # 取第一个管理员关联用户或系统第一个用户
-        user = db.query(AppUser).first()
-        if not user:
-            return ApiResponse.fail("系统中暂无用户", code=400)
-
     try:
+        from app.services.shenlun_import_service import parse_three_knife_markdown
+        from app.services.shenlun_learning_service import upsert_teaching_from_parsed
+
         parsed = parse_three_knife_markdown(md)
     except Exception as e:
         return ApiResponse.fail(f"Markdown 解析失败：{e}", code=400)
@@ -41,18 +47,21 @@ def admin_rmrb_import_three_knife(
     if not parsed.articleTitle:
         return ApiResponse.fail("未能从 Markdown 中解析出文章标题", code=400)
 
-    out = upsert_mine(db, user, parsed)
+    try:
+        article, example = upsert_teaching_from_parsed(
+            db,
+            parsed,
+            source_url=(body.sourceUrl or "").strip(),
+            display_html=(body.displayHtml or "").strip(),
+        )
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+
     return ApiResponse.ok({
-        "mine": out.model_dump(),
-        "summary": {
-            "articleTitle": parsed.articleTitle,
-            "mineDate": parsed.mineDate,
-            "termsCount": len(parsed.terms),
-            "quotesCount": len(parsed.quotes),
-            "verbsCount": len(parsed.verbs),
-            "pointsCount": len(parsed.argument.points) if parsed.argument else 0,
-            "templatesCount": len(parsed.templates),
-        },
+        "articleId": article.id,
+        "exampleId": example["id"],
+        "example": example,
+        "summary": _three_knife_summary(parsed),
     })
 
 
@@ -62,28 +71,20 @@ def admin_rmrb_preview_three_knife(
     _admin=Depends(require_permission("rmrb:read")),
 ):
     """仅解析不保存，返回结构化预览。"""
-    from app.services.shenlun_import_service import parse_three_knife_markdown
-
     md = (body.markdown or "").strip()
     if not md:
         return ApiResponse.fail("Markdown 内容不能为空", code=400)
 
     try:
+        from app.services.shenlun_import_service import parse_three_knife_markdown
+
         parsed = parse_three_knife_markdown(md)
     except Exception as e:
         return ApiResponse.fail(f"Markdown 解析失败：{e}", code=400)
 
     return ApiResponse.ok({
         "parsed": parsed.model_dump(),
-        "summary": {
-            "articleTitle": parsed.articleTitle,
-            "mineDate": parsed.mineDate,
-            "termsCount": len(parsed.terms),
-            "quotesCount": len(parsed.quotes),
-            "verbsCount": len(parsed.verbs),
-            "pointsCount": len(parsed.argument.points) if parsed.argument else 0,
-            "templatesCount": len(parsed.templates),
-        },
+        "summary": _three_knife_summary(parsed),
     })
 
 

@@ -115,6 +115,7 @@ from app.services.ziliao_service import (
 from app.services.rmrb_service import (
     get_article as get_rmrb_article,
     list_articles as list_rmrb_articles,
+    list_today_articles as list_rmrb_today_articles,
 )
 from app.services.rmrb_meta_service import (
     create_skeleton_template as create_rmrb_skeleton,

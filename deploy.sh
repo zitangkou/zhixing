@@ -93,8 +93,6 @@ echo "  /health OK"
 # ---------- 4/5 验证关键路由 ----------
 echo "[4/5] 验证关键路由"
 http_get "http://127.0.0.1:${HTTP_PORT}/" && echo "  /           综合 H5 OK"
-http_get "http://127.0.0.1:${HTTP_PORT}/theory/" && echo "  /theory/    知行日知 H5 OK"
-http_get "http://127.0.0.1:${HTTP_PORT}/shenlun/" && echo "  /shenlun/   知行策论 H5 OK"
 http_get "http://127.0.0.1:${HTTP_PORT}/api/config" && echo "  /api/       学员 API OK"
 http_get "http://127.0.0.1:${HTTP_PORT}/manage/" && echo "  /manage/    管理后台 OK"
 
@@ -104,8 +102,6 @@ echo ""
 echo "部署完成！"
 if [[ -n "${DOMAIN:-}" ]]; then
   echo "  综合 H5:   http://${DOMAIN}/"
-  echo "  知行日知:  http://${DOMAIN}/theory/"
-  echo "  知行策论:  http://${DOMAIN}/shenlun/"
   echo "  管理后台:  http://${DOMAIN}/manage/  （账号与密码见 .env）"
   echo "  正式发布前请配置 HTTPS，并再次执行：python3 scripts/release-preflight.py --base-url https://${DOMAIN} --env-file .env"
 else
@@ -113,8 +109,6 @@ else
     PUBLIC_BASE="$(env_value WECHAT_OFFICIAL_PUBLIC_BASE_URL)"
     if [[ "$PUBLIC_BASE" =~ ^https?:// ]]; then
       echo "  综合 H5:   ${PUBLIC_BASE%/}/"
-      echo "  知行日知:  ${PUBLIC_BASE%/}/theory/"
-      echo "  知行策论:  ${PUBLIC_BASE%/}/shenlun/"
       echo "  管理后台:  ${PUBLIC_BASE%/}/manage/"
       echo "  公众号回调: ${PUBLIC_BASE%/}/api/wechat/callback"
     else
@@ -126,8 +120,6 @@ else
     echo "  当前直接监听公网；请在云安全组放行 80，并暂时避免通过 HTTP 登录管理后台。"
   else
     echo "  综合 H5:   http://127.0.0.1:${HTTP_PORT}/"
-    echo "  知行日知:  http://127.0.0.1:${HTTP_PORT}/theory/"
-    echo "  知行策论:  http://127.0.0.1:${HTTP_PORT}/shenlun/"
     echo "  管理后台:  http://127.0.0.1:${HTTP_PORT}/manage/"
     echo "  当前仅监听本机；公网访问需配置域名网关，或在临时联调时明确改为 HTTP_BIND=0.0.0.0。"
   fi

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 顺序构建两个独立产品的 H5 / 微信小程序，并立即归档产物，避免共用 dist 相互覆盖。
+# 构建综合版 H5 / 微信小程序，并归档产物。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -50,42 +50,30 @@ if [[ -e "$OUTPUT_DIR" ]]; then
   exit 2
 fi
 
-mkdir -p "$OUTPUT_DIR/h5" "$OUTPUT_DIR/weapp"
+mkdir -p "$OUTPUT_DIR/h5" "$OUTPUT_DIR/weapp/dist"
 
-build_product() {
-  local key="$1"
-  local label="$2"
-  local public_path="$3"
-  local app_dir="$ROOT/apps/${key}-app"
+echo "[综合] 构建 H5"
+(
+  cd "$ROOT"
+  TARO_APP_API_URL= npm run build:h5
+)
+cp -R "$ROOT/dist/." "$OUTPUT_DIR/h5/"
 
-  echo "[$label] 构建 H5"
-  (
-    cd "$app_dir"
-    TARO_APP_API_URL= TARO_APP_PUBLIC_PATH="$public_path" npm run build:h5
-  )
-  mkdir -p "$OUTPUT_DIR/h5/$key"
-  cp -R "$app_dir/dist/." "$OUTPUT_DIR/h5/$key/"
-
-  echo "[$label] 构建微信小程序"
-  (
-    cd "$app_dir"
-    TARO_APP_API_URL="$API_URL" npm run build:weapp
-  )
-  mkdir -p "$OUTPUT_DIR/weapp/$key/dist"
-  cp -R "$app_dir/dist/." "$OUTPUT_DIR/weapp/$key/dist/"
-  cp "$app_dir/project.config.json" "$OUTPUT_DIR/weapp/$key/project.config.json"
-}
-
-build_product theory "知行日知" "/theory/"
-build_product shenlun "知行策论" "/shenlun/"
+echo "[综合] 构建微信小程序"
+(
+  cd "$ROOT"
+  TARO_APP_API_URL="$API_URL" npm run build:weapp
+)
+cp -R "$ROOT/dist/." "$OUTPUT_DIR/weapp/dist/"
+cp "$ROOT/project.config.json" "$OUTPUT_DIR/weapp/project.config.json"
 
 {
   echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "api_url=$API_URL"
-  echo "git_commit=$(git -C "$ROOT" rev-parse HEAD)"
+  echo "git_commit=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 } > "$OUTPUT_DIR/RELEASE.txt"
 
 echo "发布产物已生成: $OUTPUT_DIR"
-echo "  H5:    $OUTPUT_DIR/h5/theory  $OUTPUT_DIR/h5/shenlun"
-echo "  小程序: $OUTPUT_DIR/weapp/theory  $OUTPUT_DIR/weapp/shenlun"
+echo "  H5:    $OUTPUT_DIR/h5"
+echo "  小程序: $OUTPUT_DIR/weapp"
 echo "下一步: python3 scripts/release-preflight.py --artifact-dir '$OUTPUT_DIR'"

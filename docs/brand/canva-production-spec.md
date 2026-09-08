@@ -77,4 +77,4 @@ Canva 导出时如不能直接指定 144px，先导出最大尺寸，把设计�
 
 1. 用 `get-design-thumbnail` 拉缩略图检查版式与圆形适配；
 2. 用 `export-design` 导出 PNG 全规格；
-3. 把成品同步到 `apps/theory-app`、`apps/shenlun-app` 的品牌资源目录。
+3. 把成品同步到 `src/assets` 与 `docs/brand/` 的品牌资源目录。

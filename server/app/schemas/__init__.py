@@ -20,11 +20,12 @@ from app.schemas.rmrb import (
     RmrbArticleCreate, RmrbArticleOut, RmrbArticleUpdate,
     ShenlunArgumentFieldValue, ShenlunArgumentMethodCreate, ShenlunArgumentMethodOut, ShenlunArgumentMethodUpdate,
     ShenlunArgumentPoint, ShenlunArgumentSkeleton, ShenlunDrillCreate, ShenlunDrillLogOut,
-    ShenlunMetaOut, ShenlunMineLogOut, ShenlunMineLogUpsert, ShenlunMineLogUpdate, ShenlunMineTermItem,
+    ShenlunExamAnchor, ShenlunMetaOut, ShenlunMineLogOut, ShenlunMineLogUpsert, ShenlunMineLogUpdate, ShenlunMineTermItem,
     ShenlunNormTermAdd, ShenlunNormTermOut, ShenlunNormTermUpdate, ShenlunQuoteItem, ShenlunSentenceTypeCreate,
     ShenlunSentenceTypeOut, ShenlunSentenceTypeUpdate, ShenlunSkeletonFieldDef, ShenlunSkeletonStructure,
     ShenlunSkeletonTemplateCreate, ShenlunSkeletonTemplateOut, ShenlunSkeletonTemplateUpdate, ShenlunStatsOut,
-    ShenlunTemplateItem, ShenlunTermCategoryCreate, ShenlunTermCategoryOut, ShenlunTermCategoryUpdate, ShenlunVerbItem,
+    ShenlunTemplateItem, ShenlunTermCategoryCreate, ShenlunTermCategoryOut, ShenlunTermCategoryUpdate,
+    ShenlunTransferGuide, ShenlunVerbItem,
 )
 from app.schemas.growth import GrowthDayBar, GrowthDomainProgress, GrowthOverviewOut
 from app.schemas.corpus import (

@@ -1,8 +1,4 @@
-"""多产品上下文与首期静态配置。
-
-Sprint 0 先用代码注册表保证配置可审查、可测试；需要运营后台动态维护时，
-再迁移到 Product/ProductConfig 表，同时保持这里的读取接口不变。
-"""
+"""综合版产品上下文。"""
 
 from __future__ import annotations
 
@@ -55,36 +51,6 @@ PRODUCTS: dict[str, ProductContext] = {
             ProductTab("today", "今日", "/pages/today/index"),
             ProductTab("learning", "学习", "/pages/index/index"),
             ProductTab("quiz", "练习", "/pages/question/index"),
-            ProductTab("profile", "我的", "/pages/user/index"),
-        ),
-    ),
-    "shenlun": ProductContext(
-        key="shenlun",
-        name="知行申论",
-        short_name="申论",
-        theme_key="red",
-        home_mode="daily_training",
-        daily_target_min=15,
-        enabled_modules=("today", "shenlun_learning", "shenlun_practice", "review", "profile"),
-        tabs=(
-            ProductTab("today", "今日", "/pages/rmrb/index"),
-            ProductTab("learning", "精读", "/pages/rmrb/article-list"),
-            ProductTab("practice", "训练", "/pages/rmrb/drill"),
-            ProductTab("profile", "我的", "/pages/user/index"),
-        ),
-    ),
-    "theory": ProductContext(
-        key="theory",
-        name="知行日知",
-        short_name="时政学习",
-        theme_key="red",
-        home_mode="daily_pack",
-        daily_target_min=15,
-        enabled_modules=("today", "theory_topics", "theory_quiz", "review", "profile"),
-        tabs=(
-            ProductTab("today", "今日", "/pages/theory/index"),
-            ProductTab("topics", "专题", "/pages/index/index"),
-            ProductTab("quiz", "复习", "/pages/question/index"),
             ProductTab("profile", "我的", "/pages/user/index"),
         ),
     ),

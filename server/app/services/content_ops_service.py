@@ -329,8 +329,10 @@ def generate_package_from_article(db: Session, body: ContentPackageGenerateFromA
 
 def list_publishable_targets(db: Session, product_key: str) -> list[dict]:
     """只返回当前真正可访问的学习入口，供运营绑定而非手写路径。"""
-    if product_key == "theory":
-        output = []
+    if product_key not in ("general", "theory", "shenlun"):
+        raise ValueError("产品不存在")
+    output: list[dict] = []
+    if product_key in ("theory", "general"):
         for entry in list_public_entries(db):
             article_id = entry["articleId"]
             output.append({
@@ -340,19 +342,17 @@ def list_publishable_targets(db: Session, product_key: str) -> list[dict]:
                 "title": entry["title"],
                 "publishDate": entry["publishDate"],
                 "topicTypes": [item for item, field in (("daily", "isDaily"), ("evergreen", "isEvergreen")) if entry[field]],
-                "h5Path": f"/theory/#/pages/learning/article?articleId={article_id}",
-                "miniappPath": f"pages/learning/article?articleId={article_id}",
+                "h5Path": f"/#/pages/article/detail?id={article_id}",
+                "miniappPath": f"pages/article/detail?id={article_id}",
                 "officialAccountKeyword": "时政",
             })
-        return output
-    if product_key == "shenlun":
+    if product_key in ("shenlun", "general"):
         rows = db.query(ShenlunTeachingExample, RmrbArticle).join(
             RmrbArticle, RmrbArticle.id == ShenlunTeachingExample.article_id,
         ).filter(
             ShenlunTeachingExample.status == "published",
             RmrbArticle.is_published.is_(True),
         ).order_by(RmrbArticle.sort_order.desc(), RmrbArticle.publish_date.desc()).all()
-        output = []
         seen = set()
         for example, article in rows:
             if article.id in seen or not teaching_example_out(example):
@@ -365,12 +365,11 @@ def list_publishable_targets(db: Session, product_key: str) -> list[dict]:
                 "title": article.title,
                 "publishDate": article.publish_date,
                 "topicTypes": ["daily", "review"],
-                "h5Path": f"/shenlun/#/pages/learning/example?id={article.id}",
-                "miniappPath": f"pages/learning/example?id={article.id}",
+                "h5Path": f"/#/pages/rmrb/article-detail?id={article.id}",
+                "miniappPath": f"pages/rmrb/article-detail?id={article.id}",
                 "officialAccountKeyword": "申论",
             })
-        return output
-    raise ValueError("产品不存在")
+    return output
 
 
 def _preflight_item(key: str, label: str, passed: bool, message: str, level: str = "error") -> dict:

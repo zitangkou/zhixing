@@ -11,6 +11,7 @@ export async function bootstrapApp(force = false) {
   if (isMock) return
   if (!getToken()) {
     bootstrapped = false
+    useUserStore().clearSession()
     return
   }
   if (bootstrapped && !force) return

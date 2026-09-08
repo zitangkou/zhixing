@@ -229,7 +229,10 @@ export async function request<T>(
   }
   if (needAuth && !isMock) {
     const token = getToken()
-    if (token) headers.Authorization = `Bearer ${token}`
+    if (!token) {
+      return { code: 401, data: null as T, message: '未登录' }
+    }
+    headers.Authorization = `Bearer ${token}`
   }
   try {
     const res = await fetch(`${BASE_URL}${url}`, {

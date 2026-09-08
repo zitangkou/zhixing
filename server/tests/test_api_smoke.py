@@ -41,23 +41,10 @@ def test_api_smoke_critical_path():
         assert cfg["product"]["key"] == "general"
         assert cfg["product"]["homeMode"] == "dashboard"
 
-        shenlun_cfg = _ok(client.get("/api/config", headers={"X-Product-Key": "shenlun"}))
-        assert shenlun_cfg["product"]["key"] == "shenlun"
-        assert shenlun_cfg["product"]["homeMode"] == "daily_training"
-        assert [tab["title"] for tab in shenlun_cfg["product"]["tabs"]] == [
-            "今日",
-            "精读",
-            "训练",
-            "我的",
-        ]
-
-        theory_cfg = _ok(client.get("/api/config", headers={"X-Product-Key": "theory"}))
-        assert theory_cfg["product"]["key"] == "theory"
-        assert theory_cfg["product"]["dailyTargetMin"] == 15
-        assert theory_cfg["product"]["tabs"][0]["route"] == "/pages/theory/index"
-
         unknown = client.get("/api/config", headers={"X-Product-Key": "unknown"})
         assert unknown.status_code == 400
+        disabled = client.get("/api/config", headers={"X-Product-Key": "shenlun"})
+        assert disabled.status_code == 400
 
         username = f"smoke_{uuid.uuid4().hex[:8]}"
         password = "SmokeTest1!"

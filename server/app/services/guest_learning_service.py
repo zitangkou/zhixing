@@ -13,8 +13,7 @@ from app.models.base import gen_id
 from app.timezone import now
 
 ALLOWED_TYPES = {
-    "theory": {"theory_article_quiz"},
-    "shenlun": {"shenlun_short_practice"},
+    "general": {"theory_article_quiz", "shenlun_short_practice"},
 }
 MAX_PAYLOAD_BYTES = 50_000
 

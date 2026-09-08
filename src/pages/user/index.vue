@@ -1,47 +1,53 @@
 <template>
   <view class="page-user page-with-tabbar" :class="themeClass">
     <view class="profile-header">
-      <view class="profile-main" @tap="go('/pages/user/profile')">
+      <view class="profile-main" @tap="onProfileHeader">
         <nut-avatar size="large" class="avatar">
           <image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill" />
           <text v-else>
-            {{ userStore.userInfo?.nickname?.slice(0, 1) || '学' }}
+            {{ loggedIn ? userStore.userInfo?.nickname?.slice(0, 1) : '游' }}
           </text>
         </nut-avatar>
         <view class="info">
           <text class="name">
-            {{ userStore.userInfo?.nickname || '知行学员' }}
+            {{ loggedIn ? userStore.userInfo?.nickname : '游客浏览' }}
           </text>
-          <text class="member-tip"> @{{ userStore.userInfo?.username || '学员' }} </text>
+          <text class="member-tip">
+            {{ loggedIn ? `@${userStore.userInfo?.username || '学员'}` : '登录后同步进度与错题' }}
+          </text>
         </view>
         <text class="profile-chevron" aria-hidden="true"> › </text>
       </view>
       <PointsBadge
+        v-if="loggedIn"
         :points="userStore.points"
         show-label
         tone="on-brand"
         @tap="go('/pages/user/points')"
       />
+      <view v-else class="guest-auth" @tap.stop="goLogin">
+        <text>登录 / 注册</text>
+      </view>
     </view>
 
     <!-- 学习 -->
     <text class="section-label"> 学习 </text>
     <view class="menu-group">
-      <nut-cell title="今日清单" is-link @click="go('/pages/plan/today')">
+      <nut-cell v-if="SHOW_PLAN" title="今日清单" is-link @click="go('/pages/plan/today')">
         <template #icon>
           <view class="cell-icon">
             <CheckChecked :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="今日复习" is-link @click="go('/pages/review/hub')">
+      <nut-cell v-if="SHOW_REVIEW_HUB" title="今日复习" is-link @click="go('/pages/review/hub')">
         <template #icon>
           <view class="cell-icon">
             <Order :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="本周计划" is-link @click="go('/pages/plan/week')">
+      <nut-cell v-if="SHOW_PLAN" title="本周计划" is-link @click="go('/pages/plan/week')">
         <template #icon>
           <view class="cell-icon">
             <Date :color="brandIcon" size="18" />
@@ -58,14 +64,14 @@
           <nut-tag v-if="!userStore.hasSignedToday" type="primary" size="small"> 未签到 </nut-tag>
         </template>
       </nut-cell>
-      <nut-cell title="知行足迹" is-link @click="go('/pages/user/growth')">
+      <nut-cell v-if="SHOW_GROWTH" title="知行足迹" is-link @click="go('/pages/user/growth')">
         <template #icon>
           <view class="cell-icon">
             <Fabulous :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="语料本" is-link @click="go('/pages/corpus/index')">
+      <nut-cell v-if="SHOW_CORPUS_MENU" title="语料本" is-link @click="go('/pages/corpus/index')">
         <template #icon>
           <view class="cell-icon">
             <Edit :color="brandIcon" size="18" />
@@ -84,67 +90,76 @@
     <!-- 专项：进各模块首页，子功能在模块内再进 -->
     <text class="section-label"> 专项 </text>
     <view class="menu-group">
-      <nut-cell title="人民日报" is-link @click="go('/pages/rmrb/index')">
+      <nut-cell title="时评精拆" is-link @click="go('/pages/rmrb/index')">
         <template #icon>
           <view class="cell-icon">
             <Edit :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="时事印象" is-link @click="go('/pages/events/index')">
+      <nut-cell v-if="SHOW_EVENTS" title="时事印象" is-link @click="go('/pages/events/index')">
         <template #icon>
           <view class="cell-icon">
             <Date :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="知识框架" is-link @click="go('/pages/knowledge/index')">
+      <nut-cell v-if="SHOW_KNOWLEDGE" title="知识框架" is-link @click="go('/pages/knowledge/index')">
         <template #icon>
           <view class="cell-icon">
             <Category :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="真题套卷" is-link @click="go('/pages/exam/list')">
+      <nut-cell v-if="SHOW_EXAM" title="真题套卷" is-link @click="go('/pages/exam/list')">
         <template #icon>
           <view class="cell-icon">
             <Order :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>
-      <nut-cell
-        title="错题本"
-        :is-link="false"
-        :aria-expanded="expanded.wrong"
-        @click="toggle('wrong')"
-      >
-        <template #icon>
-          <view class="cell-icon">
-            <Edit :color="brandIcon" size="18" />
-          </view>
-        </template>
-        <template #link>
-          <text class="collapse-arrow" aria-hidden="true">
-            {{ expanded.wrong ? '▾' : '▸' }}
-          </text>
-        </template>
-      </nut-cell>
-      <view v-if="expanded.wrong">
-        <nut-cell title="文章错题" is-link @click="go('/pages/question/wrong')">
+      <template v-if="SHOW_MANUAL_WRONG">
+        <nut-cell
+          title="错题本"
+          :is-link="false"
+          :aria-expanded="expanded.wrong"
+          @click="toggle('wrong')"
+        >
           <template #icon>
-            <view class="cell-icon sub-icon">
-              <Order :color="brandIcon" size="18" />
-            </view>
-          </template>
-        </nut-cell>
-        <nut-cell title="行测错题" is-link @click="go('/pages/question/manual-list')">
-          <template #icon>
-            <view class="cell-icon sub-icon">
+            <view class="cell-icon">
               <Edit :color="brandIcon" size="18" />
             </view>
           </template>
+          <template #link>
+            <text class="collapse-arrow" aria-hidden="true">
+              {{ expanded.wrong ? '▾' : '▸' }}
+            </text>
+          </template>
         </nut-cell>
-      </view>
+        <view v-if="expanded.wrong">
+          <nut-cell title="文章错题" is-link @click="go('/pages/question/wrong')">
+            <template #icon>
+              <view class="cell-icon sub-icon">
+                <Order :color="brandIcon" size="18" />
+              </view>
+            </template>
+          </nut-cell>
+          <nut-cell title="行测错题" is-link @click="go('/pages/question/manual-list')">
+            <template #icon>
+              <view class="cell-icon sub-icon">
+                <Edit :color="brandIcon" size="18" />
+              </view>
+            </template>
+          </nut-cell>
+        </view>
+      </template>
+      <nut-cell v-else title="文章错题" is-link @click="go('/pages/question/wrong')">
+        <template #icon>
+          <view class="cell-icon">
+            <Order :color="brandIcon" size="18" />
+          </view>
+        </template>
+      </nut-cell>
     </view>
 
     <!-- 设置 -->
@@ -179,14 +194,7 @@
           </view>
         </template>
       </nut-cell>
-      <nut-cell title="数据导出/导入" is-link @click="go('/pages/user/data')">
-        <template #icon>
-          <view class="cell-icon">
-            <Download :color="brandIcon" size="18" />
-          </view>
-        </template>
-      </nut-cell>
-      <nut-cell title="退出登录" is-link @click="onLogout">
+      <nut-cell v-if="loggedIn" title="退出登录" is-link @click="onLogout">
         <template #icon>
           <view class="cell-icon">
             <PoweroffCircleFill color="#999999" size="18" />
@@ -202,7 +210,6 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import Taro from '@tarojs/taro'
 import {
   Avatar as NutAvatar,
   Cell as NutCell,
@@ -214,7 +221,6 @@ import {
   CheckChecked,
   Clock,
   Date,
-  Download,
   Edit,
   Fabulous,
   Message,
@@ -227,12 +233,23 @@ import {
 import AppTabBar from '@/components/AppTabBar.vue'
 import PointsBadge from '@/components/PointsBadge.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
+import {
+  SHOW_CORPUS_MENU,
+  SHOW_EVENTS,
+  SHOW_EXAM,
+  SHOW_GROWTH,
+  SHOW_KNOWLEDGE,
+  SHOW_MANUAL_WRONG,
+  SHOW_PLAN,
+  SHOW_REVIEW_HUB,
+} from '@/constants/featureVisibility'
 import { getBrandTheme } from '@/constants/theme'
 import { useSettingsStore } from '@/store/settings'
 import { useUserStore } from '@/store/user'
 import { resetBootstrap } from '@/utils/bootstrap'
 import { resolveMediaUrl } from '@/utils/media'
-import { showConfirm } from '@/utils/platform'
+import { isLoggedIn, requireLogin } from '@/utils/auth'
+import { navigateTo, showConfirm } from '@/utils/platform'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '我的' })
@@ -240,6 +257,7 @@ definePageConfig({ navigationBarTitleText: '我的' })
 const { themeClass } = useThemeClass()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
+const loggedIn = computed(() => isLoggedIn() && !!userStore.userInfo?.id)
 const avatarUrl = computed(() => resolveMediaUrl(userStore.userInfo?.avatar))
 const { brandColor: brandIcon } = useBrandColor()
 const darkMode = computed({
@@ -257,7 +275,16 @@ function toggle(key: 'wrong') {
 }
 
 function go(url: string) {
-  Taro.navigateTo({ url })
+  navigateTo(url)
+}
+
+function goLogin() {
+  requireLogin('/pages/user/index')
+}
+
+function onProfileHeader() {
+  if (loggedIn.value) go('/pages/user/profile')
+  else goLogin()
 }
 
 async function onLogout() {
@@ -285,6 +312,14 @@ async function onLogout() {
     justify-content: space-between;
     gap: 12px;
     color: $on-primary;
+
+    .guest-auth {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      border-radius: $radius-md;
+      background: rgba(255, 255, 255, 0.18);
+      font-size: 13px;
+    }
 
     :deep(.points-badge) {
       flex-shrink: 0;

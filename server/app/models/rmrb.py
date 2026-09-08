@@ -35,6 +35,7 @@ class RmrbArticle(Base):
     # 主题标签 JSON 数组，如 ["政绩观","乡村振兴"]
     tags: Mapped[str] = mapped_column(Text, default="[]")
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_daily: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     read_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -59,6 +60,7 @@ class ShenlunTeachingExample(Base):
     templates_json: Mapped[str] = mapped_column(Text, default="[]")
     practice_json: Mapped[str] = mapped_column(Text, default="{}")
     content_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
+    display_html: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(16), default="draft", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

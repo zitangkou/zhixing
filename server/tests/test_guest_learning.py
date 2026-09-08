@@ -41,10 +41,10 @@ def test_merge_is_idempotent_and_has_no_learning_side_effects():
     engine, db, client = make_fixture()
     try:
         body = {"deviceId": "device_123", "records": [theory_record()]}
-        first = client.post("/learning/guest-records/merge", headers={"X-Product-Key": "theory"}, json=body)
+        first = client.post("/learning/guest-records/merge", headers={"X-Product-Key": "general"}, json=body)
         assert first.status_code == 200
         assert first.json()["data"]["accepted"] == 1
-        second = client.post("/learning/guest-records/merge", headers={"X-Product-Key": "theory"}, json=body)
+        second = client.post("/learning/guest-records/merge", headers={"X-Product-Key": "general"}, json=body)
         assert second.json()["data"]["accepted"] == 0
         assert second.json()["data"]["unchanged"] == 1
         assert db.query(UserGuestLearningRecord).count() == 1
@@ -59,7 +59,7 @@ def test_merge_is_idempotent_and_has_no_learning_side_effects():
 def test_newer_snapshot_wins_and_is_available_on_another_device():
     engine, db, client = make_fixture()
     try:
-        headers = {"X-Product-Key": "theory"}
+        headers = {"X-Product-Key": "general"}
         client.post("/learning/guest-records/merge", headers=headers, json={
             "deviceId": "device_old", "records": [theory_record()],
         })
@@ -83,7 +83,7 @@ def test_newer_snapshot_wins_and_is_available_on_another_device():
         engine.dispose()
 
 
-def test_each_product_accepts_only_its_own_record_type():
+def test_rejects_unknown_product_and_invalid_record_type():
     engine, db, client = make_fixture()
     try:
         shenlun = {
@@ -93,15 +93,17 @@ def test_each_product_accepts_only_its_own_record_type():
         }
         assert client.post("/learning/guest-records/merge", headers={"X-Product-Key": "shenlun"}, json={
             "deviceId": "device_123", "records": [shenlun],
-        }).status_code == 200
-        assert client.post("/learning/guest-records/merge", headers={"X-Product-Key": "theory"}, json={
+        }).status_code == 400
+        bad = {
+            "recordType": "unknown_type", "contentId": "x", "revision": "v1",
+            "payload": {}, "updatedAt": "2026-09-07T10:00:00+08:00",
+        }
+        assert client.post("/learning/guest-records/merge", headers={"X-Product-Key": "general"}, json={
+            "deviceId": "device_123", "records": [bad],
+        }).status_code == 422
+        assert client.post("/learning/guest-records/merge", headers={"X-Product-Key": "general"}, json={
             "deviceId": "device_123", "records": [shenlun],
-        }).status_code == 422
-        assert client.post("/learning/guest-records/merge", headers={"X-Product-Key": "shenlun"}, json={
-            "deviceId": "device_123", "records": [theory_record()],
-        }).status_code == 422
-        assert len(client.get("/learning/guest-records", headers={"X-Product-Key": "theory"}).json()["data"]) == 0
-        assert len(client.get("/learning/guest-records", headers={"X-Product-Key": "shenlun"}).json()["data"]) == 1
+        }).status_code == 200
     finally:
         client.close()
         db.close()
@@ -111,7 +113,7 @@ def test_each_product_accepts_only_its_own_record_type():
 def test_rejects_invalid_device_and_oversized_payload():
     engine, db, client = make_fixture()
     try:
-        headers = {"X-Product-Key": "theory"}
+        headers = {"X-Product-Key": "general"}
         assert client.post("/learning/guest-records/merge", headers=headers, json={
             "deviceId": "bad id", "records": [],
         }).status_code == 422

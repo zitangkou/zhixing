@@ -210,6 +210,11 @@ def _ensure_shenlun_columns():
                 conn.execute(
                     text("ALTER TABLE shenlun_term_categories ADD COLUMN kind VARCHAR(16) DEFAULT 'term'")
                 )
+    if insp.has_table("shenlun_teaching_examples"):
+        cols = {c["name"] for c in insp.get_columns("shenlun_teaching_examples")}
+        if "display_html" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE shenlun_teaching_examples ADD COLUMN display_html TEXT DEFAULT ''"))
 
 
 def _ensure_wrong_answer_columns():
@@ -270,6 +275,8 @@ def _ensure_rmrb_article_columns():
             conn.execute(text("ALTER TABLE rmrb_articles ADD COLUMN tags TEXT DEFAULT '[]'"))
         if "source_url" not in cols:
             conn.execute(text("ALTER TABLE rmrb_articles ADD COLUMN source_url VARCHAR(512) DEFAULT ''"))
+        if "is_daily" not in cols:
+            conn.execute(text("ALTER TABLE rmrb_articles ADD COLUMN is_daily BOOLEAN DEFAULT 0"))
 
 
 def _ensure_ziliao_formula_plain_column():

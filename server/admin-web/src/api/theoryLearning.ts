@@ -39,3 +39,9 @@ export function fetchTheoryLearningEntries() {
 export function saveTheoryLearningEntry(articleId: string, data: TheoryLearningEntryInput) {
   return getData<TheoryLearningEntry>(http.put(`/admin/theory-learning/entries/${articleId}`, data))
 }
+
+export function importT0cPack(payload: Record<string, unknown>, pending = false) {
+  return getData<{ articleId: string; title: string; questionCount: number; entry: TheoryLearningEntry }>(
+    http.post('/admin/theory-learning/import-t0c', { payload, pending }),
+  )
+}

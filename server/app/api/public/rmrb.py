@@ -52,7 +52,6 @@ def rmrb_stats(
 @router.get("/rmrb/articles")
 def rmrb_articles_list(
     tag: str | None = None,
-    _user: AppUser = Depends(get_app_user),
     db: Session = Depends(get_db),
 ):
     return ApiResponse.ok(
@@ -60,10 +59,14 @@ def rmrb_articles_list(
     )
 
 
+@router.get("/rmrb/articles/today")
+def rmrb_articles_today(db: Session = Depends(get_db)):
+    return ApiResponse.ok([a.model_dump() for a in list_rmrb_today_articles(db, limit=1)])
+
+
 @router.get("/rmrb/articles/{article_id}")
 def rmrb_article_detail(
     article_id: str,
-    _user: AppUser = Depends(get_app_user),
     db: Session = Depends(get_db),
 ):
     a = get_rmrb_article(db, article_id, bump_read=True)

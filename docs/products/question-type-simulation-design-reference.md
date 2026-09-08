@@ -4,7 +4,7 @@
 > 日期：2026-09-02  
 > 状态：长期设计参考，尚未进入对应题型功能开发  
 > 产品顺序：政治理论 → 申论 → 资料分析 → 数量关系 → 言语理解 → 判断推理  
-> 关联文档：[政治理论模拟题生成方案](./theory-question-generation-plan.md)、[申论产品 PRD](./shenlun-prd.md)、[产品拆分规划](../../PRODUCT_SPLIT_PLAN.md)、[真题数据状态](../../xingce-structured-data/DATA_STATUS.md)
+> 关联文档：[政治理论模拟题生成方案](./theory-question-generation-plan.md)、[真题数据状态](../../xingce-structured-data/DATA_STATUS.md)
 
 ## 0. 文档目的
 

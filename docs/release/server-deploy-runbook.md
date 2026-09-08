@@ -1,7 +1,7 @@
 # 云服务器部署 Runbook（知行公考）
 
 > v1 · 2026-09-05 · 基于阿里云 ECS 首次部署实战沉淀
-> 适用：Docker 单容器方案——`deploy.sh` 构建 三套 H5（综合 `/` + 申论 `/shenlun/` + 理论 `/theory/`）+ admin-dist + FastAPI，监听 `127.0.0.1:8081`，宿主机 Nginx 网关转发（方案 B）。
+> 适用：Docker 单容器方案——`deploy.sh` 构建综合 H5（`/`）+ admin-dist + FastAPI，默认监听公网 80 或本机 8081。
 > 服务器应对齐的版本：`origin/main`（当前 `bb29d1f`，已含国内镜像源修复）。
 
 ## 1. 一次性初始化（新服务器，8 步）

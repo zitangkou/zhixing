@@ -14,7 +14,18 @@
       </view>
     </view>
 
-    <ExamCountdownCard ref="countdownCard" />
+    <view class="track-list">
+      <view class="track-card" @tap="goTheory">
+        <text class="track-kicker">今日时政</text>
+        <text class="track-title">按文章练</text>
+        <text class="track-desc">选一篇文章，刷该文配套题目</text>
+      </view>
+      <view class="track-card" @tap="goRmrb">
+        <text class="track-kicker">今日申论</text>
+        <text class="track-title">时评精拆 · 三刀法</text>
+        <text class="track-desc">时评阅读、开采本、规范词、阶梯训练</text>
+      </view>
+    </view>
 
     <view class="quick-row">
       <view
@@ -41,57 +52,26 @@
         </view>
         <text>去练习</text>
       </view>
-      <view
-        class="q-item"
-        @tap="goHub"
-      >
-        <view class="q-icon-wrap">
-          <CheckChecked
-            :color="brandColor"
-            size="20"
-          />
-        </view>
-        <text>复习中心</text>
-      </view>
-      <view
-        class="q-item"
-        @tap="goGrowth"
-      >
-        <view class="q-icon-wrap">
-          <Fabulous
-            :color="brandColor"
-            size="20"
-          />
-        </view>
-        <text>足迹</text>
-      </view>
     </view>
-
-    <TodayTaskList />
-    <DueReviewAlert />
-    <YesterdayBar />
 
     <AppTabBar active="today" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { CheckChecked, Date as DateIcon, Edit, Fabulous } from '@nutui/icons-vue-taro'
+import { Date as DateIcon, Edit } from '@nutui/icons-vue-taro'
 import AppTabBar from '@/components/AppTabBar.vue'
-import ExamCountdownCard from '@/components/today/ExamCountdownCard.vue'
-import TodayTaskList from '@/components/today/TodayTaskList.vue'
-import DueReviewAlert from '@/components/today/DueReviewAlert.vue'
-import YesterdayBar from '@/components/today/YesterdayBar.vue'
 import { APP_SLOGAN } from '@/constants/brand'
+import { useArticleStore } from '@/store/article'
 import { useUserStore } from '@/store/user'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
 const userStore = useUserStore()
+const articleStore = useArticleStore()
 const { brandColor } = useBrandColor()
 const { themeClass } = useThemeClass()
-const countdownCard = ref<{ load: () => void } | null>(null)
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -115,25 +95,31 @@ function goSignIn() {
 }
 
 function goQuiz() {
-  Taro.switchTab({ url: '/pages/question/index' })
+  Taro.navigateTo({ url: '/pages/question/article-pick' })
 }
 
-function goHub() {
-  Taro.navigateTo({ url: '/pages/review/hub' })
+function goRmrb() {
+  Taro.navigateTo({ url: '/pages/rmrb/index' })
 }
 
-function goGrowth() {
-  Taro.navigateTo({ url: '/pages/user/growth' })
+function goTheory() {
+  Taro.navigateTo({ url: '/pages/question/article-pick' })
 }
 
-function refresh() {
-  countdownCard.value?.load()
+async function refresh() {
+  await Promise.all([
+    articleStore.fetchDailyArticles(),
+    articleStore.fetchRecommendedArticles(true),
+  ])
 }
 
 onMounted(() => {
   userStore.bootstrap()
+  void refresh()
 })
-useDidShow(refresh)
+useDidShow(() => {
+  void refresh()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -141,6 +127,9 @@ useDidShow(refresh)
 
 .page-today {
   @include page-padding;
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
   padding-bottom: 40px;
 }
 
@@ -148,20 +137,64 @@ useDidShow(refresh)
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  padding: 8px 2px 14px;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 28px 16px 22px;
+  background: linear-gradient(168deg, $primary-color 0%, $primary-mid 48%, $primary-dark 100%);
+  color: $on-primary;
   .today-greet {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    .today-hi { font-size: 22px; font-weight: 700; color: $text-primary; }
-    .today-slogan { font-size: 12px; color: $text-muted; }
+    min-width: 0;
+    .today-hi { font-size: 22px; font-weight: 700; color: $on-primary; }
+    .today-slogan { font-size: 12px; color: $on-primary; opacity: 0.78; }
   }
   .today-date {
+    flex-shrink: 0;
     font-size: 12px;
-    color: $text-secondary;
-    background: $page-bg;
+    color: $on-primary;
+    background: rgba(255, 255, 255, 0.16);
     padding: 4px 10px;
     border-radius: 6px;
+  }
+}
+
+.track-list,
+.quick-row {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.track-card {
+  @include card;
+  padding: 16px 16px 14px;
+  .track-kicker {
+    display: block;
+    font-size: 12px;
+    color: $primary-color;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .track-title {
+    display: block;
+    font-size: 17px;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: 4px;
+  }
+  .track-desc {
+    display: block;
+    font-size: 12px;
+    color: $text-muted;
+    line-height: 1.45;
   }
 }
 

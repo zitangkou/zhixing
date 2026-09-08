@@ -10,8 +10,6 @@ from app.models import AppUser
 from app.product import ProductContext, get_product_context
 from app.schemas import DailyTaskProgressBody, TopicItem, TopicListOut
 from app.services.daily_task_service import list_daily_tasks, update_task_progress
-from app.services.shenlun_daily_service import ensure_shenlun_daily_task
-from app.services.theory_daily_service import ensure_theory_daily_task
 from app.services.topic_service import list_topics
 from app.timezone import today as today_str
 
@@ -37,10 +35,6 @@ def daily_tasks(
     db: Session = Depends(get_db),
 ):
     task_date = date or today_str()
-    if product.key == "shenlun" and task_date == today_str():
-        ensure_shenlun_daily_task(db, task_date)
-    elif product.key == "theory" and task_date == today_str():
-        ensure_theory_daily_task(db, task_date)
     return ApiResponse.ok(list_daily_tasks(db, user, product, task_date).model_dump())
 
 

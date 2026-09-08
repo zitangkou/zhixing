@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { FLAT_NAV_ITEMS, canAccess } from '@/config/nav'
+import { canAccess, visibleNavItems } from '@/config/nav'
 
 const router = createRouter({
   history: createWebHistory('/manage/'),
@@ -152,7 +152,7 @@ const router = createRouter({
           path: 'rmrb',
           name: 'rmrb',
           component: () => import('@/views/rmrb/List.vue'),
-          meta: { title: '人民日报', permissions: ['rmrb:read'] },
+          meta: { title: '时评精拆', permissions: ['rmrb:read'] },
         },
         {
           path: 'corpus',
@@ -195,7 +195,7 @@ router.beforeEach(async (to) => {
   }
   const required = (to.meta.permissions as string[] | undefined) || []
   if (required.length && !auth.isSuperAdmin && !canAccess(auth.permissions, required)) {
-    const fallback = FLAT_NAV_ITEMS.find((item) =>
+    const fallback = visibleNavItems().find((item) =>
       auth.isSuperAdmin || canAccess(auth.permissions, item.permissions),
     )
     return fallback ? fallback.path : { name: 'login' }

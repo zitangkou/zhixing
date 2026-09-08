@@ -11,25 +11,24 @@
       <nut-button type="primary" block class="primary-btn" :loading="loading" @click="onLogin">
         登录
       </nut-button>
-      <view v-if="allowRegister" class="link-row">
+      <view class="link-row">
         <text class="link" @tap="goRegister">没有账号？去注册</text>
       </view>
-      <view v-else class="link-row">
-        <text class="hint">暂未开放自助注册，请联系管理员开通</text>
+      <view class="link-row">
+        <text class="link muted" @tap="skipAuth">先逛逛，稍后再登录</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import Taro from '@tarojs/taro'
 import { Button as NutButton, Input as NutInput } from '@nutui/nutui-taro'
 import BrandLogo from '@/components/BrandLogo.vue'
-import { api } from '@/api'
-import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
 import { useUserStore } from '@/store/user'
 import { bootstrapApp } from '@/utils/bootstrap'
+import { enterAfterAuth, skipAuth } from '@/utils/auth'
 import { showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
@@ -40,18 +39,6 @@ const userStore = useUserStore()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
-const allowRegister = ref(false)
-
-onMounted(async () => {
-  try {
-    const res = await api.getPublicConfig()
-    if (res.code === 0 && res.data) {
-      allowRegister.value = !!res.data.allowRegister
-    }
-  } catch {
-    allowRegister.value = false
-  }
-})
 
 async function onLogin() {
   if (!username.value.trim() || !password.value) {
@@ -62,7 +49,7 @@ async function onLogin() {
   try {
     await userStore.login(username.value.trim(), password.value)
     await bootstrapApp(true)
-    Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+    enterAfterAuth()
   } catch (e) {
     showToast(e instanceof Error ? e.message : '登录失败', 'error')
   } finally {
@@ -102,7 +89,7 @@ function goRegister() {
       margin-top: 18px;
       text-align: center;
       .link { font-size: 14px; color: $primary-color; }
-      .hint { font-size: 12px; color: $text-muted; }
+      .link.muted { color: $text-secondary; font-size: 13px; }
     }
   }
 }

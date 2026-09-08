@@ -14,7 +14,7 @@
       </el-select>
     </div>
     <el-alert type="info" :closable="false" style="margin-bottom: 12px">
-      仅服务「人民日报」学习模块。建议为每篇打上主题标签（政绩观、乡村振兴等），便于日后归类总结。
+      发布后出现在学员端学习页。勾选「今日推荐」的会进「今日时评」（只展一篇）；未勾选则按发布日期取最近一篇。
     </el-alert>
 
     <ListState
@@ -31,6 +31,12 @@
       <el-table-column prop="title" label="标题" min-width="200" />
       <el-table-column prop="source" label="来源" width="100" />
       <el-table-column prop="publishDate" label="日期" width="110" />
+      <el-table-column label="标记" width="80">
+        <template #default="{ row }">
+          <el-tag v-if="row.isDaily" size="small" type="danger">今日</el-tag>
+          <span v-else style="color: #999">—</span>
+        </template>
+      </el-table-column>
       <el-table-column label="主题" min-width="160">
         <template #default="{ row }">
           <el-tag v-for="t in row.tags || []" :key="t" size="small" style="margin: 2px 4px 2px 0">{{ t }}</el-tag>
@@ -92,6 +98,9 @@
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" />
         </el-form-item>
+        <el-form-item label="今日推荐">
+          <el-checkbox v-model="form.isDaily">作为学员端「今日时评」</el-checkbox>
+        </el-form-item>
         <el-form-item label="发布">
           <el-switch v-model="form.isPublished" />
         </el-form-item>
@@ -149,6 +158,7 @@ const form = reactive({
   tags: [] as string[],
   sortOrder: 0,
   isPublished: true,
+  isDaily: false,
 })
 
 async function load() {
@@ -169,6 +179,7 @@ function openDialog(row?: RmrbArticle) {
     form.tags = [...(row.tags || [])]
     form.sortOrder = row.sortOrder
     form.isPublished = row.isPublished
+    form.isDaily = !!row.isDaily
   } else {
     editId.value = null
     form.title = ''
@@ -180,6 +191,7 @@ function openDialog(row?: RmrbArticle) {
     form.tags = []
     form.sortOrder = 0
     form.isPublished = true
+    form.isDaily = false
   }
   visible.value = true
 }
@@ -221,8 +233,10 @@ async function onDelete(row: RmrbArticle) {
     await deleteRmrbArticle(row.id)
     await load()
     ElMessage.success('已删除')
-  } catch (e) {
-    if (e !== 'cancel' && e !== 'close') ElMessage.error('删除失败')
+    } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    }
   }
 }
 

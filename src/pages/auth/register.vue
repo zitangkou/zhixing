@@ -20,14 +20,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import Taro from '@tarojs/taro'
 import { Button as NutButton, Input as NutInput } from '@nutui/nutui-taro'
 import BrandLogo from '@/components/BrandLogo.vue'
-import { api } from '@/api'
-import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
 import { useUserStore } from '@/store/user'
 import { bootstrapApp } from '@/utils/bootstrap'
+import { enterAfterAuth } from '@/utils/auth'
 import { showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
@@ -39,26 +38,8 @@ const username = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
 const loading = ref(false)
-const blocked = ref(false)
-
-onMounted(async () => {
-  try {
-    const res = await api.getPublicConfig()
-    if (res.code === 0 && res.data && !res.data.allowRegister) {
-      blocked.value = true
-      showToast('暂未开放注册', 'none')
-      setTimeout(() => Taro.redirectTo({ url: '/pages/auth/login' }), 800)
-    }
-  } catch {
-    // 配置拉取失败时仍允许尝试，由后端最终拦截
-  }
-})
 
 async function onRegister() {
-  if (blocked.value) {
-    showToast('暂未开放注册', 'error')
-    return
-  }
   if (!username.value.trim() || !password.value || !passwordConfirm.value) {
     showToast('请填写完整信息', 'error')
     return
@@ -67,7 +48,7 @@ async function onRegister() {
   try {
     await userStore.register(username.value.trim(), password.value, passwordConfirm.value)
     await bootstrapApp(true)
-    Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+    enterAfterAuth()
   } catch (e) {
     showToast(e instanceof Error ? e.message : '注册失败', 'error')
   } finally {

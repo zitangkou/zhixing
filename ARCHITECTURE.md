@@ -5,7 +5,7 @@
 
 ## 1. 系统总览
 
-本项目由四个主要部分组成：
+本项目由三个主要部分组成：
 
 | 部分 | 目录 | 技术栈 | 职责 |
 | --- | --- | --- | --- |
@@ -13,7 +13,7 @@
 | 后端 API | `server/app/` | FastAPI、SQLAlchemy 2、SQLite、JWT | 业务接口、数据持久化、鉴权、文件上传、启动初始化 |
 | 管理后台 | `server/admin-web/` | Vue 3、Vite、Element Plus、Pinia | 内容、题库、用户、配置、权限和资源管理 |
 
-整体形态是一个单体仓库、多前端入口的应用：
+整体形态是一个单体仓库：综合学员端 + FastAPI + 管理后台。
 
 ```text
 H5 / 小程序学员端
@@ -43,14 +43,12 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `src/utils/`：跨模块工具，如鉴权、媒体 URL、上传、记忆曲线、语音输入、知识树等。
 - `src/mock/service.ts`：`USE_MOCK=true` 时的本地演示服务。
 
-底部 Tab 有四个主入口：
+底部 Tab 有两个主入口：
 
 | Tab | 页面 | 业务定位 |
 | --- | --- | --- |
-| 今日 | `pages/today/index` | 今日驾驶舱：考试倒计时、今日清单、复习提醒、昨日足迹、快捷操作 |
-| 学习 | `pages/index/index` | 学习首页，聚合公考主线、能力拓展和推荐内容 |
-| 练习 | `pages/question/index` | 刷题、错题、复习、套卷等练习入口 |
-| 我的 | `pages/user/index` | 账号、签到、积分、排行、成长足迹和模块入口 |
+| 学习 | `pages/index/index` | 学习入口、时评原文、时政必读与推荐 |
+| 我的 | `pages/user/index` | 账号、签到、积分、排行、主题和设置 |
 
 ### 2.2 后端
 
@@ -261,7 +259,7 @@ npm run dev
 | `DATABASE_URL` | `sqlite:///./data/zhengkao.db` | 后端数据库 |
 | `SECRET_KEY` | 开发默认值 | JWT 密钥，生产必须修改 |
 | `ALLOW_REGISTER` | `true` | 是否开放学员端自助注册 |
-| `CORS_ORIGINS` | `http://localhost:10086,http://localhost:10087,http://localhost:10088,http://localhost:10089` | 允许综合版、申论与政治理论本地前端跨域访问 |
+| `CORS_ORIGINS` | `http://localhost:10087` | 允许综合 H5 本地跨域访问 |
 | `HTTP_PORT` / `HTTP_BIND` | `8081` / `127.0.0.1` | 容器宿主监听端口与绑定地址（部署用） |
 | `BACKUP_DIR` / `BACKUP_RETENTION_DAYS` | `/opt/backups` / `14` | 备份目录与保留天数 |
 | `KNOWLEDGE_KB_DIR` | 空 | 知识框架本地目录（生产留空） |

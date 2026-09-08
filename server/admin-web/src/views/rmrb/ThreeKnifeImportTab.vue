@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-alert type="info" :closable="false" style="margin-bottom: 12px">
-      将三刀解剖法练习的 Markdown 粘贴到下方，点击「解析预览」确认结构化结果，再点击「导入保存」写入开采本。
+      粘贴运营 v2.18 三刀解剖 Markdown，并贴上同套「公众号 HTML」（时评精拆排版稿，不是长图）。Markdown 负责跟做字段，HTML 负责学员端阅读版式。
     </el-alert>
 
     <div class="import-layout">
@@ -14,8 +14,19 @@
         <el-input
           v-model="markdown"
           type="textarea"
-          :rows="24"
+          :rows="14"
           placeholder="粘贴三刀解剖 Markdown 全文…"
+          class="md-input"
+        />
+        <div class="panel-header html-header">
+          <span>公众号 HTML（阅读版式）</span>
+          <el-button size="small" @click="displayHtml = ''">清空</el-button>
+        </div>
+        <el-input
+          v-model="displayHtml"
+          type="textarea"
+          :rows="10"
+          placeholder="粘贴同套物料里的 *_公众号.html 全文…"
           class="md-input"
         />
       </div>
@@ -49,6 +60,10 @@
               <div class="card-value">{{ summary.articleTitle || '—' }}</div>
             </div>
             <div class="card">
+              <div class="card-title">主题归类</div>
+              <div class="card-value">{{ examTheme || '—' }}</div>
+            </div>
+            <div class="card">
               <div class="card-title">练习日期</div>
               <div class="card-value">{{ summary.mineDate }}</div>
             </div>
@@ -60,6 +75,13 @@
             <el-tag type="info">分论点 {{ summary.pointsCount }}</el-tag>
             <el-tag type="danger">句式 {{ summary.templatesCount }}</el-tag>
           </div>
+          <el-alert
+            v-if="summary.incompleteReasons?.length"
+            type="warning"
+            :closable="false"
+            :title="`v2.18 不完整：${summary.incompleteReasons.join('、')}`"
+            style="margin-bottom: 12px"
+          />
 
           <!-- 详细预览 -->
           <el-collapse v-if="parsed" style="margin-top: 12px">
@@ -113,9 +135,10 @@
             <el-button
               type="success"
               :loading="importing"
+              :disabled="!!summary?.incompleteReasons?.length"
               @click="doImport"
             >
-              导入保存到开采本
+              导入教研示范
             </el-button>
           </div>
         </template>
@@ -135,6 +158,7 @@ import {
 } from '@/api/rmrb'
 
 const markdown = ref('')
+const displayHtml = ref('')
 const previewing = ref(false)
 const importing = ref(false)
 const previewError = ref('')
@@ -150,6 +174,10 @@ const parsedArgument = computed(() => parsed.value?.argument as {
   points?: Array<{ title: string; method?: string; template?: string }>
 } | undefined)
 const parsedTemplates = computed(() => (parsed.value?.templates as Array<Record<string, string>>) || [])
+const examTheme = computed(() => {
+  const anchor = parsed.value?.examAnchor as { theme?: string } | undefined
+  return anchor?.theme || ''
+})
 
 async function doPreview() {
   if (!markdown.value.trim()) return
@@ -172,11 +200,12 @@ async function doImport() {
   if (!markdown.value.trim()) return
   importing.value = true
   try {
-    const res = await importThreeKnife(markdown.value)
+    const res = await importThreeKnife(markdown.value, displayHtml.value)
     ElMessage.success(
-      `已导入「${res.summary.articleTitle}」：${res.summary.termsCount} 规范词、${res.summary.templatesCount} 句式、${res.summary.pointsCount} 分论点`,
+      `已导入教研示范「${res.summary.articleTitle}」` + (displayHtml.value.trim() ? '（含阅读 HTML）' : ''),
     )
     markdown.value = ''
+    displayHtml.value = ''
     summary.value = null
     parsed.value = null
   } catch (e) {
@@ -204,6 +233,9 @@ async function doImport() {
   align-items: center;
   margin-bottom: 8px;
   font-weight: 600;
+}
+.html-header {
+  margin-top: 12px;
 }
 .md-input :deep(textarea) {
   font-family: 'SF Mono', 'Menlo', monospace;

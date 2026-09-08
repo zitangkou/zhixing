@@ -6,6 +6,7 @@ import '@nutui/nutui-taro/dist/style.css'
 import '@nutui/icons-vue-taro/dist/style_iconfont.css'
 import './app.scss'
 import { bootstrapApp } from '@/utils/bootstrap'
+import { guardGuestRoute, installNavGuards } from '@/utils/authGuard'
 import { useSettingsStore } from '@/store/settings'
 import { useProductStore } from '@/store/product'
 import { applyTheme } from '@/utils/theme'
@@ -26,6 +27,7 @@ function applyThemeFromStorage() {
   }
 }
 applyThemeFromStorage()
+installNavGuards()
 
 const pinia = createPinia()
 pinia.use(
@@ -48,6 +50,7 @@ const App = createApp({
     ensureFeedbackHost()
     void useProductStore().loadPublicConfig()
     bootstrapApp()
+    guardGuestRoute()
   },
 })
 

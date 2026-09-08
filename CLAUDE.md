@@ -36,12 +36,12 @@ npm run build        # vue-tsc -b && vite build → 产出 server/admin-dist
 
 ## Architecture
 
-单体仓库、多前端入口：学员端（`src/`）、FastAPI 后端（`server/app/`）、Vue 管理后台（`server/admin-web/`）。生产用 Docker 构建 H5 + admin-web，Nginx 承载 H5，FastAPI 提供 `/api/*`、`/admin/*`、上传文件与 `/manage/` 静态后台。
+单体仓库：学员端（`src/`）、FastAPI 后端（`server/app/`）、Vue 管理后台（`server/admin-web/`）。生产用 Docker 构建综合 H5 + admin-web，Nginx 承载 H5，FastAPI 提供 `/api/*`、`/admin/*`、上传文件与 `/manage/` 静态后台。
 
 ### 学员端 `src/`（Taro 4，双端 H5 + weapp）
 
 - **路由**：全部页面在 `src/app.config.ts` 集中注册；页面放 `src/pages/<module>/`，每个页面配 `.config.ts`（`definePageConfig`）。
-- **TabBar 双轨制**：H5 用自定义 `src/components/AppTabBar.vue`（4 tab：今日/学习/练习/我的），小程序用 `app.config.ts` 的原生 `tabBar`。加 tab 页需同时改两处。
+- **TabBar 双轨制**：H5 用自定义 `src/components/AppTabBar.vue`（2 tab：学习/我的），小程序用 `app.config.ts` 的原生 `tabBar`。加 tab 页需同时改两处。
 - **API**：`src/api/index.ts` 统一导出 `api` 对象，返回 `{ code, data, message }`，内置真实 API / Mock 切换、Token 注入。`USE_MOCK=true` 时启用 `src/mock/service.ts`（本地演示），`src/api/index.ts` 始终 import mockService。生产勿开 Mock。
 - **状态**：Pinia store 在 `src/store/`（user/quiz/article/plan/settings/knowledge 等）。
 - **页面约定**：`definePageConfig` 在 `<script setup>` 内声明；加载 `onMounted→load()`、`usePullDownRefresh`、tab 页 `useDidShow` 刷新、`useReachBottom` 分页。
