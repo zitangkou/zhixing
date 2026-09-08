@@ -1,0 +1,8 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "zhixing-shenlun",
+  "description": "知行策论 · 申论独立学习应用",
+  "appid": "wx5d75ef07d8241d84",
+  "setting": { "urlCheck": false, "es6": false, "postcss": false },
+  "compileType": "miniprogram"
+}

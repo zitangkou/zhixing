@@ -1,0 +1,32 @@
+node_modules/
+dist/
+.swc/
+.DS_Store
+*.log
+.idea/
+.vscode/
+server/.venv/
+server/data/
+server/__pycache__/
+server/**/__pycache__/
+server/tests/_smoke.db
+server/tests/_smoke.db-shm
+server/tests/_smoke.db-wal
+server/.env
+server/admin-dist/
+server/admin-web/node_modules/
+server/admin-web/tsconfig.tsbuildinfo
+/.env
+deploy-ali.md
+cal.md
+
+# 会话期临时产物（定稿资产见 docs/brand/）
+/outputs/
+/vibe_images/
+
+# python cache
+__pycache__/
+*.pyc
+
+# 密钥（DeepSeek key 等，仅本地使用，严禁提交/外传）
+/secret/

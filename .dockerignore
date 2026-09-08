@@ -1,0 +1,12 @@
+server/.venv/
+server/__pycache__/
+server/**/__pycache__/
+server/data/
+server/.env
+node_modules/
+dist/
+.git/
+*.md
+!DEPLOY.md
+.cursor/
+server/admin-web/node_modules/

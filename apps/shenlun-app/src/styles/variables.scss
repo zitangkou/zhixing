@@ -1,0 +1,49 @@
+$primary-color: #d0021b;
+$primary-dark: #8b0000;
+$primary-light: rgba(208, 2, 27, 0.09);
+$primary-soft: rgba(208, 2, 27, 0.14);
+$primary-faint: rgba(208, 2, 27, 0.06);
+$accent-blue: #2f6fed;
+$accent-green: #228b5e;
+$page-bg: #f4f5f7;
+$card-bg: #ffffff;
+$input-bg: #ffffff;
+$elevated: #f7f8fa;
+$text-primary: #202124;
+$text-secondary: #646a73;
+$text-muted: #969ba3;
+$on-primary: #ffffff;
+$success-color: #228b5e;
+$success-light: rgba(34, 139, 94, 0.1);
+$danger: #ee0a24;
+$border-color: rgba(138, 143, 152, 0.24);
+$radius-md: 14px;
+$radius-lg: 18px;
+$shadow-card: 0 5px 18px rgba(30, 35, 45, 0.055);
+$shadow-float: 0 12px 28px rgba(139, 0, 0, 0.17);
+
+@mixin card {
+  background: $card-bg;
+  border-radius: $radius-md;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: $shadow-card;
+  color: $text-primary;
+}
+
+@mixin page-padding {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 16px;
+  background: $page-bg;
+  color: $text-primary;
+}
+
+@mixin hit-target($min: 44px) {
+  min-width: $min;
+  min-height: $min;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}

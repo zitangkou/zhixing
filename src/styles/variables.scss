@@ -1,0 +1,285 @@
+/* 运行时主题：品牌色与表面色均走 CSS 变量，暗色统一切换 */
+
+/* 品牌色表：每套 6 个 hex = light(primary/mid/dark) + dark(primary/mid/dark)，与 src/constants/theme.ts 保持一致 */
+$brand-themes: (
+  blue: #1e3a5f #182b44 #142940 #3d5a7a #4a6a8e #5a7a9e,
+  red: #d0021b #a80116 #8b0000 #e85d6a #c44a56 #8f2f3a,
+  green: #0f7d4f #0b6540 #084c31 #3dba80 #2f9c68 #237a51,
+  violet: #5b3a8e #472d72 #352258 #8b7bd8 #6f5fc0 #56479a,
+  amber: #a26500 #825000 #653c00 #e0a84a #c48f38 #9c6f2a,
+);
+
+/* 默认红（亮色）：无 class 兜底 */
+:root,
+page {
+  --zk-primary: #d0021b;
+  --zk-primary-mid: #a80116;
+  --zk-primary-dark: #8b0000;
+  --zk-primary-light: rgba(208, 2, 27, 0.1);
+  --zk-primary-soft: rgba(208, 2, 27, 0.14);
+  --zk-primary-faint: rgba(208, 2, 27, 0.06);
+  --zk-primary-strong: rgba(208, 2, 27, 0.3);
+  --zk-primary-bar: rgba(208, 2, 27, 0.45);
+  --zk-text-primary: #1a1a1a;
+  --zk-text-secondary: #666666;
+  --zk-text-muted: #999999;
+  --zk-page-bg: #f3f4f6;
+  --zk-card-bg: #ffffff;
+  --zk-elevated: #f7f7f8;
+  --zk-input-bg: #ffffff;
+  --zk-border-color: #ebebeb;
+  --zk-chip-bg: rgba(0, 0, 0, 0.05);
+  --zk-hover-bg: rgba(0, 0, 0, 0.04);
+  --zk-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.04);
+  --zk-shadow-float: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --zk-tabbar-bg: #ffffff;
+  --zk-danger-soft: #ffebeb;
+  --zk-warn-soft: #fff7e6;
+  --zk-success: #07c160;
+  --zk-danger: #ee0a24;
+  --zk-on-primary: #ffffff;
+}
+
+/* 非红主题（亮色）：仅覆写品牌色 */
+@each $id, $scale in $brand-themes {
+  $lp: nth($scale, 1);
+  $lm: nth($scale, 2);
+  $ld: nth($scale, 3);
+
+  @if $id != red {
+    html.theme-#{$id},
+    page.theme-#{$id},
+    .theme-#{$id} {
+      --zk-primary: #{$lp};
+      --zk-primary-mid: #{$lm};
+      --zk-primary-dark: #{$ld};
+      --zk-primary-light: rgba($lp, 0.1);
+      --zk-primary-soft: rgba($lp, 0.14);
+      --zk-primary-faint: rgba($lp, 0.06);
+      --zk-primary-strong: rgba($lp, 0.3);
+      --zk-primary-bar: rgba($lp, 0.45);
+    }
+  }
+}
+
+html.theme-dark,
+page.theme-dark,
+.theme-dark {
+  /* 深色：柔和炭灰层级，避免纯黑 + 发光描边 */
+  --zk-primary: #e85d6a;
+  --zk-primary-mid: #c44a56;
+  --zk-primary-dark: #8f2f3a;
+  --zk-primary-light: rgba(232, 93, 106, 0.16);
+  --zk-primary-soft: rgba(232, 93, 106, 0.22);
+  --zk-primary-faint: rgba(232, 93, 106, 0.08);
+  --zk-primary-strong: rgba(232, 93, 106, 0.4);
+  --zk-primary-bar: rgba(232, 93, 106, 0.55);
+  --zk-text-primary: #e4e4e6;
+  --zk-text-secondary: #a8a8ae;
+  --zk-text-muted: #7c7c84;
+  --zk-page-bg: #121214;
+  --zk-card-bg: #1c1c20;
+  --zk-elevated: #26262b;
+  --zk-input-bg: #26262b;
+  --zk-border-color: rgba(255, 255, 255, 0.08);
+  --zk-chip-bg: rgba(255, 255, 255, 0.07);
+  --zk-hover-bg: rgba(255, 255, 255, 0.05);
+  /* 深色不用高光描边，否则会像浮雕玻璃 */
+  --zk-shadow-card: none;
+  --zk-shadow-float: none;
+  --zk-tabbar-bg: #18181b;
+  --zk-danger-soft: rgba(232, 93, 106, 0.16);
+  --zk-warn-soft: rgba(224, 168, 74, 0.18);
+  --zk-success: #3dba80;
+  --zk-danger: #e85d6a;
+  --zk-on-primary: #ffffff;
+}
+
+/* 非红主题（暗色）：组合选择器特异性更高，稳定覆盖上面的红暗 */
+@each $id, $scale in $brand-themes {
+  $dp: nth($scale, 4);
+  $dm: nth($scale, 5);
+  $dd: nth($scale, 6);
+
+  @if $id != red {
+    html.theme-dark.theme-#{$id},
+    page.theme-dark.theme-#{$id},
+    .theme-dark.theme-#{$id} {
+      --zk-primary: #{$dp};
+      --zk-primary-mid: #{$dm};
+      --zk-primary-dark: #{$dd};
+      --zk-primary-light: rgba($dp, 0.16);
+      --zk-primary-soft: rgba($dp, 0.22);
+      --zk-primary-faint: rgba($dp, 0.08);
+      --zk-primary-strong: rgba($dp, 0.4);
+      --zk-primary-bar: rgba($dp, 0.55);
+    }
+  }
+}
+
+/* 运行时品牌色（勿再对 $primary-color 做 sass rgba()） */
+$primary-color: var(--zk-primary);
+$primary-dark: var(--zk-primary-dark);
+$primary-mid: var(--zk-primary-mid);
+/* soft-chip 等仍需编译期 hex */
+$primary-hex: #1e3a5f;
+$accent-blue: #2f6fed;
+$accent-green: #0f9d6c;
+$accent-amber: #c47d00;
+
+/* 表面与文字：运行时可切换 */
+$primary-light: var(--zk-primary-light);
+$primary-soft: var(--zk-primary-soft);
+$primary-faint: var(--zk-primary-faint);
+$primary-strong: var(--zk-primary-strong);
+$primary-bar: var(--zk-primary-bar);
+$text-primary: var(--zk-text-primary);
+$text-secondary: var(--zk-text-secondary);
+$text-muted: var(--zk-text-muted);
+$page-bg: var(--zk-page-bg);
+$card-bg: var(--zk-card-bg);
+$elevated: var(--zk-elevated);
+$input-bg: var(--zk-input-bg);
+$border-color: var(--zk-border-color);
+$chip-bg: var(--zk-chip-bg);
+$hover-bg: var(--zk-hover-bg);
+$danger: var(--zk-danger);
+$success: var(--zk-success);
+$on-primary: var(--zk-on-primary);
+$radius-md: 12px;
+$radius-lg: 16px;
+$shadow-card: var(--zk-shadow-card);
+$shadow-float: var(--zk-shadow-float);
+
+@mixin card {
+  background: $card-bg;
+  border-radius: $radius-md;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: $shadow-card;
+  color: $text-primary;
+}
+
+@mixin page-padding {
+  padding: 16px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background-color: $page-bg;
+  color: $text-primary;
+}
+
+@mixin brand-gradient {
+  background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
+}
+
+@mixin icon-tile($bg: $primary-light) {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: $bg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/** 触控热区：可视可小，可点区域至少 44×44 */
+@mixin hit-target($min: 44px) {
+  min-width: $min;
+  min-height: $min;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/** 列表文字操作（编辑/删除等） */
+@mixin list-act {
+  @include hit-target(44px);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $primary-color;
+  box-sizing: border-box;
+  &.danger {
+    color: $text-muted;
+  }
+  &.good {
+    color: $primary-color;
+  }
+  &.muted {
+    color: $text-muted;
+  }
+}
+
+/** 轻量色标签：有色彩但不抢正文（$fg 需为 hex） */
+@mixin soft-chip($fg, $bg-alpha: 0.1) {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: $fg;
+  background: rgba($fg, $bg-alpha);
+}
+
+/** 品牌色 chip（跟主题） */
+@mixin brand-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: $primary-color;
+  background: $primary-light;
+}
+
+/** 中性标签：随主题切换的灰底 */
+@mixin muted-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: $text-secondary;
+  background: $chip-bg;
+}
+
+/** 页级加载 / 失败 / 空态 */
+@mixin page-state-box {
+  @include card;
+  text-align: center;
+  padding: 32px 16px;
+  .state-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: $text-secondary;
+    margin-bottom: 6px;
+  }
+  .state-desc {
+    display: block;
+    font-size: 13px;
+    color: $text-muted;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .state-btn {
+    @include hit-target;
+    display: inline-flex;
+    padding: 0 20px;
+    border-radius: 10px;
+    background: $primary-light;
+    color: $primary-color;
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+/** 筛选 Tab 最小触控 */
+@mixin filter-tab {
+  @include hit-target(44px);
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+}

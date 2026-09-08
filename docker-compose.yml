@@ -1,0 +1,31 @@
+name: zhixing-gongkao
+
+services:
+  zhixing-gongkao:
+    platform: linux/amd64
+    build: .
+    container_name: zhixing-gongkao
+    restart: unless-stopped
+    ports:
+      # 独立服务器备案前默认直接占用公网 80；HTTPS 上线时改为 127.0.0.1:8081，
+      # 再由宿主机 Nginx 监听公网 80/443。
+      - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - zhixing-gongkao-data:/app/server/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  zhixing-gongkao-data:

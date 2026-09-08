@@ -1,0 +1,45 @@
+{
+  "articleId": "替换为已导入的文章ID",
+  "version": "1",
+  "sourceExcerpt": "填写用于拆解的材料节选。",
+  "argument": {
+    "templateId": "",
+    "templateName": "总分结构",
+    "mode": "points",
+    "overview": "填写全文总论点。",
+    "conclusion": "填写文章结论。",
+    "overviewMethod": "",
+    "overviewTemplate": "",
+    "fields": [],
+    "points": [
+      {
+        "title": "填写分论点标题",
+        "claim": "填写核心判断",
+        "evidence": "填写支撑该分论点的原文事实或论述",
+        "summary": "填写本段论证小结",
+        "method": "填写论证方法",
+        "methodNote": "说明这种论证方法如何发挥作用",
+        "template": "提炼可复用的论证模板"
+      }
+    ]
+  },
+  "terms": [
+    { "term": "规范表达", "category": "方法", "plainWord": "通俗解释" }
+  ],
+  "quotes": [
+    { "text": "经典金句", "source": "出处", "meaning": "释义" }
+  ],
+  "verbs": [
+    { "verb": "夯实", "usage": "夯实基础", "category": "建设类" }
+  ],
+  "templates": [
+    { "type": "递进句", "typeName": "递进句", "original": "原句", "template": "不仅……更要……", "imitate": "仿写句" }
+  ],
+  "practice": {
+    "prompt": "请根据材料完成一道短作答。",
+    "minLength": 50,
+    "maxLength": 150,
+    "checks": ["观点明确", "有材料依据", "表达简洁"],
+    "referenceAnswer": "填写人工审核后的参考答案。"
+  }
+}

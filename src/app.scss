@@ -1,0 +1,351 @@
+@import './styles/variables.scss';
+
+html {
+  color-scheme: light;
+}
+html.theme-dark {
+  color-scheme: dark;
+}
+
+page,
+body,
+#app {
+  background-color: $page-bg;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  color: $text-primary;
+  font-size: 14px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Taro H5 页面容器随主题变底 */
+.taro_page,
+.taro-tabbar__panel {
+  background-color: $page-bg !important;
+  color: $text-primary;
+}
+
+.container {
+  @include page-padding;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 3px solid $primary-color;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, $primary-color 0%, $primary-mid 100%) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  color: #fff !important;
+}
+
+.text-primary {
+  color: var(--zk-primary);
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.empty-tip {
+  text-align: center;
+  color: $text-muted;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* 使用自定义 AppTabBar（NutUI 图标），隐藏 H5 原生 tabBar */
+.taro-tabbar__tabbar {
+  display: none !important;
+}
+
+/* 三个主 Tab 页为自定义底栏留空 */
+.page-with-tabbar {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  box-sizing: border-box;
+}
+
+/* —— 深色：组件与常见工具类统一配色 —— */
+html.theme-dark,
+.theme-dark {
+  color: var(--zk-text-primary);
+
+  /* 中性标签 / 次要底（业务页常用 class） */
+  .chip-soft,
+  .subj-muted,
+  .prio-normal,
+  .tone-muted,
+  .fam-1 {
+    background: var(--zk-chip-bg) !important;
+    color: var(--zk-text-secondary) !important;
+  }
+
+  /* NutUI Cell：去掉默认圆角/外边距/浅色阴影（深色下会变成发光浮雕） */
+  .nut-cell {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-color: var(--zk-card-bg) !important;
+    color: var(--zk-text-primary) !important;
+  }
+  .menu-group .nut-cell,
+  .nut-cell-group .nut-cell,
+  .nut-cell-group__wrap .nut-cell {
+    background-color: transparent !important;
+  }
+  .nut-cell-group {
+    background-color: transparent !important;
+  }
+  .nut-cell__title,
+  .nut-cell__link {
+    color: var(--zk-text-primary) !important;
+  }
+  .nut-cell__desc,
+  .nut-cell__value {
+    color: var(--zk-text-secondary) !important;
+  }
+  .nut-cell::after,
+  .nut-cell-group::after {
+    border-color: var(--zk-border-color) !important;
+  }
+  .nut-cell-group__wrap {
+    background: var(--zk-card-bg) !important;
+    box-shadow: none !important;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--zk-border-color);
+  }
+  .nut-cell-group__title {
+    color: var(--zk-text-muted) !important;
+  }
+
+  /* Input / Textarea */
+  .nut-input,
+  .nut-textarea {
+    background: var(--zk-input-bg) !important;
+    color: var(--zk-text-primary) !important;
+    border-color: var(--zk-border-color) !important;
+  }
+  .nut-input__input,
+  .nut-textarea__textarea,
+  .nut-input input,
+  .nut-textarea textarea {
+    color: var(--zk-text-primary) !important;
+    background: transparent !important;
+    caret-color: var(--zk-primary);
+  }
+  .nut-input__input::placeholder,
+  .nut-textarea__textarea::placeholder,
+  .nut-input input::placeholder,
+  .nut-textarea textarea::placeholder {
+    color: var(--zk-text-muted) !important;
+  }
+  .nut-input--border,
+  .nut-textarea--border {
+    border-color: var(--zk-border-color) !important;
+  }
+
+  /* Buttons */
+  .nut-button--default {
+    background: var(--zk-elevated) !important;
+    color: var(--zk-text-primary) !important;
+    border-color: var(--zk-border-color) !important;
+  }
+  .nut-button--primary {
+    background: var(--zk-primary) !important;
+    border-color: var(--zk-primary) !important;
+    color: #fff !important;
+  }
+  .nut-button--primary.nut-button--plain,
+  .nut-button--plain.nut-button--primary {
+    background: transparent !important;
+    color: var(--zk-primary) !important;
+    border-color: var(--zk-primary) !important;
+  }
+  .nut-button--plain {
+    background: transparent !important;
+    color: var(--zk-text-primary) !important;
+    border-color: var(--zk-border-color) !important;
+  }
+  .nut-button--info,
+  .nut-button--success,
+  .nut-button--warning,
+  .nut-button--danger {
+    color: #fff !important;
+  }
+
+  /* Tags */
+  .nut-tag {
+    border-color: transparent !important;
+  }
+  .nut-tag--default {
+    background: var(--zk-chip-bg) !important;
+    color: var(--zk-text-secondary) !important;
+  }
+  .nut-tag--primary {
+    background: var(--zk-primary-soft) !important;
+    color: var(--zk-primary) !important;
+  }
+
+  /* Popup / Dialog / ActionSheet */
+  .nut-popup,
+  .nut-dialog,
+  .nut-action-sheet,
+  .nut-action-sheet__content,
+  .nut-action-sheet-item {
+    background: var(--zk-card-bg) !important;
+    color: var(--zk-text-primary) !important;
+  }
+  .nut-dialog__header,
+  .nut-dialog__content,
+  .nut-dialog__footer-ok,
+  .nut-action-sheet-item {
+    color: var(--zk-text-primary) !important;
+  }
+  .nut-dialog__footer-cancel,
+  .nut-action-sheet-cancel {
+    color: var(--zk-text-secondary) !important;
+    background: var(--zk-elevated) !important;
+  }
+  .nut-overlay {
+    background: rgba(0, 0, 0, 0.65) !important;
+  }
+
+  /* Tabs */
+  .nut-tabs__titles,
+  .nut-tabs__list,
+  .nut-tabs__titles-item {
+    background: var(--zk-card-bg) !important;
+    color: var(--zk-text-secondary) !important;
+  }
+  .nut-tabs__titles-item__text {
+    color: inherit !important;
+  }
+  .nut-tabs__titles-item.active {
+    color: var(--zk-primary) !important;
+  }
+  .nut-tabs__titles-item__line {
+    background: var(--zk-primary) !important;
+  }
+
+  /* Avatar / Picker / Switch / Radio */
+  .nut-avatar {
+    background: var(--zk-primary-soft) !important;
+    color: var(--zk-primary) !important;
+  }
+  .nut-picker,
+  .nut-picker__bar,
+  .nut-picker-roller,
+  .nut-picker__column {
+    background: var(--zk-card-bg) !important;
+    color: var(--zk-text-primary) !important;
+  }
+  .nut-picker__left,
+  .nut-picker__right,
+  .nut-picker__title {
+    color: var(--zk-text-primary) !important;
+  }
+  .nut-switch {
+    background-color: #555 !important;
+  }
+  .nut-switch.nut-switch-open {
+    background-color: var(--zk-primary) !important;
+  }
+  .nut-radio__label,
+  .nut-checkbox__label {
+    color: var(--zk-text-primary) !important;
+  }
+  .nut-radio__icon--unchecked,
+  .nut-checkbox__icon--unchecked {
+    color: var(--zk-text-muted) !important;
+  }
+
+  /* Skeleton */
+  .nut-skeleton-block,
+  .nut-skeleton-content,
+  .nut-skeleton-line,
+  .nut-skeleton__content,
+  .nut-skeleton__block,
+  .nut-skeleton__line {
+    background: var(--zk-elevated) !important;
+  }
+
+  /* Toast / Notify */
+  .nut-toast,
+  .nut-toast__inner,
+  .nut-notify {
+    background: var(--zk-elevated) !important;
+    color: var(--zk-text-primary) !important;
+  }
+
+  /* Badge */
+  .nut-badge__content {
+    border-color: var(--zk-card-bg);
+  }
+
+  /* Empty / Divider-ish */
+  .nut-empty__description,
+  .nut-empty__box {
+    color: var(--zk-text-muted) !important;
+  }
+
+  /* 分组卡片：扁平描边，不要高光阴影 */
+  .menu-group,
+  .quick-actions,
+  .sheet-card {
+    background: var(--zk-card-bg) !important;
+    box-shadow: none !important;
+    border: 1px solid var(--zk-border-color);
+  }
+}
+
+/* 反馈层挂载点：默认不挡点击；弹层出现时自行 pointer-events:auto */
+#zk-feedback-host {
+  position: fixed;
+  inset: 0;
+  z-index: 10030;
+  pointer-events: none;
+}
+#zk-feedback-host:has(.zk-mask) {
+  pointer-events: auto;
+}
+#zk-feedback-host .zk-mask,
+#zk-feedback-host .zk-dialog,
+#zk-feedback-host .zk-dialog__btn {
+  pointer-events: auto;
+}
+
+/* 阅读正文允许长按选中复制（H5 / 平板） */
+.selectable-text {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* 平板手写：扩大输入热区，减少笔迹被当成页面拖动 */
+.nut-input,
+.nut-textarea,
+.nut-input input,
+.nut-textarea textarea,
+.nut-input__input,
+.nut-textarea__textarea {
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.nut-textarea,
+.nut-textarea__textarea,
+.nut-textarea textarea {
+  min-height: 88px;
+  line-height: 1.6;
+}

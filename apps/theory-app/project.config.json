@@ -1,0 +1,3 @@
+{
+  "miniprogramRoot": "dist/", "projectname": "zhixing-theory", "description": "知行日知 · 时政学习独立应用", "appid": "wx987f43ac6993012e", "setting": { "urlCheck": false, "es6": false, "postcss": false }, "compileType": "miniprogram"
+}

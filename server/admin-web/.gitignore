@@ -1,0 +1,8 @@
+node_modules/
+dist/
+../admin-dist/
+
+# vue-tsc / IDE 误生成的产物，源码以 .ts / .vue 为准
+src/**/*.vue.js
+src/**/*.js
+!src/**/*.ts
