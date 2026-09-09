@@ -1,6 +1,13 @@
 <template>
-  <view class="article-card" :class="{ featured: article.isFeatured }" @tap="onTap">
+  <view
+    class="article-card"
+    :class="[themeClass, { featured: isEmphasized }]"
+    @tap="onTap"
+  >
+    <view v-if="isEmphasized" class="card-accent" />
+    <view v-if="isEmphasized" class="card-wash" />
     <view class="card-meta">
+      <text v-if="typeLabel" class="chip chip-kind">{{ typeLabel }}</text>
       <text v-if="article.isFeatured" class="chip chip-pin"> 置顶 </text>
       <text
         v-if="article.importance && article.importance >= 4"
@@ -35,7 +42,7 @@
         >
           {{ tag }}
         </text>
-        <text v-if="article.sections?.length" class="chip tone-muted">
+        <text v-if="article.sections?.length && !article.contentHtml" class="chip tone-muted">
           {{ article.sections.length }} 章
         </text>
       </view>
@@ -47,9 +54,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Article } from '@/types'
+import { useThemeClass } from '@/utils/brandColor'
 
-const props = defineProps<{ article: Article }>()
+const props = defineProps<{ article: Article; typeLabel?: string }>()
 const emit = defineEmits<{ tap: [id: string] }>()
+const { themeClass } = useThemeClass()
+const isEmphasized = computed(() => !!(props.article.isFeatured || props.article.isDaily))
 
 const importanceChipClass = computed(() => {
   const level = props.article.importance || 3
@@ -74,17 +84,39 @@ function onTap() {
   overflow: hidden;
 
   &.featured {
-    background: radial-gradient(120% 80% at 100% 0%, $primary-faint 0%, transparent 50%), $card-bg;
+    background: $card-bg;
+  }
 
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      background: linear-gradient(180deg, $primary-color 0%, $primary-soft 100%);
-    }
+  .card-accent {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 2;
+    width: 3px;
+    background: $primary-color;
+  }
+
+  .card-wash {
+    position: absolute;
+    z-index: 0;
+    top: -28%;
+    right: -18%;
+    width: 72%;
+    height: 78%;
+    border-radius: 50%;
+    pointer-events: none;
+    background: $primary-color;
+    opacity: 0.12;
+  }
+
+  .card-meta,
+  .category-line,
+  .title,
+  .summary,
+  .card-footer {
+    position: relative;
+    z-index: 1;
   }
 
   .card-meta {
@@ -101,6 +133,11 @@ function onTap() {
     text-overflow: ellipsis;
     white-space: nowrap;
     @include muted-chip;
+  }
+
+  .chip-kind {
+    color: #fff;
+    background: $primary-color;
   }
 
   .chip-pin {

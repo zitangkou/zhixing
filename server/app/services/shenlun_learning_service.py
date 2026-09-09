@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -291,6 +292,8 @@ def upsert_teaching_html(db: Session, *, article_id: str, display_html: str) -> 
     cleaned = sanitize_display_html(display_html)
     if not cleaned:
         raise ValueError("请粘贴解析 HTML")
+    if not re.search(r"<(p|div|section|article|h[1-6]|table|blockquote)\b", cleaned, re.I):
+        raise ValueError("请粘贴解析 HTML（网页源码），不要贴 Markdown 或 YAML")
     version = "v2.18"
     row = (
         db.query(ShenlunTeachingExample)

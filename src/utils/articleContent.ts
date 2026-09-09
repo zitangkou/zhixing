@@ -55,6 +55,50 @@ export function countSections(sections: ArticleSection[]): {
 const GENERIC_SECTION_TITLE =
   /^（[\d一二三四五六七八九十]+）$|^章节导言$|^第[\d一二三四]+段$|^要点\d+$/
 
+const HTML_TAG_RE = /<(p|div|section|article|html|body|h[1-6]|table|blockquote)\b/i
+const ESCAPED_HTML_TAG_RE = /&lt;(p|div|section|article|html|body|h[1-6]|table|blockquote)\b/i
+
+export function looksLikeHtml(raw: string | undefined | null): boolean {
+  const text = (raw || '').trim()
+  return !!text && (HTML_TAG_RE.test(text) || ESCAPED_HTML_TAG_RE.test(text))
+}
+
+export function unescapeHtmlIfNeeded(raw: string): string {
+  const text = (raw || '').trim()
+  if (!text) return ''
+  if (HTML_TAG_RE.test(text)) return text
+  if (!ESCAPED_HTML_TAG_RE.test(text)) return text
+  return text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+}
+
+export function wrapHtmlDocument(raw: string): string {
+  const html = unescapeHtmlIfNeeded(raw)
+  if (!html) return ''
+  if (/<html[\s>]/i.test(html)) return html
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}</body></html>`
+}
+
+/** 去掉 html/head，只留可塞进当前页的片段 */
+export function htmlToFragment(raw: string): string {
+  const html = unescapeHtmlIfNeeded(raw)
+  if (!html) return ''
+  const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+  if (body) return body[1].trim()
+  return html
+    .replace(/<head[\s\S]*?<\/head>/i, '')
+    .replace(/<!DOCTYPE[^>]*>/i, '')
+    .replace(/<\/?html[^>]*>/gi, '')
+    .replace(/<\/?body[^>]*>/gi, '')
+    .trim()
+}
+
+export function articleDisplayHtml(article: Pick<Article, 'content' | 'contentHtml'>): string {
+  const html = (article.contentHtml || '').trim()
+  if (html) return unescapeHtmlIfNeeded(html)
+  if (looksLikeHtml(article.content)) return unescapeHtmlIfNeeded(article.content)
+  return ''
+}
+
 /** 从正文首句或要点生成可读小节标题 */
 export function deriveSectionTitle(section: ArticleSection): string {
   const raw = section.title.trim()
@@ -82,9 +126,10 @@ function enrichSectionTitles(sections: ArticleSection[]): ArticleSection[] {
 
 /** API 返回缺少 sections 时，按段落自动拆分；已有 sections 则补充可读标题 */
 export function normalizeArticle(article: Article): Article {
-  if (article.contentHtml?.trim()) {
+  if (article.contentHtml?.trim() || looksLikeHtml(article.content)) {
     return {
       ...article,
+      contentHtml: articleDisplayHtml(article) || article.contentHtml,
       sections: article.sections?.length ? enrichSectionTitles(article.sections) : [],
     }
   }

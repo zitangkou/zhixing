@@ -95,14 +95,14 @@ def list_articles(
     return outs
 
 
-def list_today_articles(db: Session, *, limit: int = 1) -> list[RmrbArticleOut]:
-    """优先后台「今日推荐」；没有则按发布日期取最近一篇。"""
+def list_today_articles(db: Session, *, fallback: int = 1) -> list[RmrbArticleOut]:
+    """优先后台「今日推荐」（可多篇）；没有则按发布日期取最近若干篇。"""
     published = list_articles(db, published_only=True)
     flagged = [a for a in published if a.isDaily]
     if flagged:
-        flagged.sort(key=lambda a: a.publishDate or "", reverse=True)
-        return flagged[:limit]
-    return published[:limit]
+        flagged.sort(key=lambda a: (a.publishDate or "", str(a.createdAt or "")), reverse=True)
+        return flagged
+    return published[:fallback]
 
 
 def list_theme_tags(db: Session, *, published_only: bool = False) -> list[str]:

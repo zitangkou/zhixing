@@ -61,6 +61,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="publishDate" label="日期" width="110" />
+      <el-table-column label="正文" width="90">
+        <template #default="{ row }">
+          <el-tag v-if="row.contentHtml" size="small" type="success">HTML</el-tag>
+          <el-tag v-else size="small" type="info">结构化</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="标记" width="80">
         <template #default="{ row }">
           <el-tag v-if="row.isDaily" size="small" type="danger">今日</el-tag>
@@ -204,6 +210,12 @@
         <el-form-item label="原文链接">
           <el-input v-model="articleImportSourceUrl" placeholder="可从文首「原文链接：」自动带出" />
         </el-form-item>
+        <el-form-item label="摘要">
+          <el-input v-model="articleImportSummary" type="textarea" :rows="2" placeholder="可空，预览或导入时从正文抽取" />
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-input v-model="articleImportTagsText" placeholder="逗号分隔，如：十五五规划,重点必读" />
+        </el-form-item>
         <el-form-item label="分类">
           <el-tree-select
             v-model="articleImportCategoryId"
@@ -272,6 +284,8 @@ const articleImportDaily = ref(false)
 const articleImportSource = ref('')
 const articleImportPublishDate = ref('')
 const articleImportSourceUrl = ref('')
+const articleImportSummary = ref('')
+const articleImportTagsText = ref('')
 const articleImporting = ref(false)
 const articlePreviewing = ref(false)
 const articleImportPreview = ref<{
@@ -423,6 +437,8 @@ function openArticleImportDialog() {
   articleImportSource.value = ''
   articleImportPublishDate.value = ''
   articleImportSourceUrl.value = ''
+  articleImportSummary.value = ''
+  articleImportTagsText.value = ''
   articleImportPreview.value = null
   articleImportVisible.value = true
 }
@@ -441,6 +457,7 @@ async function previewArticleImport() {
     if (preview.source) articleImportSource.value = preview.source
     if (preview.publishDate) articleImportPublishDate.value = preview.publishDate
     if (preview.sourceUrl) articleImportSourceUrl.value = preview.sourceUrl
+    if (preview.summary) articleImportSummary.value = preview.summary
     ElMessage.success(articleImportFormat.value === 'html' ? `解析到「${preview.title}」` : `解析到 ${preview.stats.chapters} 章 ${preview.stats.sections} 节`)
   } catch (e) {
     articleImportPreview.value = null
@@ -465,6 +482,8 @@ async function submitArticleImport() {
       source: articleImportSource.value,
       source_url: articleImportSourceUrl.value,
       publish_date: articleImportPublishDate.value,
+      summary: articleImportSummary.value.trim(),
+      tags: articleImportTagsText.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
     }
     const res = articleImportFormat.value === 'html'
       ? await importArticleHtml({ html: articleImportBody.value, ...common })

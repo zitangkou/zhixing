@@ -57,6 +57,7 @@ export interface Article {
   status?: string
   allowQuiz?: boolean
   isDaily?: boolean
+  createdAt?: string
 }
 
 export type QuizMode = 'daily' | 'article' | 'random' | 'timeline' | 'key' | 'wrong'

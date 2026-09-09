@@ -11,5 +11,7 @@ export function rmrbToCard(item: RmrbArticle): Article {
     content: '',
     tags: item.tags || [],
     mindMap: { id: item.id, title: item.title },
+    isDaily: !!item.isDaily,
+    createdAt: item.createdAt,
   }
 }

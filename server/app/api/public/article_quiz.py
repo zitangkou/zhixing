@@ -12,7 +12,6 @@ def daily_articles(db: Session = Depends(get_db)):
     rows = (
         published.filter(Article.is_daily.is_(True))
         .order_by(Article.publish_date.desc(), Article.created_at.desc())
-        .limit(1)
         .all()
     )
     if not rows:

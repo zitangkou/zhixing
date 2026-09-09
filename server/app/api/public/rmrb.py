@@ -61,7 +61,7 @@ def rmrb_articles_list(
 
 @router.get("/rmrb/articles/today")
 def rmrb_articles_today(db: Session = Depends(get_db)):
-    return ApiResponse.ok([a.model_dump() for a in list_rmrb_today_articles(db, limit=1)])
+    return ApiResponse.ok([a.model_dump() for a in list_rmrb_today_articles(db)])
 
 
 @router.get("/rmrb/articles/{article_id}")

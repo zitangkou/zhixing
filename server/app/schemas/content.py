@@ -169,6 +169,7 @@ class ImportArticleMarkdownBody(BaseModel):
     source: str = ""
     source_url: str = ""
     publish_date: str = ""
+    summary: str = ""
     tags: list[str] = Field(default_factory=list)
 
 
@@ -181,6 +182,7 @@ class ImportArticleHtmlBody(BaseModel):
     source: str = ""
     source_url: str = ""
     publish_date: str = ""
+    summary: str = ""
     tags: list[str] = Field(default_factory=list)
 
 
@@ -205,5 +207,6 @@ class ArticleOut(BaseModel):
     status: str = "published"
     allowQuiz: bool = True
     isDaily: bool = False
+    createdAt: str = ""
 
 

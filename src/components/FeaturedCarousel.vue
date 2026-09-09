@@ -14,6 +14,7 @@
       <view class="featured-slide" @tap="onTap(article.id)">
         <view class="slide-accent" />
         <view class="slide-body">
+          <view class="slide-wash" />
           <view class="slide-meta">
             <text class="chip chip-pin"> 置顶 </text>
             <text class="chip chip-source">
@@ -77,17 +78,38 @@ function onTap(id: string) {
   .slide-accent {
     width: 4px;
     flex-shrink: 0;
-    background: linear-gradient(180deg, $primary-color 0%, $primary-soft 100%);
+    background: $primary-color;
   }
 
   .slide-body {
+    position: relative;
     flex: 1;
     min-width: 0;
     padding: 14px 14px 14px 12px;
     display: flex;
     flex-direction: column;
-    /* 右上角极淡暖色，与灰底形成层次，但不抢内容 */
-    background: radial-gradient(120% 80% at 100% 0%, $primary-faint 0%, transparent 55%), $card-bg;
+    background: $card-bg;
+    overflow: hidden;
+  }
+
+  .slide-wash {
+    position: absolute;
+    z-index: 0;
+    top: -28%;
+    right: -18%;
+    width: 72%;
+    height: 78%;
+    border-radius: 50%;
+    pointer-events: none;
+    background: $primary-color;
+    opacity: 0.12;
+  }
+
+  .slide-meta,
+  .slide-title,
+  .slide-summary {
+    position: relative;
+    z-index: 1;
   }
 
   .slide-meta {

@@ -54,6 +54,7 @@ export function importArticleHtml(data: {
   source?: string
   source_url?: string
   publish_date?: string
+  summary?: string
   tags?: string[]
 }) {
   return getData<Article & {
@@ -83,6 +84,7 @@ export function importArticleMarkdown(data: {
   source?: string
   source_url?: string
   publish_date?: string
+  summary?: string
   tags?: string[]
 }) {
   return getData<Article & {

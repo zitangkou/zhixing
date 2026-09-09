@@ -17,11 +17,6 @@
           @tap="goPoints"
         />
       </view>
-      <view class="banner-today" @tap="go('/pages/question/article-pick')">
-        <text class="today-label">今日时政</text>
-        <text class="today-desc">卡片列表阅读 · 读完再练习</text>
-        <text class="today-arrow">›</text>
-      </view>
     </view>
 
     <view class="quick-actions">
@@ -66,86 +61,23 @@
       </view>
     </view>
 
-    <view class="home-block home-block-rmrb">
-      <view class="home-block-title">
-        <text>今日时评</text>
-      </view>
-      <nut-skeleton v-if="todayRmrbLoading && !todayRmrbCards.length" rows="2" />
-      <template v-else-if="todayRmrbCards.length">
-        <ArticleCard
-          v-for="article in todayRmrbCards"
-          :key="article.id"
-          :article="article"
-          @tap="goRmrbArticle"
-        />
-      </template>
-      <view v-else class="empty-rmrb">
-        <text class="empty-title">暂无时评</text>
-        <text class="empty-desc">请管理员在后台「时评精拆」发布文章</text>
-      </view>
-    </view>
-
     <view class="home-block">
       <view class="home-block-title">
-        <text>今日时政</text>
+        <text>今日文章</text>
       </view>
-      <nut-skeleton v-if="articleStore.dailyLoading && !todayTheoryCards.length" rows="2" />
-      <template v-else-if="todayTheoryCards.length">
+      <nut-skeleton v-if="todayLoading && !todayArticles.length" rows="3" />
+      <template v-else-if="todayArticles.length">
         <ArticleCard
-          v-for="article in todayTheoryCards"
-          :key="article.id"
-          :article="article"
-          @tap="goArticle"
+          v-for="item in todayArticles"
+          :key="`${item.kind}-${item.article.id}`"
+          :article="item.article"
+          :type-label="item.kind === 'rmrb' ? '评论' : '理论'"
+          @tap="onTodayTap"
         />
       </template>
       <view v-else class="empty-rmrb">
-        <text class="empty-title">暂无时政文章</text>
-        <text class="empty-desc">下拉刷新试试，或稍后再来</text>
-      </view>
-    </view>
-
-    <view class="home-block home-block-rmrb">
-      <view class="home-block-title">
-        <text>时评原文</text>
-        <text class="home-block-meta is-link" @tap="go('/pages/rmrb/article-list')">查看全部</text>
-      </view>
-      <nut-skeleton v-if="rmrbLoading && !rmrbCards.length" rows="2" />
-      <template v-else-if="rmrbCards.length">
-        <ArticleCard
-          v-for="article in rmrbCards"
-          :key="article.id"
-          :article="article"
-          @tap="goRmrbArticle"
-        />
-      </template>
-      <view v-else class="empty-rmrb">
-        <text class="empty-title">暂无时评原文</text>
-        <text class="empty-desc">请管理员在后台「时评精拆」发布文章</text>
-      </view>
-    </view>
-
-    <view class="home-block home-block-recommended">
-      <view class="home-block-title">
-        <text>时政阅读</text>
-        <text class="home-block-meta is-link" @tap="go('/pages/question/article-pick')">查看全部</text>
-      </view>
-      <nut-skeleton v-if="showRecommendedSkeleton" rows="4" />
-      <template v-else-if="articleStore.recommendedList.length">
-        <ArticleCard
-          v-for="article in articleStore.recommendedList"
-          :key="article.id"
-          :article="article"
-          @tap="goArticle"
-        />
-        <view v-if="articleStore.recommendedLoading" class="list-status">加载中...</view>
-        <view v-else-if="articleStore.recommendedHasMore" class="list-status muted">
-          上拉加载更多
-        </view>
-        <view v-else class="list-status muted">已加载全部</view>
-      </template>
-      <view v-else class="empty-recommended">
-        <text class="empty-title">暂无时政文章</text>
-        <text class="empty-desc">下拉刷新试试，或稍后再来</text>
+        <text class="empty-title">暂无今日文章</text>
+        <text class="empty-desc">请管理员在后台勾选「今日推荐」后发布</text>
       </view>
     </view>
 
@@ -155,7 +87,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import Taro, { useDidShow, usePullDownRefresh, useReachBottom } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { Skeleton as NutSkeleton } from '@nutui/nutui-taro'
 import {
   CheckChecked,
@@ -172,7 +104,7 @@ import { APP_NAME, APP_SLOGAN } from '@/constants/brand'
 import { SHOW_CORPUS_MENU, SHOW_EVENTS, SHOW_HOME_DOMAINS } from '@/constants/featureVisibility'
 import { useUserStore } from '@/store/user'
 import { useArticleStore } from '@/store/article'
-import type { RmrbArticle } from '@/types'
+import type { Article, RmrbArticle } from '@/types'
 import { rmrbToCard } from '@/utils/rmrbCard'
 import { showToast } from '@/utils/platform'
 import { isLoggedIn } from '@/utils/auth'
@@ -188,19 +120,25 @@ const { brandColor } = useBrandColor()
 const loggedIn = computed(() => isLoggedIn() && !!userStore.userInfo?.id)
 
 const pageReady = ref(false)
-const rmrbLoading = ref(false)
 const todayRmrbLoading = ref(false)
-const rmrbPreview = ref<RmrbArticle[]>([])
 const todayRmrbList = ref<RmrbArticle[]>([])
-const RMRB_HOME_LIMIT = 3
 
-const rmrbCards = computed(() => rmrbPreview.value.map(rmrbToCard))
-const todayRmrbCards = computed(() => todayRmrbList.value.map(rmrbToCard))
-const todayTheoryCards = computed(() => articleStore.dailyArticles.slice(0, 1))
+type TodayKind = 'rmrb' | 'theory'
+type TodayItem = { kind: TodayKind; article: Article }
 
-const showRecommendedSkeleton = computed(
-  () => articleStore.recommendedLoading && articleStore.recommendedList.length === 0,
-)
+const todayLoading = computed(() => todayRmrbLoading.value || articleStore.dailyLoading)
+const todayArticles = computed(() => {
+  const items: TodayItem[] = [
+    ...todayRmrbList.value.map((row) => ({ kind: 'rmrb' as const, article: rmrbToCard(row) })),
+    ...articleStore.dailyArticles.map((row) => ({ kind: 'theory' as const, article: row })),
+  ]
+  items.sort((a, b) => {
+    const date = (b.article.publishDate || '').localeCompare(a.article.publishDate || '')
+    if (date) return date
+    return (b.article.createdAt || '').localeCompare(a.article.createdAt || '')
+  })
+  return items
+})
 
 type DomainItem = {
   name: string
@@ -222,18 +160,6 @@ const examDomains: DomainItem[] = [
     : []),
 ]
 
-async function fetchRmrbPreview() {
-  rmrbLoading.value = true
-  try {
-    const res = await api.listRmrbArticles()
-    if (res.code === 0 && res.data) {
-      rmrbPreview.value = res.data.slice(0, RMRB_HOME_LIMIT)
-    }
-  } finally {
-    rmrbLoading.value = false
-  }
-}
-
 async function fetchTodayRmrb() {
   todayRmrbLoading.value = true
   try {
@@ -247,9 +173,7 @@ async function fetchTodayRmrb() {
 async function fetchPageData() {
   await Promise.all([
     articleStore.fetchDailyArticles(),
-    articleStore.fetchRecommendedArticles(true),
     fetchTodayRmrb(),
-    fetchRmrbPreview(),
   ])
 }
 
@@ -262,9 +186,7 @@ async function refreshOnShow() {
   const authed = isLoggedIn()
   await Promise.all([
     articleStore.fetchDailyArticles(),
-    articleStore.fetchRecommendedArticles(true),
     fetchTodayRmrb(),
-    fetchRmrbPreview(),
     authed ? articleStore.syncStudyData() : Promise.resolve(),
   ])
 }
@@ -287,10 +209,6 @@ usePullDownRefresh(async () => {
   }
 })
 
-useReachBottom(() => {
-  articleStore.fetchRecommendedArticles(false)
-})
-
 function go(url: string) {
   if (url.startsWith('/pages/index') || url.startsWith('/pages/user/index')) {
     Taro.switchTab({ url })
@@ -311,6 +229,12 @@ function goRmrbArticle(id: string) {
   Taro.navigateTo({ url: `/pages/rmrb/article-detail?id=${id}` })
 }
 
+function onTodayTap(id: string) {
+  const hit = todayArticles.value.find((item) => item.article.id === id)
+  if (hit?.kind === 'rmrb') goRmrbArticle(id)
+  else goArticle(id)
+}
+
 function goPoints() {
   Taro.navigateTo({ url: '/pages/user/points' })
 }
@@ -321,7 +245,7 @@ function onExamDomain(item: DomainItem) {
     const fallback = articleStore.featuredArticles[0] || articleStore.recommendedList[0]
     const targetId = recentId || fallback?.id
     if (targetId) goArticle(targetId)
-    else showToast('暂无时政文章，可先看下方推荐')
+    else showToast('暂无时政文章')
     return
   }
   go(item.url)

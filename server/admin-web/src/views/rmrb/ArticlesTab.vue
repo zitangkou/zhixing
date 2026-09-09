@@ -71,9 +71,34 @@
           <el-input
             v-model="form.contentHtml"
             type="textarea"
-            :rows="18"
+            :rows="14"
             placeholder="粘贴时评原文 HTML"
           />
+        </el-form-item>
+        <el-form-item label="摘要">
+          <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="可空，空则从 HTML 抽取" />
+        </el-form-item>
+        <el-form-item label="主题">
+          <el-select
+            v-model="form.tags"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入主题"
+            style="width: 100%"
+          >
+            <el-option v-for="t in themeOptions" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="来源">
+          <el-input v-model="form.source" placeholder="可空，空则从 HTML 抽取" />
+        </el-form-item>
+        <el-form-item label="发布日期">
+          <el-input v-model="form.publishDate" placeholder="YYYY-MM-DD，可空" />
+        </el-form-item>
+        <el-form-item label="原文链接">
+          <el-input v-model="form.sourceUrl" placeholder="可空" />
         </el-form-item>
         <el-form-item label="今日推荐">
           <el-checkbox v-model="form.isDaily">作为学员端「今日时评」</el-checkbox>
@@ -106,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createRmrbArticle,
@@ -145,8 +170,18 @@ const editId = ref<string | null>(null)
 const filterTag = ref('')
 const form = reactive({
   contentHtml: '',
+  summary: '',
+  tags: [] as string[],
+  source: '',
+  publishDate: '',
+  sourceUrl: '',
   isPublished: true,
   isDaily: false,
+})
+
+const themeOptions = computed(() => {
+  const extra = form.tags.filter((t) => t && !themePresets.includes(t))
+  return [...themePresets, ...extra]
 })
 
 async function load() {
@@ -155,17 +190,31 @@ async function load() {
   })
 }
 
+function resetForm() {
+  form.contentHtml = ''
+  form.summary = ''
+  form.tags = []
+  form.source = ''
+  form.publishDate = ''
+  form.sourceUrl = ''
+  form.isPublished = true
+  form.isDaily = false
+}
+
 function openDialog(row?: RmrbArticle) {
   if (row) {
     editId.value = row.id
     form.contentHtml = row.contentHtml || ''
+    form.summary = row.summary || ''
+    form.tags = [...(row.tags || [])]
+    form.source = row.source || ''
+    form.publishDate = row.publishDate || ''
+    form.sourceUrl = row.sourceUrl || ''
     form.isPublished = row.isPublished
     form.isDaily = !!row.isDaily
   } else {
     editId.value = null
-    form.contentHtml = ''
-    form.isPublished = true
-    form.isDaily = false
+    resetForm()
   }
   visible.value = true
 }
@@ -189,6 +238,11 @@ async function save() {
   saving.value = true
   const payload = {
     contentHtml: form.contentHtml,
+    summary: form.summary.trim(),
+    tags: form.tags,
+    source: form.source.trim(),
+    publishDate: form.publishDate.trim(),
+    sourceUrl: form.sourceUrl.trim(),
     isDaily: form.isDaily,
     isPublished: form.isPublished,
   }

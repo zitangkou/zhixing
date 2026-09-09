@@ -55,7 +55,8 @@ def article_to_out(article: Article) -> ArticleOut:
     if not isinstance(mind_raw, dict) or not mind_raw.get("id") or not mind_raw.get("title"):
         mind_raw = {"id": "root", "title": article.title, "children": []}
     sections_raw = parse_json(getattr(article, "sections", "[]") or "[]", [])
-    if not sections_raw and article.content:
+    html = getattr(article, "content_html", "") or ""
+    if not sections_raw and article.content and not str(html).strip():
         from app.services.section_parser import build_sections_from_content
 
         sections_raw = build_sections_from_content(article.title, article.content)
@@ -73,7 +74,7 @@ def article_to_out(article: Article) -> ArticleOut:
         summary=article.summary,
         sections=sections,
         content=content,
-        contentHtml=getattr(article, "content_html", "") or "",
+        contentHtml=html,
         tags=parse_json(article.tags, []),
         mindMap=MindMapNode.model_validate(mind_raw),
         readCount=article.read_count,
@@ -86,6 +87,7 @@ def article_to_out(article: Article) -> ArticleOut:
         status=getattr(article, "status", "published") or "published",
         allowQuiz=bool(getattr(article, "allow_quiz", True)),
         isDaily=bool(getattr(article, "is_daily", False)),
+        createdAt=article.created_at.isoformat() if getattr(article, "created_at", None) else "",
     )
 
 

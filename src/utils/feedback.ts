@@ -5,6 +5,7 @@
 import { reactive } from 'vue'
 import Taro from '@tarojs/taro'
 import { brandPrimary } from '@/constants/theme'
+import { readPersistJson } from '@/utils/persistStorage'
 
 export type ToastIcon = 'success' | 'error' | 'none'
 
@@ -56,9 +57,8 @@ export const feedbackState = reactive({
 
 function themeConfirmColor(): string {
   try {
-    const raw = Taro.getStorageSync('settings')
-    const data = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw
-    return brandPrimary(!!data?.darkMode, data?.brandTheme)
+    const data = readPersistJson('settings')
+    return brandPrimary(!!data?.darkMode, data?.brandTheme as import('@/constants/theme').BrandThemeId | undefined)
   } catch {
     return brandPrimary(false)
   }

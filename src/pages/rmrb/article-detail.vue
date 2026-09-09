@@ -1,75 +1,24 @@
 <template>
   <view v-if="article" class="page-rmrb-detail" :class="[themeClass, { 'is-html': showHtmlLayout }]">
     <template v-if="!showParse">
-      <template v-if="article.contentHtml">
-        <iframe
-          v-if="isH5"
-          class="html-frame"
-          title="时评原文"
-          sandbox="allow-same-origin"
-          :srcdoc="originalHtmlDocument"
-          @load="onFrameLoad"
-        />
-        <rich-text v-else class="html-body" :nodes="article.contentHtml" />
-      </template>
-      <template v-else>
-      <text class="source">{{ article.source }} · {{ article.publishDate }}</text>
       <text class="title selectable-text" user-select selectable>{{ article.title }}</text>
-      <view v-if="themeChips.length" class="tags">
-        <text v-for="t in themeChips" :key="t" class="tag">{{ t }}</text>
+      <view class="meta">
+        <nut-tag type="primary" plain size="small">{{ article.source }}</nut-tag>
+        <text>{{ article.publishDate }}</text>
       </view>
-      <text class="content selectable-text" user-select selectable>{{ article.content || '暂无原文，请管理员补全文稿。' }}</text>
-      </template>
+      <view v-if="themeChips.length" class="tags">
+        <nut-tag v-for="t in themeChips" :key="t" type="primary" plain size="small">{{ t }}</nut-tag>
+      </view>
+      <ArticleHtml v-if="article.contentHtml" :html="article.contentHtml" />
+      <text v-else class="content selectable-text" user-select selectable>{{ article.content || '暂无原文，请管理员补全文稿。' }}</text>
     </template>
 
-    <template v-else-if="demo">
-      <view v-if="demo.displayHtml" class="html-wrap">
-        <iframe
-          v-if="isH5"
-          class="html-frame"
-          title="时评解析"
-          sandbox="allow-same-origin"
-          :srcdoc="parseHtmlDocument"
-          @load="onFrameLoad"
-        />
-        <rich-text v-else class="html-body" :nodes="demo.displayHtml" />
+    <template v-else-if="showParse">
+      <ArticleHtml v-if="parseHtml" :html="parseHtml" />
+      <view v-else class="empty-parse">
+        <text class="empty-title">暂无解析 HTML</text>
+        <text class="empty-desc">请管理员在后台对该文「导入解析」粘贴精拆 HTML。仍可点「去开采」跟做。</text>
       </view>
-      <template v-else>
-      <view class="block">
-        <text class="block-kicker">考题定位</text>
-        <text class="line">主题：{{ demo.examAnchor.theme }}</text>
-        <text class="line">标题机关：{{ demo.examAnchor.titleDevice }}</text>
-        <text class="line">立意路径：{{ demo.examAnchor.stancePath }}</text>
-      </view>
-      <view class="block">
-        <text class="block-kicker">原文摘录</text>
-        <text class="excerpt selectable-text" user-select selectable>{{ demo.sourceExcerpt }}</text>
-      </view>
-      <view class="block">
-        <text class="block-kicker">总骨架</text>
-        <text class="line">开头范式：{{ demo.argument.openingPattern }}</text>
-        <text class="line">过渡：{{ demo.argument.transition }}</text>
-        <text class="line">总论点：{{ demo.argument.overview }}</text>
-        <view v-for="(pt, i) in demo.argument.points" :key="i" class="point">
-          <text class="point-title">分论点 {{ i + 1 }} {{ pt.title }}</text>
-          <text class="line">论据：{{ pt.evidence }}</text>
-          <text class="line">小结：{{ pt.summary }}</text>
-          <text class="line">方法：{{ pt.method }}</text>
-        </view>
-        <text class="line">总结：{{ demo.argument.conclusion }}</text>
-      </view>
-      <view class="block">
-        <text class="block-kicker">规范词 / 语录 / 动词 / 句式</text>
-        <text class="line">规范词 {{ demo.terms.length }} · 语录 {{ demo.quotes.length }} · 动词 {{ demo.verbs.length }} · 句式 {{ demo.templates.length }}</text>
-        <text v-for="q in demo.quotes" :key="q.text" class="quote">{{ q.text }}（{{ q.source }}）</text>
-      </view>
-      <view class="block">
-        <text class="block-kicker">迁移指南</text>
-        <text class="line">适用：{{ demo.transferGuide.examFit }}</text>
-        <text class="line">警示：{{ demo.transferGuide.caution }}</text>
-        <text class="excerpt">{{ demo.transferGuide.imitateDemo }}</text>
-      </view>
-      </template>
     </template>
 
     <view class="footer">
@@ -101,11 +50,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import Taro, { useRouter } from '@tarojs/taro'
-import { Button as NutButton } from '@nutui/nutui-taro'
+import { Button as NutButton, Tag as NutTag } from '@nutui/nutui-taro'
+import ArticleHtml from '@/components/ArticleHtml.vue'
 import { api } from '@/api'
 import { useDailyTaskStore } from '@/store/dailyTask'
 import { showToast } from '@/utils/platform'
 import type { RmrbArticle } from '@/types'
+import { looksLikeHtml, unescapeHtmlIfNeeded } from '@/utils/articleContent'
 import { useThemeClass } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '时评原文' })
@@ -116,9 +67,12 @@ const dailyTaskStore = useDailyTaskStore()
 const article = ref<RmrbArticle | null>(null)
 const showParse = ref((router.params?.view || '') === 'demo')
 const demo = computed(() => article.value?.teachingExample || null)
-const isH5 = process.env.TARO_ENV === 'h5'
+const parseHtml = computed(() => {
+  const raw = unescapeHtmlIfNeeded(demo.value?.displayHtml || '')
+  return looksLikeHtml(raw) ? raw : ''
+})
 const showHtmlLayout = computed(() =>
-  (!showParse.value && !!article.value?.contentHtml) || (showParse.value && !!demo.value?.displayHtml),
+  (!showParse.value && !!article.value?.contentHtml) || (showParse.value && !!parseHtml.value),
 )
 const themeChips = computed(() => {
   const seen = new Set<string>()
@@ -132,23 +86,6 @@ const themeChips = computed(() => {
   }
   return out
 })
-
-const parseHtmlDocument = computed(() => wrapHtmlDocument(demo.value?.displayHtml || ''))
-const originalHtmlDocument = computed(() => wrapHtmlDocument(article.value?.contentHtml || ''))
-
-function wrapHtmlDocument(raw: string) {
-  if (!raw) return ''
-  if (/<html[\s>]/i.test(raw)) return raw
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${raw}</body></html>`
-}
-
-function onFrameLoad(e: Event) {
-  const frame = e.target as HTMLIFrameElement
-  const doc = frame.contentDocument
-  if (!doc?.documentElement) return
-  const height = Math.max(doc.documentElement.scrollHeight, doc.body?.scrollHeight || 0, 480)
-  frame.style.height = `${height}px`
-}
 
 async function load() {
   const id = router.params?.id || ''
@@ -212,29 +149,29 @@ onMounted(load)
   @include page-padding;
   padding-bottom: 88px;
   &.is-html {
-    padding: 0 0 88px;
-    background: #faf9f5;
+    background: $page-bg;
   }
-  .source { display: block; font-size: 12px; color: $text-muted; margin-bottom: 8px; }
   .title {
     display: block;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
-    line-height: 1.45;
-    margin-bottom: 8px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: $text-muted;
+    flex-wrap: wrap;
   }
   .tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 10px;
-    .tag {
-      font-size: 12px;
-      color: $primary-color;
-      background: $primary-light;
-      padding: 3px 10px;
-      border-radius: 4px;
-    }
+    margin-bottom: 12px;
   }
   .anchor {
     @include card;
@@ -243,25 +180,11 @@ onMounted(load)
     .line { display: block; font-size: 13px; line-height: 1.55; margin-bottom: 4px; }
     .line:last-child { margin-bottom: 0; }
   }
-  .html-wrap {
-    margin: 0;
-    overflow: visible;
-  }
-  .html-frame {
-    display: block;
-    width: 100%;
-    border: 0;
-    min-height: 70vh;
-    background: #faf9f5;
-  }
-  .html-body {
-    font-size: 14px;
-    line-height: 1.7;
-    color: $text-primary;
-    word-break: break-word;
-    :deep(table) { width: 100%; font-size: 12px; }
-    :deep(h2) { font-size: 16px; color: $primary-color; }
-    :deep(a) { color: $primary-color; }
+  .empty-parse {
+    padding: 48px 24px;
+    text-align: center;
+    .empty-title { display: block; font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .empty-desc { display: block; font-size: 13px; color: $text-muted; line-height: 1.6; }
   }
   .block {
     @include card;
@@ -297,6 +220,7 @@ onMounted(load)
   }
   .footer {
     position: fixed;
+    z-index: 20;
     left: 0;
     right: 0;
     bottom: 0;

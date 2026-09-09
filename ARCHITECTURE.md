@@ -1,6 +1,6 @@
 # 知行公考项目架构与业务功能梳理
 
-> 更新时间：2026-08-13  
+> 更新时间：2026-09-09  
 > 项目定位：纯公考备考应用（时政阅读、资料分析、申论、真题套卷、错题闭环、今日驾驶舱）。
 
 ## 1. 系统总览
@@ -138,7 +138,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 
 | 模块 | 学员端页面 | 后端服务 | 核心能力 |
 | --- | --- | --- | --- |
-| 时政文章 | `pages/article/*` | `article_service.py`、`study_service.py`、`featured_article.py` | 文章阅读、分节已读、推荐、思维导图、读后练习 |
+| 时政文章 | `pages/article/*` | `article_service.py`、`study_service.py`、`featured_article.py` | HTML 页内全文阅读、今日推荐、读后考点练习 |
 | 刷题练习 | `pages/question/*` | `quiz_service.py`、`question_service.py`、`wrong_service.py` | 多模式刷题、提交答案、错题记录、排行榜、统计 |
 | 手动错题 | `pages/question/manual-*` | `manual_wrong_service.py` | 行测错题录入、图片上传、知识点关联、复习状态 |
 | 知识框架 | `pages/knowledge/index` | `knowledge_service.py`、`knowledge_review_service.py` | Markdown 同步、树状知识点、笔记、星标、掌握度、复习 |
@@ -171,7 +171,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 积分签到 | `user_service.py`、`growth_service.py` | 签到、积分流水、排行 |
 | 上传 | `upload_paths.py`、`utils/upload.ts` | 头像、错题图 |
 | Mock | `src/mock/service.ts` | 无后端演示和本地调试 |
-| 主题 | `store/settings.ts`、`utils/theme.ts` | 深色模式、本地持久化 |
+| 主题 | `store/settings.ts`、`utils/theme.ts`、`utils/persistStorage.ts` | 深色/品牌色；H5 直写 localStorage 以免 Taro 二次 JSON 导致刷新丢主题 |
 
 ## 5. 数据模型概览
 
@@ -290,8 +290,8 @@ npm run dev
 管理员导入/维护文章
     -> 文章发布
     -> 学员端首页推荐/文章列表
-    -> 学员阅读并记录分节进度
-    -> 进入文章刷题
+    -> 学员阅读全文（HTML 页内渲染）
+    -> 考点练习
     -> 提交答案
     -> 生成答题结果、积分、错题、统计
 ```
