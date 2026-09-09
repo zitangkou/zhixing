@@ -34,13 +34,23 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'content',
-    title: '内容运营',
+    title: '时政考点',
     icon: Document,
     children: [
       { path: '/articles', title: '文章管理', icon: Document, permissions: ['article:read'] },
-      { path: '/content-ops', title: '账号运营', icon: Promotion, permissions: ['content_ops:read'] },
-      { path: '/theory-learning', title: '时政学习入口', icon: Reading, permissions: ['article:read'] },
       { path: '/categories', title: '分类管理', icon: Folder, permissions: ['article:read', 'article:write'] },
+    ],
+  },
+  {
+    key: 'rmrb',
+    title: '时评精拆',
+    icon: Notebook,
+    children: [
+      { path: '/rmrb/articles', title: '时评文章', icon: Document, permissions: ['rmrb:read'] },
+      { path: '/rmrb/term-categories', title: '规范词分类', icon: Collection, permissions: ['rmrb:read'] },
+      { path: '/rmrb/skeletons', title: '骨架模版', icon: Notebook, permissions: ['rmrb:read'] },
+      { path: '/rmrb/argument-methods', title: '论证方法', icon: Reading, permissions: ['rmrb:read'] },
+      { path: '/rmrb/sentence-types', title: '句式类型', icon: Tickets, permissions: ['rmrb:read'] },
     ],
   },
   {
@@ -73,7 +83,6 @@ export const NAV_GROUPS: NavGroup[] = [
     title: '素材积累',
     icon: Notebook,
     children: [
-      { path: '/rmrb', title: '时评精拆', icon: Notebook, permissions: ['rmrb:read'] },
       { path: '/corpus', title: '语料本', icon: Collection, permissions: ['corpus:read'] },
       { path: '/events', title: '时事事件', icon: TrendCharts, permissions: ['events:read'] },
     ],
@@ -113,7 +122,12 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/practice/proto': '练习闭环原型',
   '/analytics/dashboard': '学习反馈看板',
   '/analytics/error-paths': '错因归集',
-  '/rmrb': '时评精拆',
+  '/rmrb/articles': '时评文章',
+  '/rmrb/import': '三刀导入',
+  '/rmrb/term-categories': '规范词分类',
+  '/rmrb/skeletons': '骨架模版',
+  '/rmrb/argument-methods': '论证方法',
+  '/rmrb/sentence-types': '句式类型',
   '/corpus': '语料本',
   '/events': '时事事件',
   '/settings': '系统设置',

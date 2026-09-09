@@ -14,6 +14,7 @@ class RmrbArticleOut(BaseModel):
     publishDate: str
     summary: str
     content: str
+    contentHtml: str = ""
     tags: list[str] = []
     isPublished: bool
     isDaily: bool = False
@@ -22,15 +23,17 @@ class RmrbArticleOut(BaseModel):
     createdAt: datetime
     updatedAt: datetime
     teachingExample: dict[str, Any] | None = None
+    hasParse: bool = False
 
 
 class RmrbArticleCreate(BaseModel):
-    title: str
+    title: str = ""
     source: str = "人民时评"
     sourceUrl: str = ""
     publishDate: str = ""
     summary: str = ""
     content: str = ""
+    contentHtml: str = ""
     tags: list[str] = []
     isPublished: bool = True
     isDaily: bool = False
@@ -44,6 +47,7 @@ class RmrbArticleUpdate(BaseModel):
     publishDate: str | None = None
     summary: str | None = None
     content: str | None = None
+    contentHtml: str | None = None
     tags: list[str] | None = None
     isPublished: bool | None = None
     isDaily: bool | None = None

@@ -42,6 +42,8 @@ export interface Article {
   sections: ArticleSection[]
   /** 扁平正文，可由 sections 生成；保留用于兼容与全文检索 */
   content: string
+  /** 运营导入的 HTML 正文；有则优先按 HTML 展示 */
+  contentHtml?: string
   tags: string[]
   mindMap: MindMapNode
   readCount?: number
@@ -54,6 +56,7 @@ export interface Article {
   importanceLabel?: string
   status?: string
   allowQuiz?: boolean
+  isDaily?: boolean
 }
 
 export type QuizMode = 'daily' | 'article' | 'random' | 'timeline' | 'key' | 'wrong'
@@ -316,6 +319,7 @@ export interface RmrbArticle {
   publishDate: string
   summary: string
   content: string
+  contentHtml?: string
   /** 主题标签：政绩观、社会治理、乡村振兴等 */
   tags: string[]
   isPublished: boolean

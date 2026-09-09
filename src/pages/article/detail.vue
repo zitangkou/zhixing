@@ -1,5 +1,5 @@
 <template>
-  <view v-if="article" class="page-detail" :class="themeClass">
+  <view v-if="article" class="page-detail" :class="[themeClass, { 'is-html': isHtmlArticle }]">
     <view class="tabs">
       <view class="tab" :class="{ active: tab === 'content' }" @tap="tab = 'content'">正文</view>
       <view class="tab" :class="{ active: tab === 'mindmap' }" @tap="tab = 'mindmap'">知识框架</view>
@@ -10,12 +10,26 @@
       <view class="meta">
         <nut-tag type="primary" plain size="small">{{ article.source }}</nut-tag>
         <text>{{ article.publishDate }}</text>
-        <text class="section-count">共 {{ sectionStats.readable }} 节</text>
+        <text v-if="!isHtmlArticle" class="section-count">共 {{ sectionStats.readable }} 节</text>
       </view>
       <view class="tags">
         <nut-tag v-for="t in article.tags" :key="t" size="small">{{ t }}</nut-tag>
       </view>
 
+      <template v-if="isHtmlArticle">
+        <view class="html-wrap">
+          <iframe
+            v-if="isH5"
+            class="html-frame"
+            title="理论文章"
+            sandbox="allow-same-origin"
+            :srcdoc="htmlDocument"
+            @load="onFrameLoad"
+          />
+          <rich-text v-else class="html-body" :nodes="article.contentHtml || ''" />
+        </view>
+      </template>
+      <template v-else>
       <view class="read-progress">
         <view class="progress-bar">
           <view class="progress-fill" :style="{ width: readProgress + '%' }" />
@@ -64,6 +78,7 @@
           @read="markSectionRead"
         />
       </scroll-view>
+      </template>
     </view>
 
     <view v-show="tab === 'mindmap'" class="mindmap-panel">
@@ -132,12 +147,28 @@ import { useThemeClass } from '@/utils/brandColor'
 definePageConfig({ navigationBarTitleText: '文章详情' })
 
 const { themeClass } = useThemeClass()
+const isH5 = process.env.TARO_ENV === 'h5'
 const articleStore = useArticleStore()
 const dailyTaskStore = useDailyTaskStore()
 const tab = ref<'content' | 'mindmap'>('content')
 const readMode = ref<'list' | 'pager'>('list')
 const readDone = ref(false)
 const article = ref<Article | null>(articleStore.currentArticle)
+const isHtmlArticle = computed(() => !!article.value?.contentHtml?.trim())
+const htmlDocument = computed(() => {
+  const raw = article.value?.contentHtml || ''
+  if (!raw) return ''
+  if (/<html[\s>]/i.test(raw)) return raw
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${raw}</body></html>`
+})
+
+function onFrameLoad(e: Event) {
+  const frame = e.target as HTMLIFrameElement
+  const doc = frame.contentDocument
+  if (!doc?.documentElement) return
+  const height = Math.max(doc.documentElement.scrollHeight, doc.body?.scrollHeight || 0, 480)
+  frame.style.height = `${height}px`
+}
 const openIds = ref<Set<string>>(new Set())
 const activeChapterId = ref('')
 const scrollTarget = ref('')
@@ -176,6 +207,7 @@ const currentPagerSection = computed(() => readableSections.value[pagerIndex.val
 
 const sectionsAllRead = computed(() => {
   if (!article.value) return false
+  if (isHtmlArticle.value) return readDone.value
   const ids = readableSections.value.map((s) => s.id)
   if (!ids.length) return readDone.value
   return articleStore.isAllSectionsRead(article.value.id, ids)
@@ -192,6 +224,7 @@ const finishReadLabel = computed(() => {
     return dailyReadDone.value ? '本次精读已完成' : '完成原文精读'
   }
   if (readDone.value) return '已阅读 +3积分'
+  if (isHtmlArticle.value) return '完成阅读 (+3积分)'
   const allRead = article.value
     ? articleStore.isAllSectionsRead(
         article.value.id,
@@ -296,10 +329,12 @@ onMounted(async () => {
 
 async function finishRead() {
   if (!article.value) return
-  const allIds = readableSections.value.map((s) => s.id)
-  if (allIds.length && !articleStore.isAllSectionsRead(article.value.id, allIds)) {
-    showToast(`请先读完所有小节（${readSectionCount.value}/${allIds.length}）`)
-    return
+  if (!isHtmlArticle.value) {
+    const allIds = readableSections.value.map((s) => s.id)
+    if (allIds.length && !articleStore.isAllSectionsRead(article.value.id, allIds)) {
+      showToast(`请先读完所有小节（${readSectionCount.value}/${allIds.length}）`)
+      return
+    }
   }
   const points = readDone.value ? 0 : await articleStore.markAsRead(article.value.id)
   readDone.value = true
@@ -331,6 +366,10 @@ function goQuiz() {
 
 async function onCopyArticle() {
   if (!article.value) return
+  if (article.value.contentHtml) {
+    await copyText([article.value.title, article.value.content].filter(Boolean).join('\n\n'))
+    return
+  }
   const parts = [article.value.title]
   for (const s of readableSections.value) {
     if (s.title) parts.push(s.title)
@@ -389,6 +428,23 @@ function goMindMap() {
     .section-count { color: $primary-color; }
   }
   .tags { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .html-wrap {
+    margin: 0;
+    overflow: visible;
+  }
+  .html-frame {
+    display: block;
+    width: 100%;
+    border: 0;
+    min-height: 70vh;
+    background: $card-bg;
+  }
+  .html-body {
+    font-size: 15px;
+    line-height: 1.75;
+    color: $text-primary;
+    word-break: break-word;
+  }
   .read-progress {
     margin-bottom: 12px;
     .progress-bar {

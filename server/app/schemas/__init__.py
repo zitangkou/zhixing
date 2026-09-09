@@ -4,7 +4,7 @@ from app.schemas.content import (
     AiGenerateQuestionsBody,
     ArticleBatchCategory, ArticleBatchIds, ArticleBatchPublish, ArticleCreate, ArticleInferMetadataBody,
     ArticleInferMetadataOut, ArticleOut, ArticleUpdate, CategoryCreate, CategoryOut, CategoryUpdate,
-    ImportArticleMarkdownBody, ImportQuestionsBody, QuestionBatchApprove, QuestionBatchDelete,
+    ImportArticleHtmlBody, ImportArticleMarkdownBody, ImportQuestionsBody, QuestionBatchApprove, QuestionBatchDelete,
     QuestionCreate, QuestionOut, QuestionUpdate,
 )
 from app.schemas.quiz import AnswerResult, AnswerSubmit, PointsLogOut, QuizCompleteBody, QuizCompleteResult, QuizRankItemOut, QuizStatsOut, RankItemOut

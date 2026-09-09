@@ -36,6 +36,7 @@ class ArticleCreate(BaseModel):
     publish_date: str
     summary: str
     content: str = ""
+    content_html: str = ""
     sections: list[dict[str, Any]] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     mind_map: dict[str, Any] = Field(default_factory=dict)
@@ -73,6 +74,7 @@ class ArticleUpdate(BaseModel):
     publish_date: str | None = None
     summary: str | None = None
     content: str | None = None
+    content_html: str | None = None
     sections: list[dict[str, Any]] | None = None
     tags: list[str] | None = None
     mind_map: dict[str, Any] | None = None
@@ -163,7 +165,21 @@ class ImportArticleMarkdownBody(BaseModel):
     status: str = "pending"
     category_id: str | None = None
     is_featured: bool = False
+    is_daily: bool = False
     source: str = ""
+    source_url: str = ""
+    publish_date: str = ""
+    tags: list[str] = Field(default_factory=list)
+
+
+class ImportArticleHtmlBody(BaseModel):
+    html: str = Field(min_length=20)
+    status: str = "pending"
+    category_id: str | None = None
+    is_featured: bool = False
+    is_daily: bool = False
+    source: str = ""
+    source_url: str = ""
     publish_date: str = ""
     tags: list[str] = Field(default_factory=list)
 
@@ -176,6 +192,7 @@ class ArticleOut(BaseModel):
     summary: str
     sections: list[ArticleSection] = Field(default_factory=list)
     content: str
+    contentHtml: str = ""
     tags: list[str]
     mindMap: MindMapNode
     readCount: int | None = None

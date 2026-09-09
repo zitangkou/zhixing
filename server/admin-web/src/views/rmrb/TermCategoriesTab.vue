@@ -8,6 +8,7 @@
       <el-button type="primary" @click="openDialog()">新建分类</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
+    <VocabInboxBar :kind="filterKind === 'verb' ? 'verb_category' : 'term_category'" @changed="load" />
     <el-alert type="info" :closable="false" style="margin-bottom: 12px">
       规范词 / 高频动词分类；移动端三刀页也可快捷新增，修改后立即生效。
     </el-alert>
@@ -80,6 +81,7 @@ import {
   type ShenlunTermCategory,
 } from '@/api/rmrb'
 import ListState from '@/components/ListState.vue'
+import VocabInboxBar from '@/components/VocabInboxBar.vue'
 import { useAdminList } from '@/composables/useAdminList'
 
 const { loading, loadError, runLoad } = useAdminList()

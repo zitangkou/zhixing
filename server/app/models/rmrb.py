@@ -32,6 +32,7 @@ class RmrbArticle(Base):
     publish_date: Mapped[str] = mapped_column(String(10), default="")  # YYYY-MM-DD
     summary: Mapped[str] = mapped_column(String(512), default="")
     content: Mapped[str] = mapped_column(Text, default="")
+    content_html: Mapped[str] = mapped_column(Text, default="")
     # 主题标签 JSON 数组，如 ["政绩观","乡村振兴"]
     tags: Mapped[str] = mapped_column(Text, default="[]")
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -174,5 +175,22 @@ class ShenlunArgumentMethod(Base):
     template: Mapped[str] = mapped_column(Text, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class VocabInbox(Base):
+    """新文章/开采里出现、尚未收入词表的类型名。"""
+    __tablename__ = "vocab_inbox"
+    __table_args__ = (UniqueConstraint("kind", "name", name="uq_vocab_inbox_kind_name"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("vin"))
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending | promoted | ignored
+    hit_count: Mapped[int] = mapped_column(Integer, default=1)
+    source_article_id: Mapped[str] = mapped_column(String(32), default="")
+    source_title: Mapped[str] = mapped_column(String(256), default="")
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

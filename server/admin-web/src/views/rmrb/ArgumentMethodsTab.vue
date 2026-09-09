@@ -4,6 +4,7 @@
       <el-button type="primary" @click="openDialog()">新建方法</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
+    <VocabInboxBar kind="argument_method" @changed="load" />
     <el-alert type="info" :closable="false" style="margin-bottom: 12px">
       三刀解剖「第二刀」论证骨架里的论证方法下拉：总论点用 overview，分论点用 point。
     </el-alert>
@@ -89,6 +90,7 @@ import {
   type ShenlunArgumentMethod,
 } from '@/api/rmrb'
 import ListState from '@/components/ListState.vue'
+import VocabInboxBar from '@/components/VocabInboxBar.vue'
 import { useAdminList } from '@/composables/useAdminList'
 
 const { loading, loadError, runLoad } = useAdminList()

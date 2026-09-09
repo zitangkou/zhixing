@@ -8,9 +8,11 @@ export interface RmrbArticle {
   publishDate: string
   summary: string
   content: string
+  contentHtml?: string
   tags: string[]
   isPublished: boolean
   isDaily?: boolean
+  hasParse?: boolean
   sortOrder: number
   readCount: number
   createdAt: string
@@ -81,6 +83,7 @@ export function createRmrbArticle(data: {
   publishDate?: string
   summary?: string
   content?: string
+  contentHtml?: string
   tags?: string[]
   isPublished?: boolean
   isDaily?: boolean
@@ -224,8 +227,37 @@ export function previewThreeKnife(markdown: string, sourceUrl?: string) {
   )
 }
 
-export function importThreeKnife(markdown: string, displayHtml?: string, sourceUrl?: string) {
+export function importThreeKnife(data: {
+  articleId: string
+  displayHtml?: string
+  markdown?: string
+  sourceUrl?: string
+}) {
   return getData<ThreeKnifeImportResult>(
-    http.post('/admin/rmrb/import-three-knife', { markdown, displayHtml, sourceUrl }),
+    http.post('/admin/rmrb/import-three-knife', data),
   )
+}
+
+export interface VocabInboxItem {
+  id: string
+  kind: string
+  name: string
+  status: string
+  hitCount: number
+  sourceArticleId: string
+  sourceTitle: string
+}
+
+export function fetchRmrbVocabInbox(kind?: string) {
+  return getData<VocabInboxItem[]>(
+    http.get('/admin/rmrb/vocab-inbox', { params: kind ? { kind } : undefined }),
+  )
+}
+
+export function promoteRmrbVocabInbox(id: string) {
+  return getData<VocabInboxItem>(http.post(`/admin/rmrb/vocab-inbox/${id}/promote`))
+}
+
+export function ignoreRmrbVocabInbox(id: string) {
+  return getData<VocabInboxItem>(http.post(`/admin/rmrb/vocab-inbox/${id}/ignore`))
 }

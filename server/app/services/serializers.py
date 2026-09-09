@@ -73,6 +73,7 @@ def article_to_out(article: Article) -> ArticleOut:
         summary=article.summary,
         sections=sections,
         content=content,
+        contentHtml=getattr(article, "content_html", "") or "",
         tags=parse_json(article.tags, []),
         mindMap=MindMapNode.model_validate(mind_raw),
         readCount=article.read_count,

@@ -396,6 +396,17 @@ def upsert_mine(db: Session, user: AppUser, body: ShenlunMineLogUpsert) -> Shenl
         m = ShenlunMineLog(id=gen_id("sml"), user_id=user.id, mine_date=mine_date, **payload)
         db.add(m)
     _sync_terms_from_mine(db, user, m, terms)
+    from app.services.vocab_inbox_service import observe_from_mine
+
+    observe_from_mine(
+        db,
+        terms=terms,
+        verbs=verbs,
+        templates=templates,
+        argument=argument,
+        article_id=body.articleId or "",
+        article_title=(body.articleTitle or "").strip(),
+    )
     db.commit()
     db.refresh(m)
     record_event(
@@ -441,6 +452,17 @@ def update_mine(
     }
     for k, v in data.items():
         setattr(m, mapping.get(k, k), v if v is not None else getattr(m, mapping.get(k, k)))
+    from app.services.vocab_inbox_service import observe_from_mine
+
+    observe_from_mine(
+        db,
+        terms=_loads(m.terms_json, []),
+        verbs=_loads(m.verbs_json, []),
+        templates=_loads(m.templates_json, []),
+        argument=_loads(m.argument_json, {}),
+        article_id=m.article_id or "",
+        article_title=m.article_title or "",
+    )
     db.commit()
     db.refresh(m)
     return _mine_to_out(m)

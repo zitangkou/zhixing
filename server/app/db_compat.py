@@ -29,6 +29,12 @@ def _ensure_article_columns():
         alters.append("ALTER TABLE articles ADD COLUMN status VARCHAR(16) DEFAULT 'published'")
     if "allow_quiz" not in cols:
         alters.append("ALTER TABLE articles ADD COLUMN allow_quiz BOOLEAN DEFAULT 1")
+    if "is_daily" not in cols:
+        alters.append("ALTER TABLE articles ADD COLUMN is_daily BOOLEAN DEFAULT 0")
+    if "source_url" not in cols:
+        alters.append("ALTER TABLE articles ADD COLUMN source_url VARCHAR(512) DEFAULT ''")
+    if "content_html" not in cols:
+        alters.append("ALTER TABLE articles ADD COLUMN content_html TEXT DEFAULT ''")
     if not alters:
         return
     with engine.begin() as conn:
@@ -277,6 +283,8 @@ def _ensure_rmrb_article_columns():
             conn.execute(text("ALTER TABLE rmrb_articles ADD COLUMN source_url VARCHAR(512) DEFAULT ''"))
         if "is_daily" not in cols:
             conn.execute(text("ALTER TABLE rmrb_articles ADD COLUMN is_daily BOOLEAN DEFAULT 0"))
+        if "content_html" not in cols:
+            conn.execute(text("ALTER TABLE rmrb_articles ADD COLUMN content_html TEXT DEFAULT ''"))
 
 
 def _ensure_ziliao_formula_plain_column():
@@ -312,8 +320,41 @@ def _ensure_content_ops_columns():
                 conn.execute(text(statement))
 
 
+def _ensure_vocab_inbox_table():
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("vocab_inbox"):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE vocab_inbox (
+                        id VARCHAR(32) PRIMARY KEY,
+                        kind VARCHAR(32) NOT NULL,
+                        name VARCHAR(128) NOT NULL,
+                        status VARCHAR(16) DEFAULT 'pending',
+                        hit_count INTEGER DEFAULT 1,
+                        source_article_id VARCHAR(32) DEFAULT '',
+                        source_title VARCHAR(256) DEFAULT '',
+                        last_seen DATETIME,
+                        created_at DATETIME,
+                        updated_at DATETIME,
+                        CONSTRAINT uq_vocab_inbox_kind_name UNIQUE (kind, name)
+                    )
+                    """
+                )
+            )
+        return
+    cols = {c["name"] for c in insp.get_columns("vocab_inbox")}
+    if "last_seen" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE vocab_inbox ADD COLUMN last_seen DATETIME"))
+
+
 def run_compat_migrations() -> None:
     """执行全部旧库兼容补列（幂等，可重复调用）。"""
+    _ensure_vocab_inbox_table()
     _ensure_article_columns()
     _ensure_app_user_columns()
     _ensure_question_columns()

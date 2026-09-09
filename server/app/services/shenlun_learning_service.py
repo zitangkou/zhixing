@@ -134,34 +134,63 @@ def teaching_example_out(row: ShenlunTeachingExample) -> dict | None:
             "checks": [transfer["caution"]] if transfer.get("caution") else ["对照示范结构"],
             "referenceAnswer": transfer["imitateDemo"],
         }
-    if not all((
+    html = (getattr(row, "display_html", None) or "").strip()
+    complete = all((
         row.source_excerpt.strip(), argument,
         terms, quotes is not None, verbs is not None,
         templates,
         isinstance(practice, dict), practice.get("prompt"), practice.get("referenceAnswer"),
         isinstance(practice.get("checks"), list) and practice["checks"],
-    )):
+    ))
+    if not complete and not html:
         return None
-    try:
-        minimum = int(practice.get("minLength", 20))
-        maximum = int(practice.get("maxLength", 150))
-    except (TypeError, ValueError):
-        return None
-    if minimum < 1 or maximum < minimum or maximum > 1000:
-        return None
-    practice = {
-        "prompt": _text(practice["prompt"]),
-        "minLength": minimum,
-        "maxLength": maximum,
-        "checks": [str(item).strip() for item in practice["checks"] if str(item).strip()][:8],
-        "referenceAnswer": _text(practice["referenceAnswer"]),
-    }
-    if not practice["checks"]:
-        return None
+    if not complete:
+        argument = argument or {
+            "templateId": "",
+            "templateName": "",
+            "mode": "points",
+            "overview": "",
+            "conclusion": "",
+            "overviewMethod": "",
+            "overviewTemplate": "",
+            "openingPattern": "",
+            "transition": "",
+            "fields": [],
+            "points": [],
+        }
+        terms = terms or []
+        quotes = quotes if quotes is not None else []
+        verbs = verbs if verbs is not None else []
+        templates = templates or []
+        practice = {
+            "prompt": _text(practice.get("prompt")) or "按解析完成仿写。",
+            "minLength": 20,
+            "maxLength": 250,
+            "checks": [str(item).strip() for item in (practice.get("checks") or []) if str(item).strip()][:8]
+            or ["对照解析"],
+            "referenceAnswer": _text(practice.get("referenceAnswer")) or "见解析 HTML",
+        }
+    else:
+        try:
+            minimum = int(practice.get("minLength", 20))
+            maximum = int(practice.get("maxLength", 150))
+        except (TypeError, ValueError):
+            return None
+        if minimum < 1 or maximum < minimum or maximum > 1000:
+            return None
+        practice = {
+            "prompt": _text(practice["prompt"]),
+            "minLength": minimum,
+            "maxLength": maximum,
+            "checks": [str(item).strip() for item in practice["checks"] if str(item).strip()][:8],
+            "referenceAnswer": _text(practice["referenceAnswer"]),
+        }
+        if not practice["checks"]:
+            return None
     return {
         "id": row.id,
         "version": row.version,
-        "sourceExcerpt": row.source_excerpt.strip(),
+        "sourceExcerpt": (row.source_excerpt or "").strip(),
         "argument": argument,
         "terms": terms,
         "quotes": quotes,
@@ -170,7 +199,7 @@ def teaching_example_out(row: ShenlunTeachingExample) -> dict | None:
         "examAnchor": exam_anchor,
         "transferGuide": transfer,
         "practice": practice,
-        "displayHtml": (getattr(row, "display_html", None) or "").strip(),
+        "displayHtml": html,
     }
 
 
@@ -252,7 +281,52 @@ def published_example_for_article(db: Session, article_id: str) -> dict | None:
     return None
 
 
-def upsert_teaching_from_parsed(db: Session, parsed, *, source_url: str = "", display_html: str = "") -> tuple:
+def upsert_teaching_html(db: Session, *, article_id: str, display_html: str) -> tuple:
+    from app.models.base import gen_id
+    from app.services.html_sanitize import sanitize_display_html
+
+    article = db.get(RmrbArticle, (article_id or "").strip())
+    if not article:
+        raise ValueError("请先新建时评文章，再导入解析")
+    cleaned = sanitize_display_html(display_html)
+    if not cleaned:
+        raise ValueError("请粘贴解析 HTML")
+    version = "v2.18"
+    row = (
+        db.query(ShenlunTeachingExample)
+        .filter(
+            ShenlunTeachingExample.article_id == article.id,
+            ShenlunTeachingExample.version == version,
+        )
+        .first()
+    )
+    if not row:
+        row = ShenlunTeachingExample(
+            id=gen_id("ste"),
+            article_id=article.id,
+            version=version,
+        )
+        db.add(row)
+    if not (row.source_excerpt or "").strip():
+        row.source_excerpt = (article.summary or article.title or "")[:500]
+    row.display_html = cleaned
+    row.status = "published"
+    db.commit()
+    db.refresh(row)
+    example = teaching_example_out(row)
+    if not example:
+        raise ValueError("解析 HTML 写入失败")
+    return article, example
+
+
+def upsert_teaching_from_parsed(
+    db: Session,
+    parsed,
+    *,
+    article_id: str,
+    source_url: str = "",
+    display_html: str = "",
+) -> tuple:
     from app.models.base import gen_id
     from app.services.html_sanitize import sanitize_display_html
     from app.services.shenlun_import_service import theme_tags_from_anchor, v218_incomplete_reasons
@@ -261,28 +335,25 @@ def upsert_teaching_from_parsed(db: Session, parsed, *, source_url: str = "", di
     if gaps:
         raise ValueError("v2.18 结构不完整：" + "、".join(gaps))
 
-    title = parsed.articleTitle.strip()
-    article = db.query(RmrbArticle).filter(RmrbArticle.title == title).first()
-    theme_tags = theme_tags_from_anchor(parsed.examAnchor.theme)
-    tags_json = json.dumps(theme_tags, ensure_ascii=False)
+    article = db.get(RmrbArticle, article_id.strip())
     if not article:
-        article = RmrbArticle(
-            id=parsed.articleId if parsed.articleId and str(parsed.articleId).startswith("rmrb") else gen_id("rmrb"),
-            title=title,
-            source="人民时评",
-            source_url=source_url,
-            publish_date=parsed.mineDate or "",
-            summary=(parsed.sourceExcerpt or "")[:500],
-            content=parsed.sourceExcerpt or title,
-            tags=tags_json,
-            is_published=True,
-        )
-        db.add(article)
-        db.flush()
-    else:
-        article.tags = tags_json
-        if source_url and not article.source_url:
-            article.source_url = source_url
+        raise ValueError("请先新建时评文章，再导入三刀解析")
+
+    theme_tags = theme_tags_from_anchor(parsed.examAnchor.theme)
+    existing_tags: list[str] = []
+    try:
+        raw = json.loads(article.tags or "[]")
+        if isinstance(raw, list):
+            existing_tags = [str(x).strip() for x in raw if str(x).strip()]
+    except json.JSONDecodeError:
+        pass
+    merged: list[str] = []
+    for t in [*existing_tags, *theme_tags]:
+        if t and t not in merged:
+            merged.append(t)
+    article.tags = json.dumps(merged, ensure_ascii=False)
+    if source_url and not article.source_url:
+        article.source_url = source_url
 
     arg = parsed.argument.model_dump() if parsed.argument else {}
     arg["examAnchor"] = parsed.examAnchor.model_dump()
@@ -334,6 +405,17 @@ def upsert_teaching_from_parsed(db: Session, parsed, *, source_url: str = "", di
     if cleaned:
         row.display_html = cleaned
     row.status = "published"
+    from app.services.vocab_inbox_service import observe_from_mine
+
+    observe_from_mine(
+        db,
+        terms=payload["terms"],
+        verbs=payload["verbs"],
+        templates=payload["templates"],
+        argument=arg,
+        article_id=article.id,
+        article_title=article.title or "",
+    )
     db.commit()
     db.refresh(row)
     example = teaching_example_out(row)

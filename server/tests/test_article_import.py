@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.services.article_import import parse_article_markdown
+from app.services.article_import import parse_article_html, parse_article_markdown
 
 LEGACY_SAMPLE = Path(__file__).resolve().parent / "fixtures" / "shiwuwu-structure-sample.md"
 CHAPTER_SAMPLE = Path(__file__).resolve().parent / "fixtures" / "shiwuwu-chapter-sample.md"
@@ -40,6 +40,30 @@ def test_parse_legacy_part_format_remapped():
     assert result["sections"][0]["children"][0]["level"] == 2
 
 
+def test_parse_ops_metadata_keywords_and_wrapped_quotes():
+    text = (Path(__file__).resolve().parent / "fixtures" / "structured-ops-sample.md").read_text(
+        encoding="utf-8"
+    )
+    result, warnings = parse_article_markdown(text)
+    assert result["title"] == "枫桥经验讲话"
+    assert result["source"] == "人民日报"
+    assert result["publish_date"] == "2026-09-09"
+    assert result["source_url"] == "https://example.com/fengqiao"
+    assert result["stats"]["chapters"] == 1
+    assert result["stats"]["sections"] == 2
+    assert result["stats"]["paragraphs"] == 2
+
+    section1 = result["sections"][0]["children"][0]
+    assert "矛盾不上交" in section1["content"]
+    assert "小事不出村" in section1["content"]
+    assert section1["highlight"] == "枫桥经验 / 矛盾不上交 / 基层治理"
+    assert not any("关键词" in w for w in warnings)
+
+    section2 = result["sections"][0]["children"][1]
+    assert section2.get("children")
+    assert section2["children"][0]["title"] == "坚持党的全面领导"
+
+
 def test_chapter_title_from_heading():
     md = """# 测试文
 
@@ -62,3 +86,28 @@ def test_chapter_title_from_heading():
     assert section.get("content")
     assert section.get("children")
     assert section["children"][0]["level"] == 3
+
+
+def test_parse_article_html_keeps_layout_and_meta():
+    html = """
+    <html><head><style>h1{color:red}</style></head>
+    <body>
+      <h1>枫桥经验讲话</h1>
+      <p>来源：人民日报</p>
+      <p>日期：2026-09-09</p>
+      <p>原文链接：https://example.com/fengqiao</p>
+      <h2>第一章</h2>
+      <p>矛盾不上交、服务不缺位。</p>
+      <script>alert(1)</script>
+    </body></html>
+    """
+    result, _warnings = parse_article_html(html)
+    assert result["title"] == "枫桥经验讲话"
+    assert result["source"] == "人民日报"
+    assert result["publish_date"] == "2026-09-09"
+    assert result["source_url"] == "https://example.com/fengqiao"
+    assert result["sections"] == []
+    assert "矛盾不上交" in result["content"]
+    assert "h1" in result["content_html"]
+    assert "script" not in result["content_html"].lower()
+    assert "alert" not in result["content_html"]

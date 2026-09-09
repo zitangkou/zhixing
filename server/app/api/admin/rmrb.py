@@ -11,7 +11,7 @@ def admin_rmrb_articles(
     db: Session = Depends(get_db),
 ):
     return ApiResponse.ok(
-        [a.model_dump() for a in list_rmrb_articles_admin(db, published_only=False, tag=tag)]
+        [a.model_dump() for a in list_rmrb_articles_admin(db, published_only=False, tag=tag, include_html=True)]
     )
 
 
@@ -21,9 +21,10 @@ def admin_rmrb_create_article(
     _admin=Depends(require_permission("rmrb:write")),
     db: Session = Depends(get_db),
 ):
-    if not (body.title or "").strip():
-        return ApiResponse.fail("标题不能为空", code=400)
-    out = create_rmrb_article(db, body)
+    try:
+        out = create_rmrb_article(db, body)
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
     return ApiResponse.ok(out.model_dump())
 
 
@@ -34,7 +35,10 @@ def admin_rmrb_update_article(
     _admin=Depends(require_permission("rmrb:write")),
     db: Session = Depends(get_db),
 ):
-    out = update_rmrb_article(db, article_id, body)
+    try:
+        out = update_rmrb_article(db, article_id, body)
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
     if not out:
         return ApiResponse.fail("文章不存在", code=404)
     return ApiResponse.ok(out.model_dump())
@@ -257,5 +261,58 @@ def admin_rmrb_delete_argument_method(
     if not delete_rmrb_argument_method(db, method_id):
         return ApiResponse.fail("方法不存在", code=404)
     return ApiResponse.ok({"ok": True})
+
+
+@router.get("/rmrb/vocab-inbox")
+def admin_rmrb_vocab_inbox(
+    kind: str | None = Query(None),
+    _admin=Depends(require_permission("rmrb:read")),
+    db: Session = Depends(get_db),
+):
+    from app.services.vocab_inbox_service import KINDS, list_inbox
+
+    rmrb_kinds = [k for k in KINDS if k != "theory_category"]
+    if kind and kind not in rmrb_kinds:
+        return ApiResponse.fail("无效类型", code=400)
+    kinds = [kind] if kind else rmrb_kinds
+    return ApiResponse.ok(list_inbox(db, kinds=kinds))
+
+
+@router.post("/rmrb/vocab-inbox/{inbox_id}/promote")
+def admin_rmrb_vocab_promote(
+    inbox_id: str,
+    _admin=Depends(require_permission("rmrb:write")),
+    db: Session = Depends(get_db),
+):
+    from app.models import VocabInbox
+    from app.services.vocab_inbox_service import promote_inbox
+
+    row = db.get(VocabInbox, inbox_id)
+    if not row:
+        return ApiResponse.fail("待收录项不存在", code=404)
+    if row.kind == "theory_category":
+        return ApiResponse.fail("请在分类管理中收录", code=400)
+    try:
+        return ApiResponse.ok(promote_inbox(db, inbox_id))
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+
+
+@router.post("/rmrb/vocab-inbox/{inbox_id}/ignore")
+def admin_rmrb_vocab_ignore(
+    inbox_id: str,
+    _admin=Depends(require_permission("rmrb:write")),
+    db: Session = Depends(get_db),
+):
+    from app.models import VocabInbox
+    from app.services.vocab_inbox_service import ignore_inbox
+
+    row = db.get(VocabInbox, inbox_id)
+    if not row:
+        return ApiResponse.fail("待收录项不存在", code=404)
+    if row.kind == "theory_category":
+        return ApiResponse.fail("请在分类管理中处理", code=400)
+    out = ignore_inbox(db, inbox_id)
+    return ApiResponse.ok(out)
 
 

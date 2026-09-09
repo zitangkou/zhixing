@@ -12,6 +12,12 @@ server/**/__pycache__/
 server/tests/_smoke.db
 server/tests/_smoke.db-shm
 server/tests/_smoke.db-wal
+server/tests/_ops_alignment.db
+server/tests/_ops_alignment.db-shm
+server/tests/_ops_alignment.db-wal
+server/tests/_vocab_inbox.db
+server/tests/_vocab_inbox.db-shm
+server/tests/_vocab_inbox.db-wal
 server/.env
 server/admin-dist/
 server/admin-web/node_modules/

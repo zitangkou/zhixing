@@ -10,6 +10,39 @@ from app.schemas import RmrbArticleCreate, RmrbArticleOut, RmrbArticleUpdate
 from app.timezone import today as today_str
 
 
+def _looks_like_html(text: str) -> bool:
+    raw = (text or "").strip()
+    return bool(raw) and "<" in raw and "</" in raw
+
+
+def _parse_source_html(raw: str) -> dict:
+    from app.services.article_import import parse_article_html
+
+    parsed, _warnings = parse_article_html(raw)
+    return parsed
+
+
+def _to_out(a: RmrbArticle, *, include_html: bool = True) -> RmrbArticleOut:
+    return RmrbArticleOut(
+        id=a.id,
+        title=a.title,
+        source=a.source or "人民时评",
+        sourceUrl=getattr(a, "source_url", "") or "",
+        publishDate=a.publish_date or "",
+        summary=a.summary or "",
+        content=a.content or "",
+        contentHtml=(getattr(a, "content_html", "") or "") if include_html else "",
+        tags=_parse_tags(getattr(a, "tags", None)),
+        isPublished=bool(a.is_published),
+        isDaily=bool(getattr(a, "is_daily", False)),
+        sortOrder=a.sort_order or 0,
+        readCount=a.read_count or 0,
+        createdAt=a.created_at,
+        updatedAt=a.updated_at,
+        hasParse=False,
+    )
+
+
 def _parse_tags(raw: str | None) -> list[str]:
     if not raw:
         return []
@@ -34,36 +67,28 @@ def _dump_tags(tags: list[str] | None) -> str:
     return json.dumps(cleaned, ensure_ascii=False)
 
 
-def _to_out(a: RmrbArticle) -> RmrbArticleOut:
-    return RmrbArticleOut(
-        id=a.id,
-        title=a.title,
-        source=a.source or "人民时评",
-        sourceUrl=getattr(a, "source_url", "") or "",
-        publishDate=a.publish_date or "",
-        summary=a.summary or "",
-        content=a.content or "",
-        tags=_parse_tags(getattr(a, "tags", None)),
-        isPublished=bool(a.is_published),
-        isDaily=bool(getattr(a, "is_daily", False)),
-        sortOrder=a.sort_order or 0,
-        readCount=a.read_count or 0,
-        createdAt=a.created_at,
-        updatedAt=a.updated_at,
-    )
-
-
 def list_articles(
     db: Session,
     *,
     published_only: bool = False,
     tag: str | None = None,
+    include_html: bool = False,
 ) -> list[RmrbArticleOut]:
     q = db.query(RmrbArticle)
     if published_only:
         q = q.filter(RmrbArticle.is_published.is_(True))
     rows = q.order_by(RmrbArticle.sort_order.desc(), RmrbArticle.publish_date.desc(), RmrbArticle.id.desc()).all()
-    outs = [_to_out(r) for r in rows]
+    outs = [_to_out(r, include_html=include_html) for r in rows]
+    if outs:
+        taught = {
+            row[0]
+            for row in db.query(ShenlunTeachingExample.article_id)
+            .filter(ShenlunTeachingExample.article_id.in_([o.id for o in outs]))
+            .distinct()
+            .all()
+        }
+        for item in outs:
+            item.hasParse = item.id in taught
     if tag:
         t = tag.strip()
         outs = [o for o in outs if t in (o.tags or [])]
@@ -114,18 +139,41 @@ def get_article(db: Session, article_id: str, *, bump_read: bool = False) -> Rmr
         db.refresh(a)
     out = _to_out(a)
     out.teachingExample = published_example_for_article(db, a.id)
+    out.hasParse = bool(out.teachingExample)
     return out
 
 
 def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
+    title = (body.title or "").strip()
+    source = (body.source or "人民时评").strip()
+    source_url = (body.sourceUrl or "").strip()
+    publish_date = (body.publishDate or today_str()).strip()
+    summary = (body.summary or "").strip()
+    content = body.content or ""
+    content_html = (body.contentHtml or "").strip()
+    if not content_html and _looks_like_html(content):
+        content_html = content.strip()
+    if content_html:
+        parsed = _parse_source_html(content_html)
+        content_html = parsed["content_html"]
+        if not content.strip() or _looks_like_html(content):
+            content = parsed["content"]
+        title = title or parsed["title"]
+        source = source if source != "人民时评" else (parsed.get("source") or source)
+        source_url = source_url or parsed.get("source_url") or ""
+        publish_date = publish_date or parsed.get("publish_date") or today_str()
+        summary = summary or parsed.get("summary") or ""
+    if not title:
+        raise ValueError("标题不能为空（可在 HTML 中提供 h1）")
     a = RmrbArticle(
         id=gen_id("rmrb"),
-        title=body.title.strip(),
-        source=(body.source or "人民时评").strip(),
-        source_url=(body.sourceUrl or "").strip(),
-        publish_date=(body.publishDate or today_str()).strip(),
-        summary=(body.summary or "").strip(),
-        content=body.content or "",
+        title=title,
+        source=source,
+        source_url=source_url,
+        publish_date=publish_date,
+        summary=summary,
+        content=content,
+        content_html=content_html,
         tags=_dump_tags(body.tags),
         is_published=body.isPublished,
         is_daily=body.isDaily,
@@ -148,7 +196,30 @@ def update_article(db: Session, article_id: str, body: RmrbArticleUpdate) -> Rmr
         "isPublished": "is_published",
         "isDaily": "is_daily",
         "sortOrder": "sort_order",
+        "contentHtml": "content_html",
     }
+    html_raw = data.pop("contentHtml", None)
+    content_raw = data.get("content")
+    if html_raw is None and isinstance(content_raw, str) and _looks_like_html(content_raw):
+        html_raw = content_raw
+    if html_raw is not None:
+        html_raw = (html_raw or "").strip()
+        if html_raw:
+            parsed = _parse_source_html(html_raw)
+            a.content_html = parsed["content_html"]
+            if content_raw is None or not str(content_raw).strip() or _looks_like_html(str(content_raw)):
+                a.content = parsed["content"]
+                data.pop("content", None)
+            if not (data.get("title") or a.title):
+                data["title"] = parsed["title"]
+            if not data.get("sourceUrl") and parsed.get("source_url"):
+                data["sourceUrl"] = parsed["source_url"]
+            if not data.get("publishDate") and parsed.get("publish_date") and not a.publish_date:
+                data["publishDate"] = parsed["publish_date"]
+            if not data.get("summary") and parsed.get("summary") and not a.summary:
+                data["summary"] = parsed["summary"]
+        else:
+            a.content_html = ""
     for k, v in data.items():
         if k == "tags":
             a.tags = _dump_tags(v)

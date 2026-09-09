@@ -10,10 +10,10 @@ _SKIP = {"script", "iframe", "object", "embed", "link", "meta", "svg", "noscript
 _ALLOW = {
     "div", "p", "span", "b", "strong", "i", "em", "br", "h1", "h2", "h3", "h4", "h5", "h6",
     "table", "thead", "tbody", "tfoot", "tr", "th", "td", "ul", "ol", "li", "a", "pre",
-    "blockquote", "hr", "section", "article",
+    "blockquote", "hr", "section", "article", "figure", "figcaption", "img",
 }
-_VOID = {"br", "hr"}
-_ATTR = {"style", "href", "colspan", "rowspan", "align", "class"}
+_VOID = {"br", "hr", "img"}
+_ATTR = {"style", "href", "colspan", "rowspan", "align", "class", "src", "alt", "width", "height"}
 _MAX_CHARS = 200_000
 _STYLE_RE = re.compile(r"<style[^>]*>(.*?)</style>", re.I | re.S)
 
@@ -77,11 +77,11 @@ class _Sanitizer(HTMLParser):
                 continue
             if key not in _ATTR or val is None:
                 continue
-            if key == "href":
+            if key in ("href", "src"):
                 href = val.strip()
                 if not re.match(r"^https?://", href, re.I):
                     continue
-                bits.append(f'href="{escape(href, quote=True)}"')
+                bits.append(f'{key}="{escape(href, quote=True)}"')
                 continue
             bits.append(f'{key}="{escape(val, quote=True)}"')
         return (" " + " ".join(bits)) if bits else ""

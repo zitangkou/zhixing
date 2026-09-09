@@ -43,6 +43,7 @@ class Article(Base):
     publish_date: Mapped[str] = mapped_column(String(10))
     summary: Mapped[str] = mapped_column(String(512))
     content: Mapped[str] = mapped_column(Text)
+    content_html: Mapped[str] = mapped_column(Text, default="")
     sections: Mapped[str] = mapped_column(Text, default="[]")  # JSON 多层级小节
     tags: Mapped[str] = mapped_column(String(256), default="[]")  # JSON
     mind_map: Mapped[str] = mapped_column(Text, default="{}")  # JSON

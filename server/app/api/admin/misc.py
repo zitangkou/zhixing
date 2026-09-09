@@ -4,7 +4,8 @@ router = APIRouter()
 # ---- 三刀解剖导入 ----
 
 class ThreeKnifeImportBody(BaseModel):
-    markdown: str
+    markdown: str = ""
+    articleId: str = ""
     displayHtml: str | None = None
     sourceUrl: str | None = None
     userId: str | None = None  # 兼容旧字段，导入教研示范时忽略
@@ -31,37 +32,51 @@ def admin_rmrb_import_three_knife(
     _admin=Depends(require_permission("rmrb:write")),
     db: Session = Depends(get_db),
 ):
-    """解析 v2.18 三刀解剖 Markdown，写入时评文章绑定的教研示范。"""
+    """把解析 HTML 挂到已有时评；若同时带 Markdown 则仍写入跟做字段。"""
     md = (body.markdown or "").strip()
-    if not md:
-        return ApiResponse.fail("Markdown 内容不能为空", code=400)
+    html = (body.displayHtml or "").strip()
+    article_id = (body.articleId or "").strip()
+    if not article_id:
+        return ApiResponse.fail("请选择要挂解析的时评文章", code=400)
 
     try:
         from app.services.shenlun_import_service import parse_three_knife_markdown
-        from app.services.shenlun_learning_service import upsert_teaching_from_parsed
+        from app.services.shenlun_learning_service import upsert_teaching_from_parsed, upsert_teaching_html
 
-        parsed = parse_three_knife_markdown(md)
+        if md:
+            parsed = parse_three_knife_markdown(md)
+            if not parsed.articleTitle:
+                return ApiResponse.fail("未能从 Markdown 中解析出文章标题", code=400)
+            article, example = upsert_teaching_from_parsed(
+                db,
+                parsed,
+                article_id=article_id,
+                source_url=(body.sourceUrl or "").strip(),
+                display_html=html,
+            )
+            summary = _three_knife_summary(parsed)
+        elif html:
+            article, example = upsert_teaching_html(db, article_id=article_id, display_html=html)
+            summary = {
+                "articleTitle": article.title,
+                "mineDate": article.publish_date,
+                "termsCount": 0,
+                "quotesCount": 0,
+                "verbsCount": 0,
+                "pointsCount": 0,
+                "templatesCount": 0,
+                "incompleteReasons": [],
+            }
+        else:
+            return ApiResponse.fail("请粘贴解析 HTML", code=400)
     except Exception as e:
-        return ApiResponse.fail(f"Markdown 解析失败：{e}", code=400)
-
-    if not parsed.articleTitle:
-        return ApiResponse.fail("未能从 Markdown 中解析出文章标题", code=400)
-
-    try:
-        article, example = upsert_teaching_from_parsed(
-            db,
-            parsed,
-            source_url=(body.sourceUrl or "").strip(),
-            display_html=(body.displayHtml or "").strip(),
-        )
-    except ValueError as e:
         return ApiResponse.fail(str(e), code=400)
 
     return ApiResponse.ok({
         "articleId": article.id,
         "exampleId": example["id"],
         "example": example,
-        "summary": _three_knife_summary(parsed),
+        "summary": summary,
     })
 
 

@@ -441,32 +441,65 @@ const newSkel = reactive({
   labels: '问题,原因,对策',
 })
 
-const categoryNames = computed(() => categories.value)
-const verbCategoryNames = computed(() => verbCategories.value)
-const skeletonNames = computed(() => skeletons.value.map((s) => s.name))
-const sentenceTypeNames = computed(() => sentenceTypes.value.map((t) => t.name))
+function unionNames(catalog: string[], extras: string[]) {
+  const out = [...catalog]
+  for (const raw of extras) {
+    const name = (raw || '').trim()
+    if (name && name !== '不选' && !out.includes(name)) out.push(name)
+  }
+  return out
+}
+
+const categoryNames = computed(() => unionNames(categories.value, termRows.value.map((t) => t.category)))
+const verbCategoryNames = computed(() =>
+  unionNames(verbCategories.value, verbRows.value.map((v) => v.category)),
+)
+const skeletonNames = computed(() => unionNames(skeletons.value.map((s) => s.name), [argument.templateName]))
+const sentenceTypesForPicker = computed(() => {
+  const list = [...sentenceTypes.value]
+  for (const tpl of templates.value) {
+    const code = (tpl.type || '').trim()
+    const name = (tpl.typeName || '').trim()
+    if (!code && !name) continue
+    if (list.some((t) => t.code === code || t.name === name)) continue
+    list.push({
+      id: `local-${code || name}`,
+      code: code || name,
+      name: name || code,
+      tip: '',
+      sortOrder: 999,
+      isEnabled: true,
+    })
+  }
+  return list
+})
+const sentenceTypeNames = computed(() => sentenceTypesForPicker.value.map((t) => t.name))
 const overviewPresets = computed(() =>
   methodPresets.value.filter((p) => p.scope === 'overview' || !p.scope),
 )
 const pointPresets = computed(() =>
   methodPresets.value.filter((p) => p.scope === 'point' || !p.scope),
 )
-const overviewMethodNames = computed(() => [
-  '不选',
-  ...overviewPresets.value.map((p) => p.name),
-  ...pointPresets.value.map((p) => p.name),
-])
-const pointMethodNames = computed(() => [
-  '不选',
-  ...pointPresets.value.map((p) => p.name),
-  ...overviewPresets.value.map((p) => p.name),
-])
+const overviewMethodNames = computed(() =>
+  unionNames(
+    ['不选', ...overviewPresets.value.map((p) => p.name), ...pointPresets.value.map((p) => p.name)],
+    [argument.overviewMethod],
+  ),
+)
+const pointMethodNames = computed(() =>
+  unionNames(
+    ['不选', ...pointPresets.value.map((p) => p.name), ...overviewPresets.value.map((p) => p.name)],
+    argument.points.map((p) => p.method),
+  ),
+)
 const selectedSkeleton = computed(
   () => skeletons.value.find((s) => s.id === argument.templateId) || null,
 )
 const skeletonIndex = computed(() => {
-  const i = skeletons.value.findIndex((s) => s.id === argument.templateId)
-  return i >= 0 ? i : 0
+  const i = skeletonNames.value.indexOf(argument.templateName)
+  if (i >= 0) return i
+  const j = skeletons.value.findIndex((s) => s.id === argument.templateId)
+  return j >= 0 ? j : 0
 })
 const overviewMethodIndex = computed(() => {
   const i = overviewMethodNames.value.indexOf(argument.overviewMethod)
@@ -483,22 +516,22 @@ function shortCat(name: string) {
 }
 
 function categoryIndex(name: string) {
-  const i = categories.value.indexOf(name)
+  const i = categoryNames.value.indexOf(name)
   return i >= 0 ? i : 0
 }
 
 function verbCategoryIndex(name: string) {
-  const i = verbCategories.value.indexOf(name)
+  const i = verbCategoryNames.value.indexOf(name)
   return i >= 0 ? i : 0
 }
 
 function sentenceTypeIndex(code: string) {
-  const i = sentenceTypes.value.findIndex((t) => t.code === code)
+  const i = sentenceTypesForPicker.value.findIndex((t) => t.code === code)
   return i >= 0 ? i : 0
 }
 
 function sentenceTypeLabel(code: string) {
-  const name = sentenceTypes.value.find((t) => t.code === code)?.name || code || '类型'
+  const name = sentenceTypesForPicker.value.find((t) => t.code === code)?.name || code || '类型'
   return name.replace(/型$/, '')
 }
 
@@ -614,25 +647,27 @@ function addTemplate() {
 
 function onTermCategory(i: number, e: any) {
   const idx = Number(e?.detail?.value ?? 0)
-  const name = categories.value[idx]
+  const name = categoryNames.value[idx]
   if (name && termRows.value[i]) termRows.value[i].category = name
 }
 
 function onVerbCategory(i: number, e: any) {
   const idx = Number(e?.detail?.value ?? 0)
-  const name = verbCategories.value[idx]
+  const name = verbCategoryNames.value[idx]
   if (name && verbRows.value[i]) verbRows.value[i].category = name
 }
 
 function onSkeletonPick(e: any) {
   const idx = Number(e?.detail?.value ?? 0)
-  const tpl = skeletons.value[idx]
+  const name = skeletonNames.value[idx]
+  const tpl = skeletons.value.find((s) => s.name === name)
   if (tpl) applySkeleton(tpl, false)
+  else if (name) argument.templateName = name
 }
 
 function onSentenceType(i: number, e: any) {
   const idx = Number(e?.detail?.value ?? 0)
-  const t = sentenceTypes.value[idx]
+  const t = sentenceTypesForPicker.value[idx]
   if (t && templates.value[i]) {
     templates.value[i].type = t.code
     templates.value[i].typeName = t.name

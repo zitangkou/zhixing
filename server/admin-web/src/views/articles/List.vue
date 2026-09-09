@@ -8,7 +8,7 @@
       <el-button type="primary" @click="load">查询</el-button>
       <el-button @click="filterPending">待审核</el-button>
       <el-button type="success" @click="router.push({ name: 'article-new' })">新建文章</el-button>
-      <el-button type="primary" plain @click="openArticleImportDialog">导入 Markdown</el-button>
+      <el-button type="primary" plain @click="openArticleImportDialog">导入文章</el-button>
     </div>
 
     <div v-if="selectedIds.length" class="batch-bar">
@@ -159,18 +159,51 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="articleImportVisible" title="导入 Markdown 长文" width="720px" destroy-on-close>
-      <p class="import-hint">
-        支持 <code>## 章</code> → <code>### 节</code> → <code>&gt; 引用块</code>（多段自动拆为「段」）。
-        与移动端 level 1/2/3 一致。文档标题用 <code>#</code>。
+    <el-dialog v-model="articleImportVisible" title="导入理论文章" width="720px" destroy-on-close>
+      <el-radio-group v-model="articleImportFormat" style="margin-bottom: 12px">
+        <el-radio-button value="html">HTML（推荐）</el-radio-button>
+        <el-radio-button value="markdown">结构化 Markdown</el-radio-button>
+      </el-radio-group>
+      <p v-if="articleImportFormat === 'html'" class="import-hint">
+        粘贴运营生成的 <strong>HTML</strong>（可含 <code>style</code> 与标题）。导入后学员端按 HTML 排版展示。
+      </p>
+      <p v-else class="import-hint">
+        请粘贴 <strong>结构化 MD</strong>（<code>#</code> 标题、<code>## 章</code>、<code>### 节</code>、正文 <code>&gt;</code> 引用、节末 <code>【关键词】</code>）。
+        不要粘贴「原文素材」摘要稿。
       </p>
       <el-input
-        v-model="articleImportMarkdown"
+        v-model="articleImportBody"
         type="textarea"
-        :rows="18"
-        placeholder="粘贴整篇 Markdown…"
+        :rows="14"
+        :placeholder="articleImportFormat === 'html' ? '粘贴完整 HTML…' : '粘贴结构化 Markdown…'"
       />
+      <div class="import-preview-bar">
+        <el-button :loading="articlePreviewing" @click="previewArticleImport">预览</el-button>
+        <span v-if="articleImportPreview" class="import-preview-stats">
+          {{ articleImportPreview.title }}
+          <template v-if="articleImportFormat === 'markdown'">
+            · {{ articleImportPreview.stats.chapters }} 章
+            {{ articleImportPreview.stats.sections }} 节
+            {{ articleImportPreview.stats.paragraphs }} 段
+          </template>
+          <template v-else>
+            · {{ articleImportPreview.stats.chars ?? 0 }} 字
+          </template>
+        </span>
+      </div>
+      <ul v-if="articleImportPreview?.parse_warnings?.length" class="import-warnings">
+        <li v-for="(w, i) in articleImportPreview.parse_warnings" :key="i">{{ w }}</li>
+      </ul>
       <el-form label-width="96px" class="import-options">
+        <el-form-item label="来源">
+          <el-input v-model="articleImportSource" placeholder="可从文首「来源：」自动带出" />
+        </el-form-item>
+        <el-form-item label="发布日期">
+          <el-input v-model="articleImportPublishDate" placeholder="YYYY-MM-DD" />
+        </el-form-item>
+        <el-form-item label="原文链接">
+          <el-input v-model="articleImportSourceUrl" placeholder="可从文首「原文链接：」自动带出" />
+        </el-form-item>
         <el-form-item label="分类">
           <el-tree-select
             v-model="articleImportCategoryId"
@@ -183,6 +216,7 @@
         </el-form-item>
         <el-form-item label="选项">
           <el-checkbox v-model="articleImportFeatured">标记为重点文章</el-checkbox>
+          <el-checkbox v-model="articleImportDaily">今日推荐</el-checkbox>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -204,7 +238,10 @@ import {
   batchSetArticleCategory,
   fetchArticle,
   fetchArticles,
+  importArticleHtml,
   importArticleMarkdown,
+  previewArticleHtml,
+  previewArticleMarkdown,
   updateArticle,
 } from '@/api/articles'
 import { fetchCategories } from '@/api/categories'
@@ -227,10 +264,21 @@ const categories = ref<Category[]>([])
 const categoryDialogVisible = ref(false)
 const batchCategoryId = ref<string | null>(null)
 const articleImportVisible = ref(false)
-const articleImportMarkdown = ref('')
+const articleImportFormat = ref<'html' | 'markdown'>('html')
+const articleImportBody = ref('')
 const articleImportCategoryId = ref<string | null>(null)
 const articleImportFeatured = ref(false)
+const articleImportDaily = ref(false)
+const articleImportSource = ref('')
+const articleImportPublishDate = ref('')
+const articleImportSourceUrl = ref('')
 const articleImporting = ref(false)
+const articlePreviewing = ref(false)
+const articleImportPreview = ref<{
+  title: string
+  stats: { chapters: number; sections: number; paragraphs: number; chars?: number }
+  parse_warnings: string[]
+} | null>(null)
 const quickEditVisible = ref(false)
 const quickEditSaving = ref(false)
 const quickEditId = ref('')
@@ -367,32 +415,69 @@ async function onBatchDelete() {
 }
 
 function openArticleImportDialog() {
-  articleImportMarkdown.value = ''
+  articleImportFormat.value = 'html'
+  articleImportBody.value = ''
   articleImportCategoryId.value = null
   articleImportFeatured.value = false
+  articleImportDaily.value = false
+  articleImportSource.value = ''
+  articleImportPublishDate.value = ''
+  articleImportSourceUrl.value = ''
+  articleImportPreview.value = null
   articleImportVisible.value = true
 }
 
+async function previewArticleImport() {
+  if (!articleImportBody.value.trim()) {
+    ElMessage.warning(articleImportFormat.value === 'html' ? '请粘贴 HTML' : '请粘贴结构化 Markdown')
+    return
+  }
+  articlePreviewing.value = true
+  try {
+    const preview = articleImportFormat.value === 'html'
+      ? await previewArticleHtml(articleImportBody.value)
+      : await previewArticleMarkdown(articleImportBody.value)
+    articleImportPreview.value = preview
+    if (preview.source) articleImportSource.value = preview.source
+    if (preview.publishDate) articleImportPublishDate.value = preview.publishDate
+    if (preview.sourceUrl) articleImportSourceUrl.value = preview.sourceUrl
+    ElMessage.success(articleImportFormat.value === 'html' ? `解析到「${preview.title}」` : `解析到 ${preview.stats.chapters} 章 ${preview.stats.sections} 节`)
+  } catch (e) {
+    articleImportPreview.value = null
+    ElMessage.error(e instanceof Error ? e.message : '预览失败')
+  } finally {
+    articlePreviewing.value = false
+  }
+}
+
 async function submitArticleImport() {
-  if (!articleImportMarkdown.value.trim()) {
-    ElMessage.warning('请粘贴 Markdown 内容')
+  if (!articleImportBody.value.trim()) {
+    ElMessage.warning(articleImportFormat.value === 'html' ? '请粘贴 HTML 内容' : '请粘贴 Markdown 内容')
     return
   }
   articleImporting.value = true
   try {
-    const res = await importArticleMarkdown({
-      markdown: articleImportMarkdown.value,
+    const common = {
       status: 'pending',
       category_id: articleImportCategoryId.value,
       is_featured: articleImportFeatured.value,
-    })
+      is_daily: articleImportDaily.value,
+      source: articleImportSource.value,
+      source_url: articleImportSourceUrl.value,
+      publish_date: articleImportPublishDate.value,
+    }
+    const res = articleImportFormat.value === 'html'
+      ? await importArticleHtml({ html: articleImportBody.value, ...common })
+      : await importArticleMarkdown({ markdown: articleImportBody.value, ...common })
     articleImportVisible.value = false
     const stats = res.stats
     const warn = res.parse_warnings?.length ? `（${res.parse_warnings.length} 条提示）` : ''
     ElMessage.success(
-      stats
-        ? `已导入 ${stats.chapters} 章 ${stats.sections} 节 ${stats.paragraphs ?? 0} 段${warn}`
-        : `导入成功${warn}`,
+      articleImportFormat.value === 'html'
+        ? `已导入 HTML 文章${warn}`
+        : stats
+          ? `已导入 ${stats.chapters} 章 ${stats.sections} 节 ${stats.paragraphs ?? 0} 段${warn}`
+          : `导入成功${warn}`,
     )
     router.push(`/articles/${res.id}`)
   } catch (e) {
@@ -507,5 +592,25 @@ watch(
 }
 .import-options {
   margin-top: 16px;
+}
+.import-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 8px;
+  flex-wrap: wrap;
+}
+.import-preview-stats {
+  font-size: 13px;
+  color: #606266;
+}
+.import-warnings {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  color: #e6a23c;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 96px;
+  overflow: auto;
 }
 </style>

@@ -87,14 +87,14 @@ FastAPI 后端 ---- SQLite / data/uploads
 
 | 菜单 | 职责 |
 | --- | --- |
-| 文章管理 | 文章 CRUD、Markdown 导入、审核发布、分类、题目管理、AI 出题 |
-| 分类管理 | 内容分类树维护 |
+| 时政考点 · 文章管理 | 文章 CRUD、Markdown/HTML 导入、审核发布、分类、题目管理、AI 出题 |
+| 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
+| 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
 | 用户管理 | 学员账号、积分、状态管理 |
 | 知识框架 | Markdown 上传、树同步、节点维护 |
 | 学习计划 | 周计划模板维护、同步到待办 |
 | 试卷题库 | 试卷、题目、批量导入 |
 | 资料分析 | 公式、题型、秒杀技巧、练习资源 |
-| 人民日报 | 时评文章、规范词、骨架模板、句式、论证方法 |
 | 系统设置 | 键值配置、角色权限矩阵 |
 
 ## 3. 目录结构说明
@@ -143,7 +143,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 手动错题 | `pages/question/manual-*` | `manual_wrong_service.py` | 行测错题录入、图片上传、知识点关联、复习状态 |
 | 知识框架 | `pages/knowledge/index` | `knowledge_service.py`、`knowledge_review_service.py` | Markdown 同步、树状知识点、笔记、星标、掌握度、复习 |
 | 真题套卷 | `pages/exam/*` | `exam_service.py`、`exam_import.py` | 试卷列表、开考、答题、交卷、成绩和历史记录 |
-| 人民日报/申论 | `pages/rmrb/*` | `rmrb_service.py`、`rmrb_meta_service.py`、`shenlun_service.py` | 时评阅读、开采本、规范词、骨架模板、阶梯训练 |
+| 人民日报/申论 | `pages/rmrb/*` | `rmrb_service.py`、`rmrb_meta_service.py`、`shenlun_service.py`、`vocab_inbox_service.py` | 时评 HTML、开采本、词表待收录、骨架模板、阶梯训练 |
 | 资料分析 | `pages/ziliao/*` | `ziliao_service.py` | 公式库、题型库、技巧库、专项练习、结果统计 |
 
 ### 4.2 素材积累与能力辅助
@@ -187,7 +187,8 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 知识框架 | `KnowledgeNode` |
 | 真题套卷 | `ExamPaper`、`ExamQuestion`、`ExamAttempt`、`ExamAnswer` |
 | 倒计时与行为 | `ExamCountdown`、`ActivityEvent` |
-| 人民日报/申论 | `RmrbArticle`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod` |
+| 人民日报/申论 | `RmrbArticle`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
+| 时政/时评 HTML | `Article.content_html`；`RmrbArticle.content_html`；示范 `ShenlunTeachingExample.display_html` |
 | 事件复盘 | `EventImpression` |
 | 语料与资料分析 | `CorpusItem`、`ZiliaoFormula`、`ZiliaoQuestionType`、`ZiliaoTrick`、`ZiliaoPracticeLog` |
 
@@ -216,13 +217,13 @@ FastAPI 后端 ---- SQLite / data/uploads
 管理端接口统一挂在 `/admin`，需管理员 Token 和权限：
 
 - `/admin/auth/*`：管理登录与当前用户。
-- `/admin/articles/*`、`/admin/questions/*`、`/admin/categories/*`：内容和题库。
+- `/admin/articles/*`、`/admin/questions/*`、`/admin/categories/*`：内容和题库；分类待收录 `/admin/categories/vocab-inbox*`。
 - `/admin/users/*`：用户管理。
 - `/admin/settings/*`、`/admin/roles/*`、`/admin/permissions`：系统设置和权限。
 - `/admin/knowledge/*`：知识框架管理。
 - `/admin/plan/*`：计划模板。
 - `/admin/exam/*`：试卷题库。
-- `/admin/rmrb/*`：人民日报/申论元数据。
+- `/admin/rmrb/*`：时评文章、词表 CRUD、待收录 `/admin/rmrb/vocab-inbox*`、三刀导入。
 - `/admin/ziliao/*`：资料分析资源。
 
 ## 7. 运行与部署

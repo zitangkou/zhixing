@@ -2,10 +2,12 @@
 
 const VISIBLE_PATHS = new Set([
   '/articles',
-  '/content-ops',
-  '/theory-learning',
   '/categories',
-  '/rmrb',
+  '/rmrb/articles',
+  '/rmrb/term-categories',
+  '/rmrb/skeletons',
+  '/rmrb/argument-methods',
+  '/rmrb/sentence-types',
   '/users',
   '/settings',
 ])

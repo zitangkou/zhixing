@@ -55,6 +55,7 @@ export interface Article {
   allowQuiz?: boolean
   isFeatured?: boolean
   isDaily?: boolean
+  contentHtml?: string
 }
 
 export interface Question {

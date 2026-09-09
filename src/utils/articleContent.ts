@@ -82,6 +82,12 @@ function enrichSectionTitles(sections: ArticleSection[]): ArticleSection[] {
 
 /** API 返回缺少 sections 时，按段落自动拆分；已有 sections 则补充可读标题 */
 export function normalizeArticle(article: Article): Article {
+  if (article.contentHtml?.trim()) {
+    return {
+      ...article,
+      sections: article.sections?.length ? enrichSectionTitles(article.sections) : [],
+    }
+  }
   if (article.sections?.length) {
     return { ...article, sections: enrichSectionTitles(article.sections) }
   }

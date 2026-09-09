@@ -150,9 +150,43 @@ const router = createRouter({
         },
         {
           path: 'rmrb',
-          name: 'rmrb',
-          component: () => import('@/views/rmrb/List.vue'),
-          meta: { title: '时评精拆', permissions: ['rmrb:read'] },
+          redirect: '/rmrb/articles',
+        },
+        {
+          path: 'rmrb/articles',
+          name: 'rmrb-articles',
+          component: () => import('@/views/rmrb/ArticlesTab.vue'),
+          meta: { title: '时评文章', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb/import',
+          name: 'rmrb-import',
+          component: () => import('@/views/rmrb/ThreeKnifeImportTab.vue'),
+          meta: { title: '三刀导入', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb/term-categories',
+          name: 'rmrb-term-categories',
+          component: () => import('@/views/rmrb/TermCategoriesTab.vue'),
+          meta: { title: '规范词分类', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb/skeletons',
+          name: 'rmrb-skeletons',
+          component: () => import('@/views/rmrb/SkeletonsTab.vue'),
+          meta: { title: '骨架模版', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb/argument-methods',
+          name: 'rmrb-argument-methods',
+          component: () => import('@/views/rmrb/ArgumentMethodsTab.vue'),
+          meta: { title: '论证方法', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb/sentence-types',
+          name: 'rmrb-sentence-types',
+          component: () => import('@/views/rmrb/SentenceTypesTab.vue'),
+          meta: { title: '句式类型', permissions: ['rmrb:read'] },
         },
         {
           path: 'corpus',

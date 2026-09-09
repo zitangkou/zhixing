@@ -54,16 +54,36 @@ def test_v218_import_and_public_detail():
         assert preview["parsed"]["examAnchor"]["theme"]
         assert preview["parsed"]["transferGuide"]["imitateDemo"]
 
+        missing = client.post(
+            "/admin/rmrb/import-three-knife",
+            json={"markdown": MD, "displayHtml": HTML},
+            headers=headers,
+        )
+        assert missing.json().get("code") != 0
+
+        created = _ok(client.post(
+            "/admin/rmrb/article",
+            json={
+                "title": "把书读薄，把自己读厚",
+                "source": "人民时评",
+                "content": "原文占位",
+                "isPublished": True,
+            },
+            headers=headers,
+        ))
+        article_id = created["id"]
+
         imported = _ok(client.post(
             "/admin/rmrb/import-three-knife",
             json={
                 "markdown": MD,
                 "displayHtml": HTML,
+                "articleId": article_id,
                 "sourceUrl": "http://paper.people.com.cn/example",
             },
             headers=headers,
         ))
-        article_id = imported["articleId"]
+        assert imported["articleId"] == article_id
         assert imported["example"]["examAnchor"]["stancePath"]
         assert imported["example"]["transferGuide"]["examFit"]
         assert "<div" in imported["example"]["displayHtml"]

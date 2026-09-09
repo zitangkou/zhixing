@@ -74,3 +74,50 @@ def delete_category(
     return ApiResponse.ok(None, message="已删除")
 
 
+@router.get("/categories/vocab-inbox")
+def admin_category_vocab_inbox(
+    _admin=Depends(require_permission("article:read")),
+    db: Session = Depends(get_db),
+):
+    from app.services.vocab_inbox_service import list_inbox
+
+    return ApiResponse.ok(list_inbox(db, kind="theory_category"))
+
+
+@router.post("/categories/vocab-inbox/{inbox_id}/promote")
+def admin_category_vocab_promote(
+    inbox_id: str,
+    _admin=Depends(require_permission("article:write")),
+    db: Session = Depends(get_db),
+):
+    from app.models import VocabInbox
+    from app.services.vocab_inbox_service import promote_inbox
+
+    row = db.get(VocabInbox, inbox_id)
+    if not row:
+        return ApiResponse.fail("待收录项不存在", code=404)
+    if row.kind != "theory_category":
+        return ApiResponse.fail("该项不属于时政分类", code=400)
+    try:
+        return ApiResponse.ok(promote_inbox(db, inbox_id))
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+
+
+@router.post("/categories/vocab-inbox/{inbox_id}/ignore")
+def admin_category_vocab_ignore(
+    inbox_id: str,
+    _admin=Depends(require_permission("article:write")),
+    db: Session = Depends(get_db),
+):
+    from app.models import VocabInbox
+    from app.services.vocab_inbox_service import ignore_inbox
+
+    row = db.get(VocabInbox, inbox_id)
+    if not row:
+        return ApiResponse.fail("待收录项不存在", code=404)
+    if row.kind != "theory_category":
+        return ApiResponse.fail("该项不属于时政分类", code=400)
+    return ApiResponse.ok(ignore_inbox(db, inbox_id))
+
+

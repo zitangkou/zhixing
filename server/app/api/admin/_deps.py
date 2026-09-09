@@ -46,6 +46,7 @@ from app.schemas import (
     QuestionCreate,
     QuestionUpdate,
     AiGenerateQuestionsBody,
+    ImportArticleHtmlBody,
     ImportArticleMarkdownBody,
     ImportQuestionsBody,
     RoleOut,
@@ -74,7 +75,7 @@ from app.services.ai.llm_client import LlmError
 from app.services.ai.question_generator import run_ai_question_generation
 from app.services.question_factory import add_generated_questions, add_imported_questions
 from app.services.question_import import parse_questions_markdown
-from app.services.article_import import parse_article_markdown
+from app.services.article_import import parse_article_html, parse_article_markdown
 from app.services.article_metadata import infer_article_metadata, merge_article_fields
 from app.services.article_service import delete_article_record
 from app.services.question_service import delete_question_record, delete_questions_for_article

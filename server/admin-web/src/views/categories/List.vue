@@ -4,6 +4,7 @@
       <el-button type="primary" @click="openDialog()">新增分类</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
+    <VocabInboxBar scope="category" kind="theory_category" @changed="load" />
 
     <ListState
       :loading="loading"
@@ -50,6 +51,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createCategory, deleteCategory, fetchCategories } from '@/api/categories'
 import ListState from '@/components/ListState.vue'
+import VocabInboxBar from '@/components/VocabInboxBar.vue'
 import { useAdminList } from '@/composables/useAdminList'
 import type { Category } from '@/types'
 

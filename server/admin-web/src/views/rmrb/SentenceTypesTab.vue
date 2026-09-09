@@ -4,6 +4,7 @@
       <el-button type="primary" @click="openDialog()">新建类型</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
+    <VocabInboxBar kind="sentence_type" @changed="load" />
     <el-alert type="info" :closable="false" style="margin-bottom: 12px">
       三刀解剖「第三刀」万能句式的类型下拉选项。
     </el-alert>
@@ -73,6 +74,7 @@ import {
   type ShenlunSentenceType,
 } from '@/api/rmrb'
 import ListState from '@/components/ListState.vue'
+import VocabInboxBar from '@/components/VocabInboxBar.vue'
 import { useAdminList } from '@/composables/useAdminList'
 
 const { loading, loadError, runLoad } = useAdminList()

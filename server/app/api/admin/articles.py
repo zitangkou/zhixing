@@ -85,6 +85,7 @@ def create_article(
         publish_date=merged["publish_date"],
         summary=merged["summary"],
         content=content,
+        content_html=body.content_html or "",
         sections=json.dumps(sections, ensure_ascii=False),
         tags=json.dumps(merged["tags"], ensure_ascii=False),
         mind_map=json.dumps(mind, ensure_ascii=False),
@@ -97,11 +98,34 @@ def create_article(
     db.add(article)
     db.flush()
     sync_article_category(db, article, merged["category_id"])
+    from app.services.vocab_inbox_service import observe_uncategorized_theory
+
+    observe_uncategorized_theory(db, article)
     if body.auto_generate_questions:
         add_generated_questions(db, article, pending=True, origin="manual")
     db.commit()
     db.refresh(article)
     return ApiResponse.ok(article_to_out(article).model_dump())
+
+
+@router.post("/articles/preview-markdown")
+def preview_article_markdown(
+    body: ImportArticleMarkdownBody,
+    _admin=Depends(require_permission("article:write")),
+):
+    try:
+        parsed, parse_errors = parse_article_markdown(body.markdown)
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+    return ApiResponse.ok({
+        "title": parsed["title"],
+        "source": parsed.get("source") or "",
+        "sourceUrl": parsed.get("source_url") or "",
+        "publishDate": parsed.get("publish_date") or "",
+        "summary": parsed["summary"],
+        "stats": parsed["stats"],
+        "parse_warnings": parse_errors,
+    })
 
 
 @router.post("/articles/import-markdown")
@@ -118,9 +142,9 @@ def import_article_markdown(
     merged = merge_article_fields(
         db,
         title=parsed["title"],
-        source=body.source,
-        source_url="",
-        publish_date=body.publish_date,
+        source=body.source or parsed.get("source") or "",
+        source_url=body.source_url or parsed.get("source_url") or "",
+        publish_date=body.publish_date or parsed.get("publish_date") or "",
         summary=parsed["summary"],
         content=parsed["content"],
         tags=body.tags,
@@ -138,6 +162,7 @@ def import_article_markdown(
         publish_date=merged["publish_date"],
         summary=merged["summary"],
         content=parsed["content"],
+        content_html="",
         sections=json.dumps(parsed["sections"], ensure_ascii=False),
         tags=json.dumps(merged["tags"], ensure_ascii=False),
         mind_map=json.dumps(mind, ensure_ascii=False),
@@ -145,12 +170,15 @@ def import_article_markdown(
         status=body.status,
         allow_quiz=True,
         is_published=body.status == "published",
-        is_daily=False,
+        is_daily=body.is_daily,
         is_featured=body.is_featured,
     )
     db.add(article)
     db.flush()
     sync_article_category(db, article, merged["category_id"])
+    from app.services.vocab_inbox_service import observe_uncategorized_theory
+
+    observe_uncategorized_theory(db, article)
     db.commit()
     db.refresh(article)
 
@@ -162,6 +190,89 @@ def import_article_markdown(
         f"{parsed['stats']['sections']} 节、"
         f"{parsed['stats']['paragraphs']} 段"
     )
+    if parse_errors:
+        msg += f"（{len(parse_errors)} 条解析提示）"
+    return ApiResponse.ok(out, message=msg)
+
+
+@router.post("/articles/preview-html")
+def preview_article_html(
+    body: ImportArticleHtmlBody,
+    _admin=Depends(require_permission("article:write")),
+):
+    try:
+        parsed, parse_errors = parse_article_html(body.html)
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+    return ApiResponse.ok({
+        "title": parsed["title"],
+        "source": parsed.get("source") or "",
+        "sourceUrl": parsed.get("source_url") or "",
+        "publishDate": parsed.get("publish_date") or "",
+        "summary": parsed["summary"],
+        "stats": parsed["stats"],
+        "parse_warnings": parse_errors,
+    })
+
+
+@router.post("/articles/import-html")
+def import_article_html(
+    body: ImportArticleHtmlBody,
+    _admin=Depends(require_permission("article:write")),
+    db: Session = Depends(get_db),
+):
+    try:
+        parsed, parse_errors = parse_article_html(body.html)
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+
+    merged = merge_article_fields(
+        db,
+        title=parsed["title"],
+        source=body.source or parsed.get("source") or "",
+        source_url=body.source_url or parsed.get("source_url") or "",
+        publish_date=body.publish_date or parsed.get("publish_date") or "",
+        summary=parsed["summary"],
+        content=parsed["content"],
+        tags=body.tags,
+        category_id=body.category_id,
+        importance=5 if body.is_featured else 3,
+    )
+    if body.is_featured and "重点必读" not in merged["tags"]:
+        merged["tags"] = [*merged["tags"], "重点必读"]
+
+    mind = build_mind_map(merged["title"], merged["content"] or merged["summary"])
+    article = Article(
+        title=merged["title"],
+        source=merged["source"],
+        source_url=merged["source_url"],
+        publish_date=merged["publish_date"],
+        summary=merged["summary"],
+        content=parsed["content"],
+        content_html=parsed["content_html"],
+        sections="[]",
+        tags=json.dumps(merged["tags"], ensure_ascii=False),
+        mind_map=json.dumps(mind, ensure_ascii=False),
+        importance=merged["importance"],
+        status=body.status,
+        allow_quiz=True,
+        is_published=body.status == "published",
+        is_daily=body.is_daily,
+        is_featured=body.is_featured,
+    )
+    db.add(article)
+    db.flush()
+    sync_article_category(db, article, merged["category_id"])
+    from app.services.vocab_inbox_service import observe_uncategorized_theory
+
+    observe_uncategorized_theory(db, article)
+    db.commit()
+    db.refresh(article)
+
+    out = article_to_out(article).model_dump()
+    out["stats"] = parsed["stats"]
+    out["parse_warnings"] = parse_errors
+    msg = f"已导入 HTML 文章「{parsed['title']}」"
     if parse_errors:
         msg += f"（{len(parse_errors)} 条解析提示）"
     return ApiResponse.ok(out, message=msg)
@@ -189,10 +300,20 @@ def update_article(
         article.sections = json.dumps(sections, ensure_ascii=False)
         if "content" not in data:
             article.content = sections_to_content(sections)
+    if data.get("content_html"):
+        from app.services.html_sanitize import sanitize_display_html
+
+        try:
+            data["content_html"] = sanitize_display_html(data["content_html"])
+        except ValueError as e:
+            return ApiResponse.fail(str(e), code=400)
     for k, v in data.items():
         setattr(article, k, v)
     if has_category_update:
         sync_article_category(db, article, category_id)
+    from app.services.vocab_inbox_service import observe_uncategorized_theory
+
+    observe_uncategorized_theory(db, article)
     if article.status == "published":
         article.is_published = True
     elif article.status in ("pending", "draft", "rejected"):

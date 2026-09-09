@@ -1,12 +1,25 @@
 <template>
-  <view v-if="article" class="page-rmrb-detail" :class="[themeClass, { 'is-html': showParse && !!demo?.displayHtml }]">
+  <view v-if="article" class="page-rmrb-detail" :class="[themeClass, { 'is-html': showHtmlLayout }]">
     <template v-if="!showParse">
+      <template v-if="article.contentHtml">
+        <iframe
+          v-if="isH5"
+          class="html-frame"
+          title="时评原文"
+          sandbox="allow-same-origin"
+          :srcdoc="originalHtmlDocument"
+          @load="onFrameLoad"
+        />
+        <rich-text v-else class="html-body" :nodes="article.contentHtml" />
+      </template>
+      <template v-else>
       <text class="source">{{ article.source }} · {{ article.publishDate }}</text>
       <text class="title selectable-text" user-select selectable>{{ article.title }}</text>
       <view v-if="themeChips.length" class="tags">
         <text v-for="t in themeChips" :key="t" class="tag">{{ t }}</text>
       </view>
       <text class="content selectable-text" user-select selectable>{{ article.content || '暂无原文，请管理员补全文稿。' }}</text>
+      </template>
     </template>
 
     <template v-else-if="demo">
@@ -16,7 +29,7 @@
           class="html-frame"
           title="时评解析"
           sandbox="allow-same-origin"
-          :srcdoc="htmlDocument"
+          :srcdoc="parseHtmlDocument"
           @load="onFrameLoad"
         />
         <rich-text v-else class="html-body" :nodes="demo.displayHtml" />
@@ -104,6 +117,9 @@ const article = ref<RmrbArticle | null>(null)
 const showParse = ref((router.params?.view || '') === 'demo')
 const demo = computed(() => article.value?.teachingExample || null)
 const isH5 = process.env.TARO_ENV === 'h5'
+const showHtmlLayout = computed(() =>
+  (!showParse.value && !!article.value?.contentHtml) || (showParse.value && !!demo.value?.displayHtml),
+)
 const themeChips = computed(() => {
   const seen = new Set<string>()
   const out: string[] = []
@@ -117,12 +133,14 @@ const themeChips = computed(() => {
   return out
 })
 
-const htmlDocument = computed(() => {
-  const raw = demo.value?.displayHtml || ''
+const parseHtmlDocument = computed(() => wrapHtmlDocument(demo.value?.displayHtml || ''))
+const originalHtmlDocument = computed(() => wrapHtmlDocument(article.value?.contentHtml || ''))
+
+function wrapHtmlDocument(raw: string) {
   if (!raw) return ''
   if (/<html[\s>]/i.test(raw)) return raw
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${raw}</body></html>`
-})
+}
 
 function onFrameLoad(e: Event) {
   const frame = e.target as HTMLIFrameElement

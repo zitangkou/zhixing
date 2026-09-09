@@ -33,12 +33,55 @@ export function inferArticleMetadata(data: { content: string; title?: string }) 
   }>(http.post('/admin/articles/infer-metadata', data))
 }
 
+export function previewArticleHtml(html: string) {
+  return getData<{
+    title: string
+    source: string
+    sourceUrl: string
+    publishDate: string
+    summary: string
+    stats: { chapters: number; sections: number; paragraphs: number; chars?: number }
+    parse_warnings: string[]
+  }>(http.post('/admin/articles/preview-html', { html }))
+}
+
+export function importArticleHtml(data: {
+  html: string
+  status?: string
+  category_id?: string | null
+  is_featured?: boolean
+  is_daily?: boolean
+  source?: string
+  source_url?: string
+  publish_date?: string
+  tags?: string[]
+}) {
+  return getData<Article & {
+    stats?: { chapters: number; sections: number; paragraphs: number; chars?: number }
+    parse_warnings?: string[]
+  }>(http.post('/admin/articles/import-html', data))
+}
+
+export function previewArticleMarkdown(markdown: string) {
+  return getData<{
+    title: string
+    source: string
+    sourceUrl: string
+    publishDate: string
+    summary: string
+    stats: { chapters: number; sections: number; paragraphs: number }
+    parse_warnings: string[]
+  }>(http.post('/admin/articles/preview-markdown', { markdown }))
+}
+
 export function importArticleMarkdown(data: {
   markdown: string
   status?: string
   category_id?: string | null
   is_featured?: boolean
+  is_daily?: boolean
   source?: string
+  source_url?: string
   publish_date?: string
   tags?: string[]
 }) {

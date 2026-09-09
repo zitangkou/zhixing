@@ -16,6 +16,7 @@ from app.models.rmrb import (
     ShenlunSkeletonTemplate,
     ShenlunTeachingExample,
     ShenlunTermCategory,
+    VocabInbox,
 )
 from app.models.events import EventImpression
 from app.models.corpus import CorpusItem

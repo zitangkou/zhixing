@@ -110,9 +110,17 @@ const activeMenu = computed(() => {
 const crumbs = computed(() => {
   const path = route.path
   if (path.startsWith('/articles/') && path !== '/articles/new') {
-    return ['文章管理', '编辑文章']
+    return ['时政考点', '文章管理', '编辑文章']
   }
-  if (path === '/articles/new') return ['文章管理', '新建文章']
+  if (path === '/articles/new') return ['时政考点', '文章管理', '新建文章']
+  if (path.startsWith('/rmrb/')) {
+    const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
+    return title ? ['时评精拆', title] : ['时评精拆']
+  }
+  if (path === '/articles' || path === '/categories') {
+    const title = ROUTE_TITLES[path] || ''
+    return title ? ['时政考点', title] : []
+  }
   const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
   return title ? [title] : []
 })
