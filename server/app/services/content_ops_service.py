@@ -367,7 +367,7 @@ def list_publishable_targets(db: Session, product_key: str) -> list[dict]:
                 "topicTypes": ["daily", "review"],
                 "h5Path": f"/#/pages/rmrb/article-detail?id={article.id}",
                 "miniappPath": f"pages/rmrb/article-detail?id={article.id}",
-                "officialAccountKeyword": "申论",
+                "officialAccountKeyword": "时评",
             })
     return output
 

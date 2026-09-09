@@ -92,23 +92,56 @@ echo "  /health OK"
 
 # ---------- 4/5 验证关键路由 ----------
 echo "[4/5] 验证关键路由"
-http_get "http://127.0.0.1:${HTTP_PORT}/" && echo "  /           综合 H5 OK"
+http_get "http://127.0.0.1:${HTTP_PORT}/" && echo "  /           学员端 H5 OK"
 http_get "http://127.0.0.1:${HTTP_PORT}/api/config" && echo "  /api/       学员 API OK"
 http_get "http://127.0.0.1:${HTTP_PORT}/manage/" && echo "  /manage/    管理后台 OK"
+
+http_status() {
+  local url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl --connect-timeout 5 --max-time 15 -sS -o /dev/null -w "%{http_code}" "$url"
+  else
+    python3 -c "import urllib.request,urllib.error,sys
+try:
+  urllib.request.urlopen(sys.argv[1], timeout=15)
+  print(200)
+except urllib.error.HTTPError as exc:
+  print(exc.code)
+except Exception:
+  print(000)" "$url"
+  fi
+}
+
+CALLBACK_URL="http://127.0.0.1:${HTTP_PORT}/api/wechat/callback"
+if [[ "${WECHAT_ENABLED,,}" == "true" ]]; then
+  CALLBACK_CODE="$(http_status "$CALLBACK_URL")"
+  if [[ "$CALLBACK_CODE" != "422" ]]; then
+    echo "  公众号回调探测失败：启用时缺参应返回 422，实际 ${CALLBACK_CODE}"
+    exit 1
+  fi
+  echo "  /api/wechat/callback  已启用（缺参 422）"
+else
+  CALLBACK_CODE="$(http_status "${CALLBACK_URL}?signature=probe&timestamp=1&nonce=n&echostr=e")"
+  if [[ "$CALLBACK_CODE" != "503" ]]; then
+    echo "  公众号回调探测失败：未启用时应返回 503，实际 ${CALLBACK_CODE}"
+    exit 1
+  fi
+  echo "  /api/wechat/callback  未启用（503）"
+fi
 
 # ---------- 5/5 汇总 ----------
 DOMAIN="$(env_value DOMAIN)"
 echo ""
 echo "部署完成！"
 if [[ -n "${DOMAIN:-}" ]]; then
-  echo "  综合 H5:   http://${DOMAIN}/"
+  echo "  学员端 H5: http://${DOMAIN}/"
   echo "  管理后台:  http://${DOMAIN}/manage/  （账号与密码见 .env）"
   echo "  正式发布前请配置 HTTPS，并再次执行：python3 scripts/release-preflight.py --base-url https://${DOMAIN} --env-file .env"
 else
   if [[ "$HTTP_BIND" == "0.0.0.0" ]]; then
     PUBLIC_BASE="$(env_value WECHAT_OFFICIAL_PUBLIC_BASE_URL)"
     if [[ "$PUBLIC_BASE" =~ ^https?:// ]]; then
-      echo "  综合 H5:   ${PUBLIC_BASE%/}/"
+      echo "  学员端 H5: ${PUBLIC_BASE%/}/"
       echo "  管理后台:  ${PUBLIC_BASE%/}/manage/"
       echo "  公众号回调: ${PUBLIC_BASE%/}/api/wechat/callback"
     else
@@ -119,7 +152,7 @@ else
     fi
     echo "  当前直接监听公网；请在云安全组放行 80，并暂时避免通过 HTTP 登录管理后台。"
   else
-    echo "  综合 H5:   http://127.0.0.1:${HTTP_PORT}/"
+    echo "  学员端 H5: http://127.0.0.1:${HTTP_PORT}/"
     echo "  管理后台:  http://127.0.0.1:${HTTP_PORT}/manage/"
     echo "  当前仅监听本机；公网访问需配置域名网关，或在临时联调时明确改为 HTTP_BIND=0.0.0.0。"
   fi

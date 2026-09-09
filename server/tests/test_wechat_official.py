@@ -92,8 +92,8 @@ def test_text_and_subscribe_replies(monkeypatch):
     parsed = parse_message(theory.content)
     assert parsed.to_user == "user_openid"
     assert parsed.from_user == "gh_duhengge"
-    assert "杜衡阁｜时政学习" in parsed.content
-    assert "http://203.0.113.10/" in parsed.content
+    assert "杜衡阁｜时政阅读" in parsed.content
+    assert "http://203.0.113.10/#/pages/question/article-pick" in parsed.content
     assert "欢迎来到「杜衡阁」" in parse_message(subscribe.content).content
 
 
@@ -117,11 +117,11 @@ def test_numeric_menu_and_navigation(monkeypatch):
     menu_text = parse_message(menu.content).content
     assert "杜衡阁｜学习导航" in menu_text
     assert "1  今日学习" in menu_text
-    assert "2  时政学习" in menu_text
-    assert "3  申论学习" in menu_text
-    assert "今日入口" in parse_message(today.content).content
-    assert "/#/pages/index/index" in parse_message(theory.content).content
-    assert "/#/pages/rmrb/index" in parse_message(shenlun.content).content
+    assert "2  时政阅读" in menu_text
+    assert "3  时评精拆" in menu_text
+    assert "/#/pages/index/index" in parse_message(today.content).content
+    assert "/#/pages/question/article-pick" in parse_message(theory.content).content
+    assert "/#/pages/rmrb/article-list" in parse_message(shenlun.content).content
     assert "三刀解剖" in parse_message(shenlun.content).content
 
 

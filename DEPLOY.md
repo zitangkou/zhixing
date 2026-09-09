@@ -2,7 +2,8 @@
 
 > 适用：一台独立云服务器（建议 Ubuntu 22.04 / Debian 12，2核4G+）部署整套 H5 + FastAPI + 管理后台。
 > 当前默认：备案前由项目容器直接监听公网 80；备案和证书完成后切换为宿主机 Nginx HTTPS 网关。
-> 更新：2026-09-08
+> 代码是单主线学员端（`src/`），Docker 只构建一份 H5 + 管理后台，不再部署 `/theory/`、`/shenlun/` 垂直站。服务器目录与 Compose 服务名仍用 `zhixing-gongkao`，以免已有数据卷挂错。
+> 更新：2026-09-09
 
 ## 快速命令速查
 
@@ -47,7 +48,7 @@ bash deploy/install-backup.sh
 ```text
 备案前：公网 80 → 项目容器 Nginx
 正式：公网 80/443 → 宿主机 Nginx → 127.0.0.1:8081 → 项目容器 Nginx
-   ├── /          → 综合 H5 静态页
+   ├── /          → 学员端 H5 静态页
    ├── /api/      → FastAPI 学员端接口（uvicorn:8000）
    ├── /admin/    → FastAPI 管理端接口（JWT + RBAC）
    ├── /manage/   → 管理后台静态页（admin-dist）
@@ -201,7 +202,7 @@ cd server/admin-web && npm run dev
 
 ## 10. 发布产物与上线检查
 
-综合版 H5 和微信小程序构建都会写入 `dist`，不能并行构建，也不能构建完两种目标后只取最后一个 `dist`。使用以下命令顺序构建并立即归档：
+学员端 H5 和微信小程序构建都会写入 `dist`，不能并行构建，也不能构建完两种目标后只取最后一个 `dist`。使用以下命令顺序构建并立即归档：
 
 ```bash
 bash scripts/build-release-artifacts.sh --api-url https://你的正式域名
@@ -251,7 +252,7 @@ WECHAT_OFFICIAL_PUBLIC_BASE_URL=http://公网IP
 
 真实 Token、AppSecret 和 EncodingAESKey 不得提交到 Git。微信公众平台“服务器配置”中的 Token 必须与 `.env` 完全一致。
 
-当前阶段使用明文模式验证 URL、关注回复和文字关键词；支持“今日、时政、申论、菜单”及短兜底。安全模式的 AES 消息会明确拒绝，完成加解密单元后再在公众号后台切换。
+当前阶段使用明文模式验证 URL、关注回复和文字关键词；支持「今日、时政、时评／申论、菜单」及短兜底，全部进入同一套学员端 H5。安全模式的 AES 消息会明确拒绝，完成加解密单元后再在公众号后台切换。
 
 配置后先在服务器自检：
 

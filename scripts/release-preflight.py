@@ -115,9 +115,9 @@ def check_artifacts(path: Path, report: Report) -> None:
     else:
         report.error("发布清单 RELEASE.txt 缺失")
     if (path / "h5" / "index.html").is_file():
-        report.ok("综合 H5 产物存在")
+        report.ok("学员端 H5 产物存在")
     else:
-        report.error("综合 H5 缺少 index.html")
+        report.error("学员端 H5 缺少 index.html")
     mini_app = path / "weapp" / "dist" / "app.json"
     project = path / "weapp" / "project.config.json"
     if mini_app.is_file() and project.is_file():
@@ -134,7 +134,7 @@ def check_url(base_url: str, report: Report) -> None:
     routes = {
         "/health": "健康检查",
         "/api/config": "学员 API",
-        "/": "综合 H5",
+        "/": "学员端 H5",
         "/manage/": "管理后台",
     }
     for route, label in routes.items():

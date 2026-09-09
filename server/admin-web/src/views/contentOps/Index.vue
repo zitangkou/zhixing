@@ -228,7 +228,7 @@
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="内容类型"><el-select v-model="form.topicType" style="width:100%"><el-option v-for="kind in selectedTarget?.topicTypes || []" :key="kind" :label="topicTypeLabel(kind)" :value="kind" /></el-select></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="公众号承接词"><el-select v-model="form.officialAccountKeyword" style="width:100%"><el-option label="今日" value="今日" /><el-option label="时政" value="时政" /><el-option label="申论" value="申论" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="公众号承接词"><el-select v-model="form.officialAccountKeyword" style="width:100%"><el-option label="今日" value="今日" /><el-option label="时政" value="时政" /><el-option label="时评" value="时评" /><el-option label="申论" value="申论" /></el-select></el-form-item></el-col>
         </el-row>
         <el-form-item label="H5 路径"><el-input v-model="form.h5Path" readonly /></el-form-item>
         <el-form-item label="小程序路径"><el-input v-model="form.miniappPath" readonly /></el-form-item>
@@ -334,8 +334,8 @@ const reviewRow = ref<ContentPackage | null>(null)
 const reviewStage = ref<ReviewStage>('teaching')
 const reviewChecked = ref<string[]>([])
 const reviewNote = ref('')
-const form = reactive({ productKey: 'shenlun', templateId: '', sourceType: '', sourceId: '', sourceTitle: '', campaignKey: '', deepLink: '', entryId: '', topicType: 'daily' as ContentEntryTarget['topicType'], h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '申论', plannedAt: '' })
-const generateForm = reactive({ productKey: 'shenlun', templateId: '', articleId: '', campaignKey: '', deepLink: '', entryTarget: { topicType: 'daily', entryId: '', h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '申论' } as ContentEntryTarget, plannedAt: '' })
+const form = reactive({ productKey: 'shenlun', templateId: '', sourceType: '', sourceId: '', sourceTitle: '', campaignKey: '', deepLink: '', entryId: '', topicType: 'daily' as ContentEntryTarget['topicType'], h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '时评', plannedAt: '' })
+const generateForm = reactive({ productKey: 'shenlun', templateId: '', articleId: '', campaignKey: '', deepLink: '', entryTarget: { topicType: 'daily', entryId: '', h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '时评' } as ContentEntryTarget, plannedAt: '' })
 const statusOptions = [
   ['draft', '草稿'], ['teaching_review', '教研审核'], ['ops_review', '运营审核'],
   ['ready', '待发布'], ['published', '已发布'], ['rejected', '已驳回'],
@@ -427,7 +427,7 @@ function onTargetChange() {
   })
 }
 async function openGenerate() {
-  Object.assign(generateForm, { productKey: 'shenlun', templateId: '', articleId: '', campaignKey: '', deepLink: '', entryTarget: { topicType: 'daily', entryId: '', h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '申论' }, plannedAt: '' })
+  Object.assign(generateForm, { productKey: 'shenlun', templateId: '', articleId: '', campaignKey: '', deepLink: '', entryTarget: { topicType: 'daily', entryId: '', h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '时评' }, plannedAt: '' })
   if (!templates.value.length) {
     try { await loadTemplates() }
     catch (error) { ElMessage.error(error instanceof Error ? error.message : '栏目模板加载失败'); return }
@@ -436,7 +436,7 @@ async function openGenerate() {
   generateVisible.value = true
 }
 async function resetForm() {
-  editingId.value = ''; Object.assign(form, { productKey: 'shenlun', templateId: '', sourceType: '', sourceId: '', sourceTitle: '', campaignKey: '', deepLink: '', entryId: '', topicType: 'daily', h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '申论', plannedAt: '' })
+  editingId.value = ''; Object.assign(form, { productKey: 'shenlun', templateId: '', sourceType: '', sourceId: '', sourceTitle: '', campaignKey: '', deepLink: '', entryId: '', topicType: 'daily', h5Path: '', miniappPath: '', qrScene: '', officialAccountKeyword: '时评', plannedAt: '' })
   await onProductChange()
 }
 async function openCreate() { await resetForm(); dialogVisible.value = true }
