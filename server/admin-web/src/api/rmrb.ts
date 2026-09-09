@@ -77,7 +77,7 @@ export function fetchRmrbArticles(tag?: string) {
 }
 
 export function createRmrbArticle(data: {
-  title: string
+  title?: string
   source?: string
   sourceUrl?: string
   publishDate?: string
