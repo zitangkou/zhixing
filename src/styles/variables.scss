@@ -1,12 +1,12 @@
 /* 运行时主题：品牌色与表面色均走 CSS 变量，暗色统一切换 */
 
-/* 品牌色表：每套 6 个 hex = light(primary/mid/dark) + dark(primary/mid/dark)，与 src/constants/theme.ts 保持一致 */
+/* 品牌色表：键必须加引号，否则 blue/green/violet 会被当成颜色再插值成非法选择器 */
 $brand-themes: (
-  blue: #1e3a5f #182b44 #142940 #3d5a7a #4a6a8e #5a7a9e,
-  red: #d0021b #a80116 #8b0000 #e85d6a #c44a56 #8f2f3a,
-  green: #0f7d4f #0b6540 #084c31 #3dba80 #2f9c68 #237a51,
-  violet: #5b3a8e #472d72 #352258 #8b7bd8 #6f5fc0 #56479a,
-  amber: #a26500 #825000 #653c00 #e0a84a #c48f38 #9c6f2a,
+  'blue': #1e3a5f #182b44 #142940 #3d5a7a #4a6a8e #5a7a9e,
+  'red': #d0021b #a80116 #8b0000 #e85d6a #c44a56 #8f2f3a,
+  'green': #0f7d4f #0b6540 #084c31 #3dba80 #2f9c68 #237a51,
+  'violet': #5b3a8e #472d72 #352258 #8b7bd8 #6f5fc0 #56479a,
+  'amber': #a26500 #825000 #653c00 #e0a84a #c48f38 #9c6f2a,
 );
 
 /* 默认红（亮色）：无 class 兜底 */
@@ -46,7 +46,7 @@ page {
   $lm: nth($scale, 2);
   $ld: nth($scale, 3);
 
-  @if $id != red {
+  @if $id != 'red' {
     html.theme-#{$id},
     page.theme-#{$id},
     .theme-#{$id} {
@@ -101,7 +101,7 @@ page.theme-dark,
   $dm: nth($scale, 5);
   $dd: nth($scale, 6);
 
-  @if $id != red {
+  @if $id != 'red' {
     html.theme-dark.theme-#{$id},
     page.theme-dark.theme-#{$id},
     .theme-dark.theme-#{$id} {

@@ -39,7 +39,7 @@
 
 ### 当前对外露出（菜单）
 
-对齐公众号「时政学习 / 申论学习」两块。开关：`src/constants/featureVisibility.ts`。
+对齐公众号回复「今日学习 / 时政练习 / 时评精拆」。开关：`src/constants/featureVisibility.ts`。
 
 **露出**
 

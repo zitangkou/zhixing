@@ -109,7 +109,7 @@ def decide_reply(message: InboundMessage, public_base_url: str) -> ReplyDecision
                 "欢迎来到「杜衡阁」\n\n"
                 "把重要文章读懂，把关键题目练会。\n\n"
                 "1  今日学习\n"
-                "2  时政阅读\n"
+                "2  时政练习\n"
                 "3  时评精拆\n\n"
                 "回复数字即可进入，回复 0 查看导航。",
             )
@@ -123,31 +123,31 @@ def decide_reply(message: InboundMessage, public_base_url: str) -> ReplyDecision
     text = _normalise_text(message.content)
     aliases = {
         "today": {"1", "今日", "今天", "今日学习", "今日一练"},
-        "theory": {"2", "时政", "日知", "时政学习", "时政阅读"},
-        "rmrb": {"3", "时评", "申论", "策论", "申论学习", "三刀", "时评精拆"},
+        "theory": {"2", "时政", "日知", "时政学习", "时政阅读", "时政练习", "练习", "考点练习"},
+        "rmrb": {"3", "时评", "申论", "策论", "申论学习", "三刀", "时评精拆", "评论"},
         "menu": {"0", "菜单", "帮助", "导航", "开始"},
     }
     if text in aliases["today"]:
         return ReplyDecision(
             "today",
-            _with_link("今日学习", "学习首页\n今日时评与今日时政各一篇，读完再练。", home_url),
+            _with_link("今日学习", "今日文章：评论与理论按日期排列，点开即读。", home_url),
         )
     if text in aliases["theory"]:
         return ReplyDecision(
             "theory",
-            _with_link("时政阅读", "学习路径\n阅读全文 → 提炼重点 → 按文刷题 / 错题重练", theory_url),
+            _with_link("时政练习", "学习路径\n阅读全文 → 考点练习", theory_url),
         )
     if text in aliases["rmrb"]:
         return ReplyDecision(
             "rmrb",
-            _with_link("时评精拆", "学习路径\n阅读时评原文 → 三刀解剖 → 去开采", rmrb_url),
+            _with_link("时评精拆", "学习路径\n读原文 → 时评解析 → 去开采", rmrb_url),
         )
     if text in aliases["menu"]:
         return ReplyDecision(
             "menu",
             "杜衡阁｜学习导航\n\n"
             "1  今日学习\n"
-            "2  时政阅读\n"
+            "2  时政练习\n"
             "3  时评精拆\n\n"
             "回复数字即可进入。\n"
             "每次只选一个任务，完成后再继续。",

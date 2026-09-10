@@ -403,7 +403,7 @@ def package_preflight(db: Session, row: ContentPublishPackage) -> dict:
     qr_scene = str(target.get("qrScene") or "").strip()
     checks.append(_preflight_item("qr_scene", "小程序码场景", bool(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", qr_scene)), "填写只含字母、数字、下划线或连字符的场景值"))
     keyword = str(target.get("officialAccountKeyword") or "").strip()
-    checks.append(_preflight_item("keyword", "公众号承接词", keyword in ("今日", "时政", "申论"), "首发仅使用今日、时政或申论"))
+    checks.append(_preflight_item("keyword", "公众号承接词", keyword in ("今日", "时政", "时评", "申论"), "使用今日、时政、时评或申论"))
 
     channels_ok = bool(variants)
     checks.append(_preflight_item("channels", "渠道内容", channels_ok, "至少选择一个渠道"))

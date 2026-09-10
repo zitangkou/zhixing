@@ -31,7 +31,25 @@ export default defineConfig<'vite'>(async (merge) => {
       options: {},
     },
     framework: 'vue3',
-    compiler: 'vite',
+    compiler: {
+      type: 'vite',
+      vitePlugins: [
+        {
+          name: 'scss-quiet',
+          config() {
+            return {
+              css: {
+                preprocessorOptions: {
+                  scss: {
+                    silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin'],
+                  },
+                },
+              },
+            }
+          },
+        },
+      ],
+    },
     alias: {
       '@': path.resolve(__dirname, '..', 'src'),
     },
