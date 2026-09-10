@@ -6,6 +6,7 @@ export function fetchArticles(params: {
   page_size?: number
   keyword?: string
   status?: string
+  is_daily?: boolean
 }) {
   return getData<PageResult<Article>>(http.get('/admin/articles', { params }))
 }
@@ -40,6 +41,8 @@ export function previewArticleHtml(html: string) {
     sourceUrl: string
     publishDate: string
     summary: string
+    tags: string[]
+    categoryName?: string
     stats: { chapters: number; sections: number; paragraphs: number; chars?: number }
     parse_warnings: string[]
   }>(http.post('/admin/articles/preview-html', { html }))

@@ -44,7 +44,7 @@ import type { RmrbArticle } from '@/types'
 import { rmrbToCard } from '@/utils/rmrbCard'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '时评原文' })
+definePageConfig({ navigationBarTitleText: '时评精拆' })
 
 const { themeClass } = useThemeClass()
 const loading = ref(false)

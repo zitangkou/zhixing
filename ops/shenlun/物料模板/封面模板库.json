@@ -1,0 +1,24 @@
+{
+  "version": "2.16",
+  "updated": "2026-08-29",
+  "default_template": "tpl_01_old_gray",
+  "avatar_asset": "物料模板/方形头像_杜衡阁.png",
+  "templates": [
+    {
+      "id": "tpl_01_old_gray",
+      "name": "灰色中式简约·双封面（旧模板）",
+      "design_id": "DAHToXORtnU",
+      "shortlink": "https://khsj.cn/zwylwo9ywoqlaha",
+      "canvas": { "width": 1283, "height": 383, "note": "双封面宽幅 3.35:1，发布时按单封面裁剪或整图使用" },
+      "text_fields": {
+        "title_prefix": "PByFWbckL6hwgMC3-LBCChYg5XvqWmZys",
+        "title_main": "PByFWbckL6hwgMC3-LBqPbjnTLQwdXt77",
+        "subtitle": "PByFWbckL6hwgMC3-LB1kgRc4hGjXhNX0",
+        "date": "PByFWbckL6hwgMC3-LBCFGQKWmHph3zPw"
+      },
+      "avatar": { "left": 951, "top": 70, "size": 280, "border": 5, "corner_radius": 35, "shape": "square_rounded" },
+      "status": "enabled",
+      "note": "用户默认模板；右侧配图区=杜衡阁方形头像（Canva 导出后本地贴）；文字 4 框：主标题前缀/主标题/副标/日期"
+    }
+  ]
+}

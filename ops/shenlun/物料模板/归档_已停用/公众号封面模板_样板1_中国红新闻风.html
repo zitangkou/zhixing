@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>公众号封面模板样板 · 中国红新闻风</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#e8e8e8; display:flex; align-items:center; justify-content:center;
+         min-height:100vh; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  /* 封面画布：2.35:1 = 900×383 */
+  .cover {
+    width:900px; height:383px; position:relative; overflow:hidden;
+    background:linear-gradient(135deg,#D0021B 0%,#a80115 100%);
+    color:#fff; display:flex; flex-direction:column;
+  }
+  /* 顶部品牌条 */
+  .topbar { display:flex; justify-content:space-between; align-items:center;
+            padding:22px 30px 0; }
+  .brand { font-size:15px; letter-spacing:2px; color:#FFD9A0; font-weight:600; }
+  .issue { font-size:13px; color:#FFE0C2; background:rgba(255,255,255,.14);
+           padding:4px 12px; border-radius:999px; }
+  /* 中间标题区（安全区） */
+  .main { flex:1; display:flex; flex-direction:column; justify-content:center;
+          padding:0 60px; }
+  .kicker { font-size:14px; color:#FFD9A0; letter-spacing:3px; margin-bottom:10px; }
+  h1 { font-size:44px; font-weight:800; line-height:1.25; letter-spacing:1px; }
+  .topic { margin-top:16px; display:inline-block; align-self:flex-start;
+           background:#fff; color:#D0021B; font-size:15px; font-weight:700;
+           padding:7px 16px; border-radius:6px; }
+  /* 底部出处 */
+  .footer { display:flex; justify-content:space-between; align-items:center;
+            padding:0 30px 20px; }
+  .src { font-size:12px; color:#FFE0C2; letter-spacing:1px; }
+  .deco { position:absolute; right:-40px; top:-40px; width:220px; height:220px;
+          border:2px solid rgba(255,255,255,.18); border-radius:50%; }
+  .deco2 { position:absolute; right:20px; top:20px; width:120px; height:120px;
+           border:2px solid rgba(255,217,160,.25); border-radius:50%; }
+</style>
+</head>
+<body>
+  <div class="cover">
+    <div class="deco"></div>
+    <div class="deco2"></div>
+    <div class="topbar">
+      <span class="brand">时评精拆</span>
+      <span class="issue">第 12 期</span>
+    </div>
+    <div class="main">
+      <div class="kicker">人民日报评论 · 今日拆解</div>
+      <h1>从「一件事」<br>到「一类事」</h1>
+      <span class="topic">▸ 适用申论 · 基层治理主题</span>
+    </div>
+    <div class="footer">
+      <span class="src">人民日报 2026-08-28</span>
+      <span class="src">申论备考 · 时评精读</span>
+    </div>
+  </div>
+</body>
+</html>

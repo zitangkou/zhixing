@@ -90,7 +90,7 @@
     <!-- 专项：进各模块首页，子功能在模块内再进 -->
     <text class="section-label"> 专项 </text>
     <view class="menu-group">
-      <nut-cell title="时评精拆" is-link @click="go('/pages/rmrb/index')">
+      <nut-cell title="时评精拆" is-link @click="go('/pages/rmrb/article-list')">
         <template #icon>
           <view class="cell-icon">
             <Edit :color="brandIcon" size="18" />

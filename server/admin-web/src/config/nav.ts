@@ -37,6 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: '时政考点',
     icon: Document,
     children: [
+      { path: '/today', title: '今日学员端', icon: Calendar, permissions: ['article:read', 'rmrb:read'] },
       { path: '/articles', title: '文章管理', icon: Document, permissions: ['article:read'] },
       { path: '/categories', title: '分类管理', icon: Folder, permissions: ['article:read', 'article:write'] },
     ],
@@ -51,6 +52,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/rmrb/skeletons', title: '骨架模版', icon: Notebook, permissions: ['rmrb:read'] },
       { path: '/rmrb/argument-methods', title: '论证方法', icon: Reading, permissions: ['rmrb:read'] },
       { path: '/rmrb/sentence-types', title: '句式类型', icon: Tickets, permissions: ['rmrb:read'] },
+    ],
+  },
+  {
+    key: 'ops',
+    title: '内容生产',
+    icon: Promotion,
+    children: [
+      { path: '/ops/pipelines', title: '流程管理', icon: TrendCharts, permissions: ['ops:read'] },
+      { path: '/ops/steps', title: '步骤管理', icon: Collection, permissions: ['ops:read'] },
     ],
   },
   {
@@ -105,6 +115,7 @@ export const FLAT_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.children)
 export const NAV_ITEMS: NavItem[] = FLAT_NAV_ITEMS
 
 export const ROUTE_TITLES: Record<string, string> = {
+  '/today': '今日学员端',
   '/articles': '文章管理',
   '/articles/new': '新建文章',
   '/content-ops': '账号运营',
@@ -128,6 +139,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/rmrb/skeletons': '骨架模版',
   '/rmrb/argument-methods': '论证方法',
   '/rmrb/sentence-types': '句式类型',
+  '/ops/pipelines': '流程管理',
+  '/ops/steps': '步骤管理',
   '/corpus': '语料本',
   '/events': '时事事件',
   '/settings': '系统设置',

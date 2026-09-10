@@ -16,10 +16,22 @@ _BOLD_ITEM_RE = re.compile(r"^\*\*(.+?)\*\*[。．]?\s*(.*)$", re.S)
 _PART_PREFIX_RE = re.compile(r"^第[一二三四五六七八九十百零\d]+编")
 _KEYWORD_HEADING_RE = re.compile(r"^\*{0,2}【关键词】\*{0,2}\s*(.*)$")
 _META_RE = re.compile(
-    r"^\*{0,2}\s*(来源|日期|原文链接|链接)\*{0,2}\s*[：:]\s*(.+)$"
+    r"^\*{0,2}\s*(来源|日期|原文链接|链接|标签|分类)\*{0,2}\s*[：:]\s*(.+)$"
 )
 _TITLE_DECORATION_RE = re.compile(
     r"[（(](?:三章结构(?:[·•．.]?关键词)?版|关键词版)[）)]"
+)
+_ISO_DATE_RE = re.compile(r"(20\d{2})-(\d{1,2})-(\d{1,2})")
+_CN_DATE_RE = re.compile(r"(20\d{2})年(\d{1,2})月(\d{1,2})日")
+_SOURCE_NAME_RE = re.compile(r"^(人民日报|新华社|新华网|求是|求是网|光明日报|经济日报|学习时报)")
+_ARTICLE_READ_TITLE_RE = re.compile(r"【文章精读】\s*(.+)$")
+_KICKER_RE = re.compile(
+    r"^(人民时评|精读系列|三章结构|结构：|关键词|点击查看原文|📄)"
+)
+_HREF_RE = re.compile(r"""<a\b[^>]*href=["'](https?://[^"']+)["']""", re.I)
+_FONT26_DIV_RE = re.compile(
+    r"<div[^>]*font-size\s*:\s*26px[^>]*>(.*?)</div>",
+    re.I | re.S,
 )
 
 
@@ -121,15 +133,110 @@ def _normalize_keywords(text: str) -> str:
     return " / ".join(parts)
 
 
+def _valid_iso_date(year: int, month: int, day: int) -> str:
+    from datetime import date
+
+    try:
+        return date(year, month, day).isoformat()
+    except ValueError:
+        return ""
+
+
+def _normalize_publish_date(value: str) -> str:
+    text = (value or "").strip()
+    cn = _CN_DATE_RE.search(text)
+    if cn:
+        return _valid_iso_date(int(cn.group(1)), int(cn.group(2)), int(cn.group(3)))
+    iso = _ISO_DATE_RE.search(text)
+    if iso:
+        return _valid_iso_date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3)))
+    return ""
+
+
+def _split_source_blob(value: str) -> tuple[str, str]:
+    """人民日报2026-09-10 09版理论 → (人民日报, 2026-09-10)"""
+    text = (value or "").strip()
+    date = _normalize_publish_date(text)
+    name_match = _SOURCE_NAME_RE.match(text)
+    if name_match:
+        return name_match.group(1), date
+    if date:
+        name = _ISO_DATE_RE.sub("", text)
+        name = _CN_DATE_RE.sub("", name)
+        name = re.sub(r"\d+\s*版\S*", "", name)
+        name = re.sub(r"\s+", " ", name).strip(" ·-—")
+        return name or text, date
+    return text, ""
+
+
+def _first_http_href(html: str) -> str:
+    match = _HREF_RE.search(html or "")
+    return match.group(1).strip() if match else ""
+
+
+def _ops_html_title(html: str, raw: str) -> str:
+    read = _ARTICLE_READ_TITLE_RE.search(_html_to_text(html))
+    if read:
+        return _clean_doc_title(read.group(1))
+    font26 = _FONT26_DIV_RE.search(html)
+    if font26:
+        title = _clean_doc_title(_html_to_text(font26.group(1)))
+        if title and not _KICKER_RE.search(title):
+            return title
+    h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.I | re.S)
+    if h1:
+        return _clean_doc_title(_html_to_text(h1.group(1)))
+    title_tag = re.search(r"<title[^>]*>(.*?)</title>", raw, re.I | re.S)
+    if title_tag:
+        return _clean_doc_title(_html_to_text(title_tag.group(1)))
+    return ""
+
+
+def _ops_html_summary(plain: str, title: str) -> str:
+    skip = re.compile(
+        r"^(人民时评|精读系列|三章结构|【文章精读】|来源：|日期：|结构：|标签：|分类：|关键词|第[一二三四五六七八九十百零\d]+章|第[一二三四五六七八九十百零\d]+节|第一节|第二节|第三节|第四节|点击查看原文|📄)"
+    )
+    for line in (plain or "").splitlines():
+        text = line.strip()
+        if len(text) < 12:
+            continue
+        if skip.search(text):
+            continue
+        if title and text.replace(" ", "") == title.replace(" ", ""):
+            continue
+        return _first_sentence(text, 120)
+    return _first_sentence(plain or title, 120)
+
+
+def _split_label_list(value: str) -> list[str]:
+    parts = re.split(r"[·,，、/]", value or "")
+    seen: set[str] = set()
+    out: list[str] = []
+    for part in parts:
+        item = part.strip()
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        out.append(item)
+    return out[:8]
+
+
 def _apply_meta(meta: dict[str, str], raw: str) -> bool:
     match = _META_RE.match(raw.strip())
     if not match:
         return False
     key, value = match.group(1), match.group(2).strip().strip("《》<>")
     if key == "来源":
-        meta["source"] = value
+        name, date = _split_source_blob(value)
+        meta["source"] = name
+        if date and not meta.get("publish_date"):
+            meta["publish_date"] = date
     elif key == "日期":
-        meta["publish_date"] = value
+        meta["publish_date"] = _normalize_publish_date(value) or value
+    elif key == "标签":
+        meta["tags"] = " · ".join(_split_label_list(value))
+    elif key == "分类":
+        meta["category_name"] = _split_label_list(value)[0] if _split_label_list(value) else value
     else:
         meta["source_url"] = value
     return True
@@ -549,25 +656,33 @@ def parse_article_html(text: str) -> tuple[dict[str, Any], list[str]]:
     if not html:
         raise ValueError("未解析到可用 HTML，请粘贴含标题与正文的完整页面或片段")
 
-    title = ""
-    h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.I | re.S)
-    if h1:
-        title = _html_to_text(h1.group(1))
-    if not title:
-        title_tag = re.search(r"<title[^>]*>(.*?)</title>", raw, re.I | re.S)
-        if title_tag:
-            title = _html_to_text(title_tag.group(1))
-    title = _clean_doc_title(title)
+    title = _ops_html_title(html, raw)
     if not title:
         title = "未命名文章"
-        warnings.append("未找到 h1/title，已使用默认标题")
+        warnings.append("未找到标题（【文章精读】/页眉大字/h1），已使用默认标题")
 
     plain = _html_to_text(html)
-    meta = {"source": "", "publish_date": "", "source_url": ""}
-    for line in plain.splitlines()[:40]:
+    meta = {"source": "", "publish_date": "", "source_url": "", "tags": "", "category_name": ""}
+    for line in plain.splitlines()[:60]:
         _apply_meta(meta, line)
+    if not meta["source_url"]:
+        meta["source_url"] = _first_http_href(html) or _first_http_href(raw)
 
-    summary = _first_sentence(plain or title, 120)
+    tags = _split_label_list(meta.get("tags") or "")
+    category_name = (meta.get("category_name") or "").strip()
+    summary = _ops_html_summary(plain, title)
+    if not meta["source"]:
+        warnings.append("未找到来源")
+    if not meta["publish_date"]:
+        warnings.append("未找到发布日期")
+    if not meta["source_url"]:
+        warnings.append("未找到原文链接")
+    if not summary:
+        warnings.append("未找到摘要")
+    if not tags:
+        warnings.append("未找到标签")
+    if not category_name:
+        warnings.append("未找到分类")
     return {
         "title": title,
         "summary": summary,
@@ -578,4 +693,148 @@ def parse_article_html(text: str) -> tuple[dict[str, Any], list[str]]:
         "source": meta["source"],
         "publish_date": meta["publish_date"],
         "source_url": meta["source_url"],
+        "tags": tags,
+        "category_name": category_name,
+    }, warnings
+
+
+_RMRB_LEAD_ITALIC_RE = re.compile(
+    r"<p[^>]*font-style\s*:\s*italic[^>]*>(.*?)</p>",
+    re.I | re.S,
+)
+_RMRB_H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.I | re.S)
+_RMRB_SOURCE_SKIP_RE = re.compile(
+    r"^(人民时评|精读系列|时评精拆|人民日报评论文章|查看人民日报原文|点击查看人民日报原文|"
+    r"本文为「时评精拆」|📄|原文出处)"
+)
+
+
+def _rmrb_source_title(html: str) -> str:
+    h1 = _RMRB_H1_RE.search(html or "")
+    if not h1:
+        return ""
+    title = _clean_doc_title(_html_to_text(h1.group(1))).strip("《》")
+    if title in ("时评精拆", "人民时评"):
+        return ""
+    return title
+
+
+def _rmrb_people_href(html: str, raw: str) -> str:
+    hrefs = _HREF_RE.findall(html or "") or _HREF_RE.findall(raw or "")
+    for url in hrefs:
+        if "people.com.cn" in url:
+            return url.strip()
+    return hrefs[0].strip() if hrefs else ""
+
+
+def _rmrb_byline(plain: str) -> tuple[str, str]:
+    source = ""
+    publish_date = ""
+    for line in (plain or "").splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        text = re.sub(r"^[\s—–\-－]+", "", text)
+        text = re.sub(r"^.*?原文出处[：:]\s*", "", text)
+        found = _SOURCE_NAME_RE.search(text)
+        if not found:
+            continue
+        name, date = _split_source_blob(text[found.start() :])
+        if name and not source:
+            source = name
+        if date and not publish_date:
+            publish_date = date
+        if source and publish_date:
+            break
+    return source, publish_date
+
+
+def _rmrb_labeled_fields(plain: str) -> tuple[list[str], str]:
+    tags: list[str] = []
+    thesis = ""
+    for line in (plain or "").splitlines():
+        text = line.strip()
+        theme = re.match(r"主题[：:]\s*(.+)$", text)
+        if theme:
+            tags = _split_label_list(theme.group(1).replace("、", ","))
+            continue
+        labeled = re.match(r"中心论点[：:]\s*(.+)$", text)
+        if labeled and labeled.group(1).strip():
+            thesis = labeled.group(1).strip()
+    return tags, thesis
+
+
+def _rmrb_lead_summary(html: str, plain: str, title: str) -> str:
+    _tags, labeled = _rmrb_labeled_fields(plain)
+    if labeled:
+        return labeled
+    italic = _RMRB_LEAD_ITALIC_RE.search(html or "")
+    if italic:
+        lead = _html_to_text(italic.group(1)).strip()
+        lead = re.sub(r"^中心论点[：:]\s*", "", lead)
+        if lead:
+            return lead
+    title_compact = re.sub(r"\s+", "", title or "")
+    for line in (plain or "").splitlines():
+        text = line.strip()
+        if len(text) < 12:
+            continue
+        if _RMRB_SOURCE_SKIP_RE.search(text):
+            continue
+        if text.startswith("——") or text.startswith("栏目:") or text.startswith("主题："):
+            continue
+        if text.startswith("中心论点"):
+            continue
+        compact = re.sub(r"\s+", "", text).strip("《》")
+        if title_compact and compact == title_compact:
+            continue
+        if _SOURCE_NAME_RE.search(text) and _ISO_DATE_RE.search(text):
+            continue
+        return text
+    return ""
+
+
+def parse_rmrb_source_html(text: str) -> tuple[dict[str, Any], list[str]]:
+    """解析时评精拆「原文」HTML（h1 / 人民日报日期行 / 主题 / 中心论点）。"""
+    from app.services.html_sanitize import sanitize_display_html
+
+    warnings: list[str] = []
+    raw = (text or "").strip()
+    if len(raw) < 20:
+        raise ValueError("HTML 内容过短")
+    html = sanitize_display_html(raw)
+    if not html:
+        raise ValueError("未解析到可用 HTML，请粘贴时评精拆原文完整页面")
+
+    title = _rmrb_source_title(html)
+    if not title:
+        title = "未命名时评"
+        warnings.append("未找到标题（原文 h1）")
+    plain = _html_to_text(html)
+    source, publish_date = _rmrb_byline(plain)
+    source_url = _rmrb_people_href(html, raw)
+    tags, _labeled = _rmrb_labeled_fields(plain)
+    summary = _rmrb_lead_summary(html, plain, title)
+    if not source:
+        warnings.append("未找到来源")
+    if not publish_date:
+        warnings.append("未找到发布日期")
+    if not source_url:
+        warnings.append("未找到原文链接")
+    if not summary:
+        warnings.append("未找到中心论点")
+    if not tags:
+        warnings.append("未找到主题")
+    return {
+        "title": title,
+        "summary": summary,
+        "sections": [],
+        "content": plain,
+        "content_html": html,
+        "stats": {"chapters": 0, "sections": 0, "paragraphs": 0, "chars": len(plain)},
+        "source": source,
+        "publish_date": publish_date,
+        "source_url": source_url,
+        "tags": tags,
+        "category_name": "",
     }, warnings

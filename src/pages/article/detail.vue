@@ -17,7 +17,6 @@
         type="primary"
         block
         class="primary-btn"
-        :disabled="taskId ? dailyReadDone : readDone"
         @click="finishRead"
       >
         {{ finishReadLabel }}
@@ -43,7 +42,8 @@ import ArticleHtml from '@/components/ArticleHtml.vue'
 import { useArticleStore } from '@/store/article'
 import { useDailyTaskStore } from '@/store/dailyTask'
 import { articleDisplayHtml, getArticleFullContent } from '@/utils/articleContent'
-import { showToast } from '@/utils/platform'
+import { isLoggedIn, requireLogin } from '@/utils/auth'
+import { showConfirm, showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '文章详情' })
@@ -66,12 +66,33 @@ const dailyTask = computed(() => dailyTaskStore.tasks.find((item) => item.id ===
 const dailyReadDone = computed(() => (dailyTask.value?.progress.currentStep || 0) >= 2)
 
 const finishReadLabel = computed(() => {
+  if (!isLoggedIn()) return '登录后记录阅读'
   if (taskId.value) {
     return dailyReadDone.value ? '本次精读已完成' : '完成原文精读'
   }
-  if (readDone.value) return '已阅读 +3积分'
+  if (readDone.value) return '已完成阅读'
   return '完成阅读 (+3积分)'
 })
+
+function detailUrl() {
+  if (!article.value) return '/pages/article/detail'
+  const taskQuery = taskId.value ? `&taskId=${encodeURIComponent(taskId.value)}` : ''
+  return `/pages/article/detail?id=${article.value.id}${taskQuery}`
+}
+
+function quizUrl() {
+  if (!article.value) return '/pages/question/taking'
+  const taskQuery = taskId.value ? `&taskId=${encodeURIComponent(taskId.value)}` : ''
+  return `/pages/question/taking?articleId=${article.value.id}${taskQuery}`
+}
+
+async function ensureLogin(reason: string, redirectUrl: string) {
+  if (isLoggedIn()) return true
+  const ok = await showConfirm('需要登录', reason, { confirmText: '去登录', cancelText: '再看看' })
+  if (!ok) return false
+  requireLogin(redirectUrl)
+  return false
+}
 
 onMounted(async () => {
   const params = Taro.getCurrentInstance().router?.params || {}
@@ -87,7 +108,12 @@ onMounted(async () => {
 
 async function finishRead() {
   if (!article.value) return
-  const points = readDone.value ? 0 : await articleStore.markAsRead(article.value.id)
+  if (!(await ensureLogin('登录后才能保存阅读进度并发放积分。', detailUrl()))) return
+  if (taskId.value ? dailyReadDone.value : readDone.value) {
+    showToast('已完成阅读')
+    return
+  }
+  const points = await articleStore.markAsRead(article.value.id)
   readDone.value = true
   if (taskId.value && dailyTask.value?.progress.state === 'in_progress') {
     try {
@@ -105,14 +131,14 @@ async function finishRead() {
   showToast(points ? `阅读完成，+${points}积分` : '本次精读已完成', 'success')
 }
 
-function goQuiz() {
+async function goQuiz() {
   if (!article.value) return
   if (taskId.value && !dailyReadDone.value) {
     showToast('请先完成原文精读')
     return
   }
-  const taskQuery = taskId.value ? `&taskId=${encodeURIComponent(taskId.value)}` : ''
-  Taro.navigateTo({ url: `/pages/question/taking?articleId=${article.value.id}${taskQuery}` })
+  if (!(await ensureLogin('登录后才能保存练习进度与积分。', quizUrl()))) return
+  Taro.navigateTo({ url: quizUrl() })
 }
 </script>
 

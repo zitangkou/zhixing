@@ -63,21 +63,22 @@
 
     <view class="home-block">
       <view class="home-block-title">
-        <text>今日文章</text>
+        <text>{{ usingDailyPicks ? '今日文章' : '最近文章' }}</text>
       </view>
+      <text v-if="usingFallbackFeed" class="home-block-note">今日精选暂未排期，先看最近发布</text>
       <nut-skeleton v-if="todayLoading && !todayArticles.length" rows="3" />
       <template v-else-if="todayArticles.length">
         <ArticleCard
           v-for="item in todayArticles"
           :key="`${item.kind}-${item.article.id}`"
           :article="item.article"
-          :type-label="item.kind === 'rmrb' ? '评论' : '理论'"
+          :type-label="item.kind === 'rmrb' ? '时评' : '时政'"
           @tap="onTodayTap"
         />
       </template>
       <view v-else class="empty-rmrb">
-        <text class="empty-title">暂无今日文章</text>
-        <text class="empty-desc">请管理员在后台勾选「今日推荐」后发布</text>
+        <text class="empty-title">暂无已发布文章</text>
+        <text class="empty-desc">发布后会出现在这里；也可从上方进入时政练习或时评精拆</text>
       </view>
     </view>
 
@@ -139,6 +140,11 @@ const todayArticles = computed(() => {
   })
   return items
 })
+
+const usingDailyPicks = computed(() => todayArticles.value.some((item) => item.article.isDaily))
+const usingFallbackFeed = computed(
+  () => todayArticles.value.length > 0 && !usingDailyPicks.value,
+)
 
 type DomainItem = {
   name: string
@@ -376,6 +382,20 @@ function onExamDomain(item: DomainItem) {
         &.warn { color: $primary-color; font-weight: 600; }
         &.is-link { color: $primary-color; }
       }
+    }
+    .home-block-note {
+      display: block;
+      font-size: 12px;
+      color: $text-muted;
+      margin: -6px 0 12px;
+      line-height: 1.5;
+    }
+    .empty-rmrb {
+      @include card;
+      padding: 20px 16px;
+      text-align: center;
+      .empty-title { display: block; font-size: 14px; color: $text-secondary; margin-bottom: 6px; }
+      .empty-desc { display: block; font-size: 12px; color: $text-muted; line-height: 1.5; }
     }
   }
   .review-hub-row {

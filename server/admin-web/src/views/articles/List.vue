@@ -6,9 +6,7 @@
         <el-option v-for="s in ARTICLE_STATUSES" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
       <el-button type="primary" @click="load">查询</el-button>
-      <el-button @click="filterPending">待审核</el-button>
-      <el-button type="success" @click="router.push({ name: 'article-new' })">新建文章</el-button>
-      <el-button type="primary" plain @click="openArticleImportDialog">导入文章</el-button>
+      <el-button type="primary" @click="openArticleImportDialog">新建文章</el-button>
     </div>
 
     <div v-if="selectedIds.length" class="batch-bar">
@@ -25,9 +23,6 @@
       <el-button size="small" type="danger" plain :loading="batchLoading" @click="onBatchReject">
         批量驳回
       </el-button>
-      <el-button size="small" type="danger" :loading="batchLoading" @click="onBatchDelete">
-        批量删除
-      </el-button>
     </div>
 
     <ListState
@@ -38,7 +33,7 @@
       @retry="load"
     >
       <template #empty-action>
-        <el-button type="success" @click="router.push({ name: 'article-new' })">新建文章</el-button>
+        <el-button type="primary" @click="openArticleImportDialog">新建文章</el-button>
       </template>
       <el-table
         v-loading="loading && items.length > 0"
@@ -73,10 +68,11 @@
           <span v-else style="color: #999">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="router.push(`/articles/${row.id}`)">编辑</el-button>
           <el-button link type="primary" @click="openQuickEdit(row)">快速编辑</el-button>
+          <el-button link type="danger" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -165,56 +161,23 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="articleImportVisible" title="导入理论文章" width="720px" destroy-on-close>
-      <el-radio-group v-model="articleImportFormat" style="margin-bottom: 12px">
-        <el-radio-button value="html">HTML（推荐）</el-radio-button>
-        <el-radio-button value="markdown">结构化 Markdown</el-radio-button>
-      </el-radio-group>
-      <p v-if="articleImportFormat === 'html'" class="import-hint">
-        粘贴运营生成的 <strong>HTML</strong>（可含 <code>style</code> 与标题）。导入后学员端按 HTML 排版展示。
-      </p>
-      <p v-else class="import-hint">
-        请粘贴 <strong>结构化 MD</strong>（<code>#</code> 标题、<code>## 章</code>、<code>### 节</code>、正文 <code>&gt;</code> 引用、节末 <code>【关键词】</code>）。
-        不要粘贴「原文素材」摘要稿。
-      </p>
-      <el-input
-        v-model="articleImportBody"
-        type="textarea"
-        :rows="14"
-        :placeholder="articleImportFormat === 'html' ? '粘贴完整 HTML…' : '粘贴结构化 Markdown…'"
-      />
-      <div class="import-preview-bar">
-        <el-button :loading="articlePreviewing" @click="previewArticleImport">预览</el-button>
-        <span v-if="articleImportPreview" class="import-preview-stats">
-          {{ articleImportPreview.title }}
-          <template v-if="articleImportFormat === 'markdown'">
-            · {{ articleImportPreview.stats.chapters }} 章
-            {{ articleImportPreview.stats.sections }} 节
-            {{ articleImportPreview.stats.paragraphs }} 段
-          </template>
-          <template v-else>
-            · {{ articleImportPreview.stats.chars ?? 0 }} 字
-          </template>
-        </span>
-      </div>
-      <ul v-if="articleImportPreview?.parse_warnings?.length" class="import-warnings">
-        <li v-for="(w, i) in articleImportPreview.parse_warnings" :key="i">{{ w }}</li>
-      </ul>
+    <el-dialog v-model="articleImportVisible" title="新建文章" width="720px" destroy-on-close>
+      <p class="import-hint">先核对来源等信息，再粘贴运营结构化 HTML。点预览会从引导卡回填上方字段。</p>
       <el-form label-width="96px" class="import-options">
         <el-form-item label="来源">
-          <el-input v-model="articleImportSource" placeholder="可从文首「来源：」自动带出" />
+          <el-input v-model="articleImportSource" placeholder="预览可从「来源：」带出" />
         </el-form-item>
         <el-form-item label="发布日期">
           <el-input v-model="articleImportPublishDate" placeholder="YYYY-MM-DD" />
         </el-form-item>
         <el-form-item label="原文链接">
-          <el-input v-model="articleImportSourceUrl" placeholder="可从文首「原文链接：」自动带出" />
+          <el-input v-model="articleImportSourceUrl" placeholder="预览可从原文链接带出" />
         </el-form-item>
         <el-form-item label="摘要">
-          <el-input v-model="articleImportSummary" type="textarea" :rows="2" placeholder="可空，预览或导入时从正文抽取" />
+          <el-input v-model="articleImportSummary" type="textarea" :rows="2" placeholder="可空，预览时从正文抽取" />
         </el-form-item>
         <el-form-item label="标签">
-          <el-input v-model="articleImportTagsText" placeholder="逗号分隔，如：十五五规划,重点必读" />
+          <el-input v-model="articleImportTagsText" placeholder="逗号分隔" />
         </el-form-item>
         <el-form-item label="分类">
           <el-tree-select
@@ -222,7 +185,7 @@
             :data="categoryTree"
             check-strictly
             clearable
-            placeholder="留空则自动识别"
+            placeholder="留空则导入时自动识别"
             style="width: 100%"
           />
         </el-form-item>
@@ -230,10 +193,27 @@
           <el-checkbox v-model="articleImportFeatured">标记为重点文章</el-checkbox>
           <el-checkbox v-model="articleImportDaily">今日推荐</el-checkbox>
         </el-form-item>
+        <el-form-item label="正文 HTML">
+          <el-input
+            v-model="articleImportBody"
+            type="textarea"
+            :rows="12"
+            placeholder="粘贴完整 HTML…"
+          />
+        </el-form-item>
       </el-form>
+      <div class="import-preview-bar">
+        <el-button :loading="articlePreviewing" @click="previewArticleImport">预览</el-button>
+        <span v-if="articleImportPreview" class="import-preview-stats">
+          {{ articleImportPreview.title }} · {{ articleImportPreview.stats.chars ?? 0 }} 字
+        </span>
+      </div>
+      <ul v-if="articleImportPreview?.parse_warnings?.length" class="import-warnings">
+        <li v-for="(w, i) in articleImportPreview.parse_warnings" :key="i">{{ w }}</li>
+      </ul>
       <template #footer>
         <el-button @click="articleImportVisible = false">取消</el-button>
-        <el-button type="primary" :loading="articleImporting" @click="submitArticleImport">导入</el-button>
+        <el-button type="primary" :loading="articleImporting" @click="submitArticleImport">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -245,15 +225,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   batchApproveArticles,
-  batchDeleteArticles,
   batchRejectArticles,
   batchSetArticleCategory,
+  deleteArticle,
   fetchArticle,
   fetchArticles,
   importArticleHtml,
-  importArticleMarkdown,
   previewArticleHtml,
-  previewArticleMarkdown,
   updateArticle,
 } from '@/api/articles'
 import { fetchCategories } from '@/api/categories'
@@ -276,7 +254,6 @@ const categories = ref<Category[]>([])
 const categoryDialogVisible = ref(false)
 const batchCategoryId = ref<string | null>(null)
 const articleImportVisible = ref(false)
-const articleImportFormat = ref<'html' | 'markdown'>('html')
 const articleImportBody = ref('')
 const articleImportCategoryId = ref<string | null>(null)
 const articleImportFeatured = ref(false)
@@ -290,6 +267,12 @@ const articleImporting = ref(false)
 const articlePreviewing = ref(false)
 const articleImportPreview = ref<{
   title: string
+  source?: string
+  publishDate?: string
+  sourceUrl?: string
+  summary?: string
+  tags?: string[]
+  categoryName?: string
   stats: { chapters: number; sections: number; paragraphs: number; chars?: number }
   parse_warnings: string[]
 } | null>(null)
@@ -314,6 +297,17 @@ const categoryTree = computed(() => mapCategoryTree(categories.value))
 const listEmptyText = computed(() =>
   keyword.value || status.value ? '没有符合条件的文章' : '暂无文章，点击「新建文章」开始',
 )
+
+function findCategoryId(list: Category[], name: string): string | null {
+  const target = name.trim()
+  if (!target) return null
+  for (const node of list) {
+    if (node.name === target) return node.id
+    const nested = node.children?.length ? findCategoryId(node.children, target) : null
+    if (nested) return nested
+  }
+  return null
+}
 
 function mapCategoryTree(list: Category[]): Array<{ value: string; label: string; children?: unknown[] }> {
   return list.map((c) => ({
@@ -349,12 +343,6 @@ async function load() {
     items.value = data.items
     total.value = data.total
   })
-}
-
-function filterPending() {
-  status.value = 'pending'
-  page.value = 1
-  load()
 }
 
 function onPageSizeChange() {
@@ -414,22 +402,18 @@ async function submitBatchCategory() {
   }
 }
 
-async function onBatchDelete() {
-  await ElMessageBox.confirm(`确定删除 ${selectedIds.value.length} 篇文章及其全部题目？`, '批量删除', { type: 'error' })
-  batchLoading.value = true
+async function onDelete(row: Article) {
+  await ElMessageBox.confirm(`确定删除「${row.title}」及其全部题目？`, '删除文章', { type: 'error' })
   try {
-    const res = await batchDeleteArticles(selectedIds.value)
-    ElMessage.success(`已删除 ${res.count} 篇文章`)
+    await deleteArticle(row.id)
+    ElMessage.success('已删除')
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  } finally {
-    batchLoading.value = false
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 
 function openArticleImportDialog() {
-  articleImportFormat.value = 'html'
   articleImportBody.value = ''
   articleImportCategoryId.value = null
   articleImportFeatured.value = false
@@ -445,20 +429,22 @@ function openArticleImportDialog() {
 
 async function previewArticleImport() {
   if (!articleImportBody.value.trim()) {
-    ElMessage.warning(articleImportFormat.value === 'html' ? '请粘贴 HTML' : '请粘贴结构化 Markdown')
+    ElMessage.warning('请粘贴 HTML')
     return
   }
   articlePreviewing.value = true
   try {
-    const preview = articleImportFormat.value === 'html'
-      ? await previewArticleHtml(articleImportBody.value)
-      : await previewArticleMarkdown(articleImportBody.value)
+    const preview = await previewArticleHtml(articleImportBody.value)
     articleImportPreview.value = preview
-    if (preview.source) articleImportSource.value = preview.source
-    if (preview.publishDate) articleImportPublishDate.value = preview.publishDate
-    if (preview.sourceUrl) articleImportSourceUrl.value = preview.sourceUrl
-    if (preview.summary) articleImportSummary.value = preview.summary
-    ElMessage.success(articleImportFormat.value === 'html' ? `解析到「${preview.title}」` : `解析到 ${preview.stats.chapters} 章 ${preview.stats.sections} 节`)
+    articleImportSource.value = preview.source || ''
+    articleImportPublishDate.value = preview.publishDate || ''
+    articleImportSourceUrl.value = preview.sourceUrl || ''
+    articleImportSummary.value = preview.summary || ''
+    articleImportTagsText.value = (preview.tags || []).join('，')
+    if (preview.categoryName) {
+      articleImportCategoryId.value = findCategoryId(categories.value, preview.categoryName)
+    }
+    ElMessage.success(`解析到「${preview.title}」`)
   } catch (e) {
     articleImportPreview.value = null
     ElMessage.error(e instanceof Error ? e.message : '预览失败')
@@ -469,12 +455,13 @@ async function previewArticleImport() {
 
 async function submitArticleImport() {
   if (!articleImportBody.value.trim()) {
-    ElMessage.warning(articleImportFormat.value === 'html' ? '请粘贴 HTML 内容' : '请粘贴 Markdown 内容')
+    ElMessage.warning('请粘贴 HTML 内容')
     return
   }
   articleImporting.value = true
   try {
-    const common = {
+    const res = await importArticleHtml({
+      html: articleImportBody.value,
       status: 'pending',
       category_id: articleImportCategoryId.value,
       is_featured: articleImportFeatured.value,
@@ -484,23 +471,13 @@ async function submitArticleImport() {
       publish_date: articleImportPublishDate.value,
       summary: articleImportSummary.value.trim(),
       tags: articleImportTagsText.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
-    }
-    const res = articleImportFormat.value === 'html'
-      ? await importArticleHtml({ html: articleImportBody.value, ...common })
-      : await importArticleMarkdown({ markdown: articleImportBody.value, ...common })
+    })
     articleImportVisible.value = false
-    const stats = res.stats
     const warn = res.parse_warnings?.length ? `（${res.parse_warnings.length} 条提示）` : ''
-    ElMessage.success(
-      articleImportFormat.value === 'html'
-        ? `已导入 HTML 文章${warn}`
-        : stats
-          ? `已导入 ${stats.chapters} 章 ${stats.sections} 节 ${stats.paragraphs ?? 0} 段${warn}`
-          : `导入成功${warn}`,
-    )
+    ElMessage.success(`已创建文章${warn}`)
     router.push(`/articles/${res.id}`)
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '导入失败')
+    ElMessage.error(e instanceof Error ? e.message : '创建失败')
   } finally {
     articleImporting.value = false
   }
@@ -610,7 +587,7 @@ watch(
   font-size: 12px;
 }
 .import-options {
-  margin-top: 16px;
+  margin-top: 0;
 }
 .import-preview-bar {
   display: flex;

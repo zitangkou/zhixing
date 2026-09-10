@@ -54,7 +54,8 @@ import { Button as NutButton, Tag as NutTag } from '@nutui/nutui-taro'
 import ArticleHtml from '@/components/ArticleHtml.vue'
 import { api } from '@/api'
 import { useDailyTaskStore } from '@/store/dailyTask'
-import { showToast } from '@/utils/platform'
+import { isLoggedIn, requireLogin } from '@/utils/auth'
+import { showConfirm, showToast } from '@/utils/platform'
 import type { RmrbArticle } from '@/types'
 import { looksLikeHtml, unescapeHtmlIfNeeded } from '@/utils/articleContent'
 import { useThemeClass } from '@/utils/brandColor'
@@ -119,6 +120,18 @@ function openParse() {
 async function goMine() {
   if (!article.value) return
   const taskId = (router.params?.taskId || '').trim()
+  const title = encodeURIComponent(article.value.title || '')
+  const taskQuery = taskId ? `&taskId=${encodeURIComponent(taskId)}` : ''
+  const mineUrl = `/pages/rmrb/mine-edit?articleId=${article.value.id}&title=${title}${taskQuery}`
+  if (!isLoggedIn()) {
+    const ok = await showConfirm('需要登录', '登录后才能保存开采记录。', {
+      confirmText: '去登录',
+      cancelText: '再看看',
+    })
+    if (!ok) return
+    requireLogin(mineUrl)
+    return
+  }
   const task = dailyTaskStore.tasks.find((item) => item.id === taskId)
   if (taskId && task?.progress.state === 'in_progress') {
     try {
@@ -132,11 +145,7 @@ async function goMine() {
       showToast('阅读进度暂未同步，将继续进入拆解', 'error')
     }
   }
-  const title = encodeURIComponent(article.value.title || '')
-  const taskQuery = taskId ? `&taskId=${encodeURIComponent(taskId)}` : ''
-  Taro.navigateTo({
-    url: `/pages/rmrb/mine-edit?articleId=${article.value.id}&title=${title}${taskQuery}`,
-  })
+  Taro.navigateTo({ url: mineUrl })
 }
 
 onMounted(load)

@@ -28,6 +28,33 @@ def admin_rmrb_create_article(
     return ApiResponse.ok(out.model_dump())
 
 
+class _RmrbPreviewHtmlBody(BaseModel):
+    html: str
+
+
+@router.post("/rmrb/preview-html")
+def admin_rmrb_preview_html(
+    body: _RmrbPreviewHtmlBody,
+    _admin=Depends(require_permission("rmrb:write")),
+):
+    from app.services.article_import import parse_rmrb_source_html
+
+    try:
+        parsed, parse_errors = parse_rmrb_source_html(body.html)
+    except ValueError as e:
+        return ApiResponse.fail(str(e), code=400)
+    return ApiResponse.ok({
+        "title": parsed["title"],
+        "source": parsed.get("source") or "",
+        "sourceUrl": parsed.get("source_url") or "",
+        "publishDate": parsed.get("publish_date") or "",
+        "summary": parsed["summary"],
+        "tags": parsed.get("tags") or [],
+        "stats": parsed["stats"],
+        "parse_warnings": parse_errors,
+    })
+
+
 @router.put("/rmrb/article/{article_id}")
 def admin_rmrb_update_article(
     article_id: str,

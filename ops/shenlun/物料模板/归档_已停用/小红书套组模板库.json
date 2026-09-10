@@ -1,0 +1,99 @@
+{
+  "version": "1.0",
+  "updated": "2026-08-29",
+  "方案": "A：复古大字封面(卡1) + 国考备考图改造(卡2-5)",
+  "卡片尺寸": "1242×1660",
+  "cover_template": {
+    "id": "tpl_cover_retro_big",
+    "name": "复古大字语录封面",
+    "design_id": "DAHTqrLYNuA",
+    "shortlink": "https://khsj.cn/03x127uj9oztu1b",
+    "canvas": { "width": 1242, "height": 1660 },
+    "role": "卡1 封面",
+    "text_fields": {
+      "主标题_行1": { "element_id": "PB5NgJP3MxlksZ3F-LBkgGXxNh0hjzKqv", "原文字": "人生没有过不去的坎", "映射": "《文章标题》前半" },
+      "主标题_行2": { "element_id": "PB5NgJP3MxlksZ3F-LB3btjHBMwvGs74h", "原文字": "只有过不去的心情", "映射": "《文章标题》后半" },
+      "系列标": { "element_id": "PB5NgJP3MxlksZ3F-LBrCGfVVh3z3wkrN", "原文字": "reminder", "映射": "时评精拆" },
+      "日期": { "element_id": "PB5NgJP3MxlksZ3F-LBj0RRl1lBKr3MWx", "原文字": "22/07/2025", "映射": "人民日报 YYYY-MM-DD" },
+      "标签_话题": { "element_id": "PB5NgJP3MxlksZ3F-LBnWlF9zxZyvWl9J", "原文字": "#人生治愈语录", "映射": "适用申论 · XX主题" }
+    },
+    "delete_elements": [
+      "PB5NgJP3MxlksZ3F-LBkJn2K8TrvGF4vS",
+      "PB5NgJP3MxlksZ3F-LBYWgJdsNv9dmsmf",
+      "PB5NgJP3MxlksZ3F-LBczGwtk2W0dN7Y9",
+      "PB5NgJP3MxlksZ3F-LBrPlT0rllM769sN",
+      "PB5NgJP3MxlksZ3F-LBZJNnnb1C4ZgpNN",
+      "PB5NgJP3MxlksZ3F-LBVxXndpN2kQ3n6L"
+    ],
+    "delete_note": "删除 @Canva可画水印/英文副标/Yourself/To:/date:/2025，保留主标题2行+系列标+日期+话题标签"
+  },
+  "content_template": {
+    "id": "tpl_content_guokao",
+    "name": "国考备考图文内页（4板块清单结构）",
+    "design_id": "DAHTqt3cjR4",
+    "shortlink": "https://khsj.cn/ih0jodxyfc9zdd8",
+    "canvas": { "width": 1242, "height": 1660 },
+    "role": "卡2-5 内容卡（复制4页改造）",
+    "blocks": {
+      "板块1_行测备考": {
+        "标题": { "element_id": "PBD0MY6JKcD6svDN-LBvy5jD70fhcGRS1-LBSQWBWqbmwP89SQ", "映射": "卡2 拆解骨架" },
+        "子项标题": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBh46CXx8fPrR6Km-LBkqky3dhDLvGQHR", "原文字": "夯实基础", "映射": "总论点" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBgVt5YxvWW9zd2T-LBXPRDbwTl9xLpLP", "原文字": "专项突破", "映射": "分论点1" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBfmv21XFDSs9mRg-LBDJpfjGkMBdYrzp", "原文字": "限时训练", "映射": "分论点2" }
+        ],
+        "子项说明": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBh46CXx8fPrR6Km-LBJDwy0lPYfplFQL", "映射": "总论点说明" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBgVt5YxvWW9zd2T-LBvS1fwHYzTV2db8", "映射": "分论点1论据" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBfmv21XFDSs9mRg-LBhX2N2YQvrpJc4L", "映射": "分论点2论据" }
+        ]
+      },
+      "板块2_申论备考": {
+        "标题": { "element_id": "PBD0MY6JKcD6svDN-LBFHV9Ktp8mgTF1Z-LBDdvJ2CXKXYLhGv", "映射": "卡3 金句·规范词" },
+        "子项标题": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBdk2bGlwrbQwxc5-LB7thZWjsMHrSv7D", "原文字": "素材积累", "映射": "金句" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBGRsk9rkNmTNyHW", "原文字": "题型精练", "映射": "规范词1" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBWV3rQ9dZYhhZQ4", "原文字": "复盘优化", "映射": "规范词2" }
+        ],
+        "子项说明": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBdk2bGlwrbQwxc5-LBxkRNppBxJdNMyb", "映射": "金句出处+释义" },
+          { "element_id": "PBD0MY6JKcD6svDN-LB64SHm7ghWWPv0S", "映射": "规范词1白话" },
+          { "element_id": "PBD0MY6JKcD6svDN-LB5GcHwQXLZBhjlV", "映射": "规范词2白话" }
+        ]
+      },
+      "板块3_常识备考": {
+        "标题": { "element_id": "PBD0MY6JKcD6svDN-LBLbszRSLsZ36Thf-LBbltZkNqsbVG3XB", "映射": "卡4 论证·句式" },
+        "子项标题": [
+          { "element_id": "PBD0MY6JKcD6svDN-LB7xJ3wX5H8w8Ch0", "原文字": "日常积累", "映射": "论证方法" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBdWW9kLLKPChJ6S", "原文字": "真题聚焦", "映射": "万能句式" }
+        ],
+        "子项说明": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBxg9r8sDfcD5X2v", "映射": "论点+论据" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBD68Pj6Ks3JsbYP", "映射": "句式原文+模板+仿写" }
+        ]
+      },
+      "板块4_面试备考": {
+        "标题": { "element_id": "PBD0MY6JKcD6svDN-LBBGwh3RS9Bmn0Qr-LBPyfb8SBrYkdVch", "映射": "卡5 速记卡" },
+        "子项标题": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBls619cb16DP7bW", "原文字": "框架搭建", "映射": "金句速记" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBk64YdCkdt94gZZ", "原文字": "模拟演练", "映射": "案例速记" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBfHZxMYcspB2Wbt", "原文字": "素材适配", "映射": "行动清单" }
+        ],
+        "子项说明": [
+          { "element_id": "PBD0MY6JKcD6svDN-LBdKSy5MCpNkwKPF", "映射": "金句+案例" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBBCS6Dr8vyv4Ww9", "映射": "仿写" },
+          { "element_id": "PBD0MY6JKcD6svDN-LBWf32PX2nlVnVJg", "映射": "行动清单条目" }
+        ]
+      }
+    }
+  },
+  "backup_template": {
+    "id": "tpl_backup_shouzhang",
+    "name": "手写读书笔记手帐",
+    "design_id": "DAHTqshnMMQ",
+    "shortlink": "https://khsj.cn/47vyuyrf3zwx70e",
+    "canvas": { "width": 559, "height": 794 },
+    "status": "备选（A4横版，尺寸不符，暂存待读书笔记向小卡套用）",
+    "note": "内容结构贴5卡（读书笔记4区块：简介/感悟/摘抄/书名），但559×794非1242×1660竖版"
+  }
+}

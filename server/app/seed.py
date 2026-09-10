@@ -56,3 +56,23 @@ def seed_if_empty(db: Session) -> None:
     from app.services.content_ops_service import ensure_content_ops_defaults
 
     ensure_content_ops_defaults(db)
+
+    _merge_role_permissions(db)
+    from app.services.ops_service import seed_ops_catalog
+
+    seed_ops_catalog(db)
+
+
+def _merge_role_permissions(db: Session) -> None:
+    for code, perms in ROLE_PERMISSIONS.items():
+        role = db.query(Role).filter(Role.code == code).first()
+        if not role:
+            continue
+        try:
+            current = set(json.loads(role.permissions or "[]"))
+        except json.JSONDecodeError:
+            current = set()
+        needed = set(perms)
+        if not needed <= current:
+            role.permissions = json.dumps(sorted(current | needed), ensure_ascii=False)
+            db.commit()

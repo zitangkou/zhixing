@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.services.article_import import parse_article_html, parse_article_markdown
+from app.services.article_import import parse_article_html, parse_article_markdown, parse_rmrb_source_html
 
 LEGACY_SAMPLE = Path(__file__).resolve().parent / "fixtures" / "shiwuwu-structure-sample.md"
 CHAPTER_SAMPLE = Path(__file__).resolve().parent / "fixtures" / "shiwuwu-chapter-sample.md"
@@ -111,3 +111,33 @@ def test_parse_article_html_keeps_layout_and_meta():
     assert "h1" in result["content_html"]
     assert "script" not in result["content_html"].lower()
     assert "alert" not in result["content_html"]
+
+
+def test_parse_ops_structured_html_infobox():
+    html = (Path(__file__).resolve().parent / "fixtures" / "ops-theory-html-sample.html").read_text(
+        encoding="utf-8"
+    )
+    result, warnings = parse_article_html(html)
+    assert result["title"] == "坚持用党的创新理论凝心铸魂"
+    assert result["source"] == "人民日报"
+    assert result["publish_date"] == "2026-09-10"
+    assert "paper.people.com.cn" in result["source_url"]
+    assert result["summary"].startswith("坚持用党的创新理论凝心铸魂，是党的思想建设的根本任务")
+    assert result["tags"] == ["思想建设", "理论武装", "凝心铸魂"]
+    assert result["category_name"] == "思想理论"
+    assert not any("未找到" in w for w in warnings)
+
+
+def test_parse_rmrb_source_html_from_ops_original():
+    html = (Path(__file__).resolve().parent / "fixtures" / "ops-rmrb-source-html-sample.html").read_text(
+        encoding="utf-8"
+    )
+    result, warnings = parse_rmrb_source_html(html)
+    assert result["title"] == "从“干中学”到“事上练”"
+    assert result["source"] == "人民日报"
+    assert result["publish_date"] == "2026-09-10"
+    assert "content_30180208" in result["source_url"]
+    assert result["summary"].startswith("两相对照，高下立判")
+    assert result["tags"] == ["作风建设"]
+    assert not any("未找到" in w for w in warnings)
+    assert "时评精拆" not in result["title"]

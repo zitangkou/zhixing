@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>公众号封面 · 10 版式总览</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+         background:#f0efec; padding:32px; color:#333; }
+  h1 { font-size:22px; margin-bottom:6px; }
+  .sub { color:#888; font-size:13px; margin-bottom:28px; }
+  .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:26px; }
+  .item { background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .item h3 { font-size:14px; margin-bottom:10px; color:#333; }
+  .thumb { width:100%; height:190px; overflow:hidden; border-radius:6px; background:#e8e8e8; }
+  iframe { width:900px; height:383px; border:none; transform:scale(0.47); transform-origin:0 0; pointer-events:none; }
+  .note { margin-top:24px; font-size:12px; color:#999; line-height:1.7; }
+</style>
+</head>
+<body>
+  <h1>公众号封面图 · 10 版式总览</h1>
+  <div class="sub">规格 900×383（2.35:1）· 中国红红色系 · 核心内容锁中心 383×383 安全区</div>
+
+  <div class="grid">
+    <div class="item"><h3>01 中国红新闻风</h3><div class="thumb"><iframe src="封面模板_01_中国红新闻风.html"></iframe></div></div>
+    <div class="item"><h3>02 深红今日资讯</h3><div class="thumb"><iframe src="封面模板_02_深红今日资讯.html"></iframe></div></div>
+    <div class="item"><h3>03 政策解读公告</h3><div class="thumb"><iframe src="封面模板_03_政策解读公告.html"></iframe></div></div>
+    <div class="item"><h3>04 红色资讯竖排</h3><div class="thumb"><iframe src="封面模板_04_红色资讯竖排.html"></iframe></div></div>
+    <div class="item"><h3>05 金红头条</h3><div class="thumb"><iframe src="封面模板_05_金红头条.html"></iframe></div></div>
+    <div class="item"><h3>06 极简大标题</h3><div class="thumb"><iframe src="封面模板_06_极简大标题.html"></iframe></div></div>
+    <div class="item"><h3>07 红金战报</h3><div class="thumb"><iframe src="封面模板_07_红金战报.html"></iframe></div></div>
+    <div class="item"><h3>08 喜庆表彰</h3><div class="thumb"><iframe src="封面模板_08_喜庆表彰.html"></iframe></div></div>
+    <div class="item"><h3>09 几何会议</h3><div class="thumb"><iframe src="封面模板_09_几何会议.html"></iframe></div></div>
+    <div class="item"><h3>10 商务喜报</h3><div class="thumb"><iframe src="封面模板_10_商务喜报.html"></iframe></div></div>
+  </div>
+
+  <div class="note">
+    说明：以上为占位样例（标题「从"一件事"到"一类事"」）。正式运行时，脚本会按日期轮动选版式 + 填入当日真实标题/主题/期号/日期，截图导出 900×383（或 2 倍高清 1800×766）PNG。
+  </div>
+</body>
+</html>

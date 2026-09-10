@@ -92,6 +92,19 @@ export function createRmrbArticle(data: {
   return getData<RmrbArticle>(http.post('/admin/rmrb/article', data))
 }
 
+export function previewRmrbHtml(html: string) {
+  return getData<{
+    title: string
+    source: string
+    sourceUrl: string
+    publishDate: string
+    summary: string
+    tags: string[]
+    stats: { chapters: number; sections: number; paragraphs: number; chars?: number }
+    parse_warnings: string[]
+  }>(http.post('/admin/rmrb/preview-html', { html }))
+}
+
 export function updateRmrbArticle(id: string, data: Partial<RmrbArticle>) {
   return getData<RmrbArticle>(http.put(`/admin/rmrb/article/${id}`, data))
 }

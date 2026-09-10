@@ -16,9 +16,9 @@ def _looks_like_html(text: str) -> bool:
 
 
 def _parse_source_html(raw: str) -> dict:
-    from app.services.article_import import parse_article_html
+    from app.services.article_import import parse_rmrb_source_html
 
-    parsed, _warnings = parse_article_html(raw)
+    parsed, _warnings = parse_rmrb_source_html(raw)
     return parsed
 
 
@@ -149,6 +149,7 @@ def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
     source_url = (body.sourceUrl or "").strip()
     publish_date = (body.publishDate or today_str()).strip()
     summary = (body.summary or "").strip()
+    tags = list(body.tags or [])
     content = body.content or ""
     content_html = (body.contentHtml or "").strip()
     if not content_html and _looks_like_html(content):
@@ -163,6 +164,7 @@ def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
         source_url = source_url or parsed.get("source_url") or ""
         publish_date = publish_date or parsed.get("publish_date") or today_str()
         summary = summary or parsed.get("summary") or ""
+        tags = tags or list(parsed.get("tags") or [])
     if not title:
         raise ValueError("标题不能为空（可在 HTML 中提供 h1）")
     a = RmrbArticle(
@@ -174,7 +176,7 @@ def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
         summary=summary,
         content=content,
         content_html=content_html,
-        tags=_dump_tags(body.tags),
+        tags=_dump_tags(tags),
         is_published=body.isPublished,
         is_daily=body.isDaily,
         sort_order=body.sortOrder,

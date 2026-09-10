@@ -130,7 +130,7 @@ def decide_reply(message: InboundMessage, public_base_url: str) -> ReplyDecision
     if text in aliases["today"]:
         return ReplyDecision(
             "today",
-            _with_link("今日学习", "今日文章：评论与理论按日期排列，点开即读。", home_url),
+            _with_link("今日学习", "今日文章：时评与时政按日期排列，点开即读。", home_url),
         )
     if text in aliases["theory"]:
         return ReplyDecision(

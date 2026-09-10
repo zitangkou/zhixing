@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     default_product_key: str = "general"
     enabled_product_keys: str = "general"
     # 知识框架本地目录（开发可用 Obsidian；生产留空则走 data/knowledge + 管理端上传）
-    knowledge_kb_dir: str = ""
+    # 内容生产物料根目录（相对路径相对 server/）
+    ops_material_root: str = ""
 
     # 杜衡阁公众号基础回调。密钥只允许通过服务器环境变量注入。
     wechat_official_enabled: bool = False

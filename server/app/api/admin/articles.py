@@ -8,6 +8,7 @@ def list_articles(
     page_size: int = Query(20, ge=1, le=100),
     keyword: str | None = None,
     status: str | None = None,
+    is_daily: bool | None = Query(None),
     _admin=Depends(require_permission("article:read")),
     db: Session = Depends(get_db),
 ):
@@ -16,6 +17,8 @@ def list_articles(
         q = q.filter(Article.title.contains(keyword))
     if status:
         q = q.filter(Article.status == status)
+    if is_daily is True:
+        q = q.filter(Article.is_daily.is_(True))
     total = q.count()
     rows = q.order_by(Article.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return ApiResponse.ok({
@@ -210,6 +213,8 @@ def preview_article_html(
         "sourceUrl": parsed.get("source_url") or "",
         "publishDate": parsed.get("publish_date") or "",
         "summary": parsed["summary"],
+        "tags": parsed.get("tags") or [],
+        "categoryName": parsed.get("category_name") or "",
         "stats": parsed["stats"],
         "parse_warnings": parse_errors,
     })
@@ -234,7 +239,7 @@ def import_article_html(
         publish_date=body.publish_date or parsed.get("publish_date") or "",
         summary=(body.summary or "").strip() or parsed["summary"],
         content=parsed["content"],
-        tags=body.tags,
+        tags=body.tags or parsed.get("tags") or [],
         category_id=body.category_id,
         importance=5 if body.is_featured else 3,
     )

@@ -66,17 +66,19 @@
     </ListState>
 
     <el-dialog v-model="visible" :title="editId ? '编辑时评' : '新建时评'" width="720px">
+      <p class="import-hint">粘贴时评精拆「原文」HTML（不是解剖页）。点预览按 h1、人民日报日期行、原文链接、导语回填。</p>
       <el-form label-width="90px">
-        <el-form-item label="原文 HTML" required>
-          <el-input
-            v-model="form.contentHtml"
-            type="textarea"
-            :rows="14"
-            placeholder="粘贴时评原文 HTML"
-          />
+        <el-form-item label="来源">
+          <el-input v-model="form.source" placeholder="预览可从日期行带出" />
+        </el-form-item>
+        <el-form-item label="发布日期">
+          <el-input v-model="form.publishDate" placeholder="YYYY-MM-DD" />
+        </el-form-item>
+        <el-form-item label="原文链接">
+          <el-input v-model="form.sourceUrl" placeholder="预览可从「查看人民日报原文」带出" />
         </el-form-item>
         <el-form-item label="摘要">
-          <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="可空，空则从 HTML 抽取" />
+          <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="预览可从灰底导语带出" />
         </el-form-item>
         <el-form-item label="主题">
           <el-select
@@ -91,22 +93,30 @@
             <el-option v-for="t in themeOptions" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
-        <el-form-item label="来源">
-          <el-input v-model="form.source" placeholder="可空，空则从 HTML 抽取" />
-        </el-form-item>
-        <el-form-item label="发布日期">
-          <el-input v-model="form.publishDate" placeholder="YYYY-MM-DD，可空" />
-        </el-form-item>
-        <el-form-item label="原文链接">
-          <el-input v-model="form.sourceUrl" placeholder="可空" />
-        </el-form-item>
         <el-form-item label="今日推荐">
           <el-checkbox v-model="form.isDaily">作为学员端「今日时评」</el-checkbox>
         </el-form-item>
         <el-form-item label="发布">
           <el-switch v-model="form.isPublished" />
         </el-form-item>
+        <el-form-item label="原文 HTML" required>
+          <el-input
+            v-model="form.contentHtml"
+            type="textarea"
+            :rows="12"
+            placeholder="粘贴时评精拆原文 HTML"
+          />
+        </el-form-item>
       </el-form>
+      <div class="import-preview-bar">
+        <el-button :loading="previewing" @click="previewSource">预览</el-button>
+        <span v-if="previewTitle" class="import-preview-stats">
+          {{ previewTitle }} · {{ previewChars }} 字
+        </span>
+      </div>
+      <ul v-if="previewWarnings.length" class="import-warnings">
+        <li v-for="(w, i) in previewWarnings" :key="i">{{ w }}</li>
+      </ul>
       <template #footer>
         <el-button @click="visible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
@@ -137,6 +147,7 @@ import {
   createRmrbArticle,
   deleteRmrbArticle,
   fetchRmrbArticles,
+  previewRmrbHtml,
   updateRmrbArticle,
   type RmrbArticle,
 } from '@/api/rmrb'
@@ -162,6 +173,10 @@ const themePresets = [
 
 const { loading, loadError, runLoad } = useAdminList()
 const saving = ref(false)
+const previewing = ref(false)
+const previewTitle = ref('')
+const previewChars = ref(0)
+const previewWarnings = ref<string[]>([])
 const articles = ref<RmrbArticle[]>([])
 const visible = ref(false)
 const importVisible = ref(false)
@@ -199,6 +214,9 @@ function resetForm() {
   form.sourceUrl = ''
   form.isPublished = true
   form.isDaily = false
+  previewTitle.value = ''
+  previewChars.value = 0
+  previewWarnings.value = []
 }
 
 function openDialog(row?: RmrbArticle) {
@@ -212,6 +230,9 @@ function openDialog(row?: RmrbArticle) {
     form.sourceUrl = row.sourceUrl || ''
     form.isPublished = row.isPublished
     form.isDaily = !!row.isDaily
+    previewTitle.value = row.title || ''
+    previewChars.value = 0
+    previewWarnings.value = []
   } else {
     editId.value = null
     resetForm()
@@ -228,6 +249,35 @@ function onImported() {
   importVisible.value = false
   importTarget.value = null
   load()
+}
+
+async function previewSource() {
+  if (!form.contentHtml.trim()) {
+    ElMessage.warning('请粘贴原文 HTML')
+    return
+  }
+  previewing.value = true
+  try {
+    const preview = await previewRmrbHtml(form.contentHtml)
+    previewTitle.value = preview.title
+    previewChars.value = preview.stats.chars ?? 0
+    previewWarnings.value = preview.parse_warnings || []
+    form.source = preview.source || ''
+    form.publishDate = preview.publishDate || ''
+    form.sourceUrl = preview.sourceUrl || ''
+    form.summary = preview.summary || ''
+    if (preview.tags?.length) {
+      form.tags = [...preview.tags]
+    }
+    ElMessage.success(`解析到「${preview.title}」`)
+  } catch (e) {
+    previewTitle.value = ''
+    previewChars.value = 0
+    previewWarnings.value = []
+    ElMessage.error(e instanceof Error ? e.message : '预览失败')
+  } finally {
+    previewing.value = false
+  }
 }
 
 async function save() {
@@ -305,5 +355,29 @@ onMounted(load)
   gap: 12px;
   margin-bottom: 16px;
   align-items: center;
+}
+.import-hint {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+.import-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 8px;
+  flex-wrap: wrap;
+}
+.import-preview-stats {
+  font-size: 13px;
+  color: #606266;
+}
+.import-warnings {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  color: #e6a23c;
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

@@ -17,6 +17,12 @@ const router = createRouter({
       redirect: '/articles',
       children: [
         {
+          path: 'today',
+          name: 'today-preview',
+          component: () => import('@/views/today/Preview.vue'),
+          meta: { title: '今日学员端', permissions: ['article:read', 'rmrb:read'] },
+        },
+        {
           path: 'articles',
           name: 'articles',
           component: () => import('@/views/articles/List.vue'),
@@ -187,6 +193,18 @@ const router = createRouter({
           name: 'rmrb-sentence-types',
           component: () => import('@/views/rmrb/SentenceTypesTab.vue'),
           meta: { title: '句式类型', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'ops/pipelines',
+          name: 'ops-pipelines',
+          component: () => import('@/views/ops/Pipelines.vue'),
+          meta: { title: '流程管理', permissions: ['ops:read'] },
+        },
+        {
+          path: 'ops/steps',
+          name: 'ops-steps',
+          component: () => import('@/views/ops/Steps.vue'),
+          meta: { title: '步骤管理', permissions: ['ops:read'] },
         },
         {
           path: 'corpus',

@@ -1,6 +1,7 @@
 /** 管理端侧栏露出。路由仍注册，直链可进。与学员端 featureVisibility 对齐。 */
 
 const VISIBLE_PATHS = new Set([
+  '/today',
   '/articles',
   '/categories',
   '/rmrb/articles',
@@ -8,6 +9,8 @@ const VISIBLE_PATHS = new Set([
   '/rmrb/skeletons',
   '/rmrb/argument-methods',
   '/rmrb/sentence-types',
+  '/ops/pipelines',
+  '/ops/steps',
   '/users',
   '/settings',
 ])

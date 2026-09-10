@@ -1,0 +1,41 @@
+{
+  "version": "2.16",
+  "updated": "2026-08-31",
+  "note": "公众号封面图本地底图模板库（替代旧 Canva 模板库方案）。底图按尺寸分目录存放（900x383/ 次条，1800x766/ 头条），由程序按需选取并 2× 放大输出，纯底图不加字。",
+  "base_folder": "物料模板/封面图模版",
+  "output": {
+    "公众号": {
+      "path": "物料/YYYY-MM-DD/<文章标题>/公众号/封面图.png",
+      "size": "900x383 (2.35:1 次条/小图，原底图直出)"
+    },
+    "知乎": {
+      "path": "物料/YYYY-MM-DD/<文章标题>/知乎/封面图_知乎.png",
+      "size": "1800x766 (2.35:1，底图 2× 放大，头条/知乎用)"
+    }
+  },
+  "text_overlay": {
+    "enabled": false,
+    "note": "2026-08-31 决策：封面纯底图不加字（文字由用户后续手动加或另处理）；程序仅负责选图 + 2× 放大输出。"
+  },
+  "selection": {
+    "mode": "rotate_by_date",
+    "note": "按日期轮动：(日期 - 起始日) % 模板数；同一天两篇取相邻序号。可复现、可追溯。",
+    "rotate_start": "2026-08-31"
+  },
+  "avatar": {
+    "enabled": true,
+    "asset": "物料模板/方形头像_杜衡阁.png",
+    "note": "杜衡阁方形头像，右侧固定位置；方形原样不裁圆，圆角蒙版+白边。设为 false 则不贴。"
+  },
+  "templates": [
+    { "id": 1, "file": "900x383/01_封面底图.png", "design_id": "DAHT3LaEHRo", "shortlink": "nx1fy1m957f7l69", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 2, "file": "900x383/02_封面底图.png", "design_id": "DAHT3dQtZ6A", "shortlink": "s0fv6k74qwxu1zn", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 3, "file": "900x383/03_封面底图.png", "design_id": "DAHT3Tj3wq0", "shortlink": "ylpqf058k4g8a21", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 4, "file": "900x383/04_封面底图.png", "design_id": "DAHT3U9BuNU", "shortlink": "1uwgh9mrp53r63j", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 5, "file": "900x383/05_封面底图.png", "design_id": "DAHT3TbzgxM", "shortlink": "xkdljztazdbpscs", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 6, "file": "900x383/06_封面底图.png", "design_id": "DAHT3eZUodY", "shortlink": "wn8xlu449l62x63", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 7, "file": "900x383/07_封面底图.png", "design_id": "DAHT3R5Sc5Y", "shortlink": "v18hlhwgx7ld1at", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" },
+    { "id": 8, "file": "900x383/08_封面底图.png", "design_id": "DAHT3Wt58GA", "shortlink": "upc4nmzrq5mvc23", "size": "900x383", "ratio": "2.350", "enabled": true, "style_tag": "", "note": "待用户补充风格标签/文字区坐标" }
+  ],
+  "status": "active_8_images"
+}

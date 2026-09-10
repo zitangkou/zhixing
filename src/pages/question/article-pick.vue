@@ -36,7 +36,7 @@ import { useArticleStore } from '@/store/article'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '时政阅读' })
+definePageConfig({ navigationBarTitleText: '时政练习' })
 
 const { themeClass } = useThemeClass()
 const articleStore = useArticleStore()

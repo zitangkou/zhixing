@@ -6,6 +6,7 @@
     </view>
 
     <view class="form-card">
+      <text v-if="hasRedirect" class="resume-tip">登录后回到刚才的页面</text>
       <nut-input v-model="username" placeholder="用户名" clearable />
       <nut-input v-model="password" type="password" placeholder="密码" clearable />
       <nut-button type="primary" block class="primary-btn" :loading="loading" @click="onLogin">
@@ -29,6 +30,7 @@ import BrandLogo from '@/components/BrandLogo.vue'
 import { useUserStore } from '@/store/user'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { enterAfterAuth, skipAuth } from '@/utils/auth'
+import { LOGIN_REDIRECT_KEY } from '@/constants/guestAccess'
 import { showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
@@ -39,6 +41,7 @@ const userStore = useUserStore()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
+const hasRedirect = ref(!!Taro.getStorageSync(LOGIN_REDIRECT_KEY))
 
 async function onLogin() {
   if (!username.value.trim() || !password.value) {
@@ -78,11 +81,18 @@ function goRegister() {
       color: $text-secondary;
     }
   }
-  .form-card {
+    .form-card {
     @include card;
     padding: 22px 16px;
     border-radius: $radius-lg;
     box-shadow: $shadow-float;
+    .resume-tip {
+      display: block;
+      font-size: 13px;
+      color: $text-secondary;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
     :deep(.nut-input) { margin-bottom: 14px; }
     .primary-btn { margin-top: 8px; }
     .link-row {
