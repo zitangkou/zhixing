@@ -7,7 +7,6 @@ dist/
 .vscode/
 server/.venv/
 server/data/
-ops/**/物料/
 server/__pycache__/
 server/**/__pycache__/
 server/tests/_smoke.db

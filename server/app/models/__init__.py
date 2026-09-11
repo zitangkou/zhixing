@@ -35,4 +35,3 @@ from app.models.question_bank import (
     QuestionVersion,
 )
 from app.models.generation import GenerationBatch, ReviewRecord
-from app.models.ops import OpsPipeline, OpsPipelineStep, OpsRun, OpsRunStep, OpsStep

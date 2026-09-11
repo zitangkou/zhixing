@@ -55,15 +55,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    key: 'ops',
-    title: '内容生产',
-    icon: Promotion,
-    children: [
-      { path: '/ops/pipelines', title: '流程管理', icon: TrendCharts, permissions: ['ops:read'] },
-      { path: '/ops/steps', title: '步骤管理', icon: Collection, permissions: ['ops:read'] },
-    ],
-  },
-  {
     key: 'teaching',
     title: '备考教学',
     icon: Reading,
@@ -139,8 +130,6 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/rmrb/skeletons': '骨架模版',
   '/rmrb/argument-methods': '论证方法',
   '/rmrb/sentence-types': '句式类型',
-  '/ops/pipelines': '流程管理',
-  '/ops/steps': '步骤管理',
   '/corpus': '语料本',
   '/events': '时事事件',
   '/settings': '系统设置',

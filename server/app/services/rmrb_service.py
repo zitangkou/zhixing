@@ -220,6 +220,8 @@ def update_article(db: Session, article_id: str, body: RmrbArticleUpdate) -> Rmr
                 data["publishDate"] = parsed["publish_date"]
             if not data.get("summary") and parsed.get("summary") and not a.summary:
                 data["summary"] = parsed["summary"]
+            if not data.get("tags") and parsed.get("tags") and not _parse_tags(a.tags):
+                data["tags"] = parsed["tags"]
         else:
             a.content_html = ""
     for k, v in data.items():

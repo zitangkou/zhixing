@@ -9,8 +9,6 @@ const VISIBLE_PATHS = new Set([
   '/rmrb/skeletons',
   '/rmrb/argument-methods',
   '/rmrb/sentence-types',
-  '/ops/pipelines',
-  '/ops/steps',
   '/users',
   '/settings',
 ])

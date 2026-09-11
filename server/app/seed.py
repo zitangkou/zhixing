@@ -58,9 +58,6 @@ def seed_if_empty(db: Session) -> None:
     ensure_content_ops_defaults(db)
 
     _merge_role_permissions(db)
-    from app.services.ops_service import seed_ops_catalog
-
-    seed_ops_catalog(db)
 
 
 def _merge_role_permissions(db: Session) -> None:
