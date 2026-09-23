@@ -68,6 +68,20 @@ function importAppOrigin(file: string) {
   fs.writeFileSync(file, css)
 }
 
+/**
+ * 图标字体在 vendors.wxss，经 app.wxss @import。自定义组件默认吃不到这段规则，
+ * :before 字形就不会画进格子。单独抽出约 90KB 给 comp.wxss，避免再引一份 1.8MB vendors。
+ */
+function writeIconWxss(dir: string) {
+  const src = path.resolve('node_modules/@nutui/icons-vue-taro/dist/style_iconfont.css')
+  if (!fs.existsSync(src)) return
+  const position =
+    '.nutui-iconfont.nut-icon{position:relative;display:inline-block;line-height:1}' +
+    '.nut-icon:before{position:absolute;top:50%;left:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%)}'
+  fs.writeFileSync(path.join(dir, 'nut-icon.wxss'), fs.readFileSync(src, 'utf8') + position)
+  fs.writeFileSync(path.join(dir, 'comp.wxss'), '@import "./nut-icon.wxss";\n')
+}
+
 function walkDist(dir: string) {
   if (!fs.existsSync(dir)) return
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -100,6 +114,7 @@ export function weappScopedCss(): Plugin {
       if (process.env.TARO_ENV !== 'weapp') return
       const dir = options.dir || path.resolve('dist')
       walkDist(dir)
+      writeIconWxss(dir)
     },
   }
 }

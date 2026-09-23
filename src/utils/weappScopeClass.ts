@@ -84,12 +84,41 @@ export function installWeappScopeClass(): void {
 }
 
 /**
- * NutUI 图标默认标签是 i。base.wxml 只有 tmpl_0_8 这类数字模板，
- * 节点名会原样变成 tmpl_0_i，基础库在每次 setData 报 Template not found。
- * 行内标签改走 text，块级标签改走 view，图标的 class / font 仍然生效。
+ * Vue 的 onClick 在小程序里注册成 click，基础库只派发 tap，
+ * 所以 nut-cell / nut-button / nut-switch 点了没反应。
+ * 同时写了 @click 和 @tap 的节点会挂上两个 tap；业务回调本身可重复调用。
+ */
+const CLICK_PATCHED = '__zkClickAlias'
+
+function installWeappClickAlias(): void {
+  if (process.env.TARO_ENV !== 'weapp') return
+  const proto = TaroElement.prototype as unknown as {
+    addEventListener: (type: string, handler: unknown, options?: unknown) => void
+    removeEventListener: (type: string, handler: unknown, sideEffect?: unknown) => void
+    [CLICK_PATCHED]?: boolean
+  }
+  if (proto[CLICK_PATCHED]) return
+  proto[CLICK_PATCHED] = true
+  const origAdd = proto.addEventListener
+  const origRemove = proto.removeEventListener
+  proto.addEventListener = function (type: string, handler: unknown, options?: unknown) {
+    const name = String(type || '').toLowerCase()
+    if (name === 'click') return origAdd.call(this, 'tap', handler, options)
+    return origAdd.call(this, type, handler, options)
+  }
+  proto.removeEventListener = function (type: string, handler: unknown, sideEffect?: unknown) {
+    const name = String(type || '').toLowerCase()
+    if (name === 'click') return origRemove.call(this, 'tap', handler, sideEffect)
+    return origRemove.call(this, type, handler, sideEffect)
+  }
+}
+
+/**
+ * NutUI 图标默认标签是 i。base.wxml 没有 tmpl_0_i，
+ * 基础库在每次 setData 报 Template not found，图标格子是空的。
+ * i 改走 view（:before 图标字体才能画出来）；其它行内标签改走 text，块级标签改走 view。
  */
 const AS_TEXT = new Set([
-  'i',
   'em',
   'b',
   'strong',
@@ -140,6 +169,7 @@ function installWeappHtmlTagMap(): void {
   const orig = proto.createElement
   proto.createElement = function (type: string) {
     const name = String(type || '').toLowerCase()
+    if (name === 'i') return orig.call(this, 'view')
     if (AS_TEXT.has(name)) return orig.call(this, 'text')
     if (AS_VIEW.has(name)) return orig.call(this, 'view')
     return orig.call(this, type)
@@ -148,3 +178,4 @@ function installWeappHtmlTagMap(): void {
 
 installWeappScopeClass()
 installWeappHtmlTagMap()
+installWeappClickAlias()
