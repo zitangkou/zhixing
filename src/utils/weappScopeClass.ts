@@ -43,41 +43,43 @@ export function installWeappScopeClass(): void {
   const origSet = proto.setAttribute
   const origRemove = proto.removeAttribute
 
-  proto.setAttribute = function (this: ScopeHost, name: string, value: unknown) {
+  proto.setAttribute = function (name: string, value: unknown) {
+    const el = this as ScopeHost
     if (SCOPE_ATTR.test(name)) {
-      const ids = this[SCOPE_IDS] || (this[SCOPE_IDS] = [])
+      const ids = el[SCOPE_IDS] || (el[SCOPE_IDS] = [])
       if (!ids.includes(name)) ids.push(name)
-      origSet.call(this, name, value)
-      origSet.call(this, 'class', withScope(this, this.getAttribute('class')))
+      origSet.call(el, name, value)
+      origSet.call(el, 'class', withScope(el, el.getAttribute('class')))
       return
     }
     if (name === 'class') {
-      origSet.call(this, name, withScope(this, value))
+      origSet.call(el, name, withScope(el, value))
       return
     }
-    origSet.call(this, name, value)
+    origSet.call(el, name, value)
   }
 
-  proto.removeAttribute = function (this: ScopeHost, name: string) {
+  proto.removeAttribute = function (name: string) {
+    const el = this as ScopeHost
     if (SCOPE_ATTR.test(name)) {
-      const ids = this[SCOPE_IDS]
+      const ids = el[SCOPE_IDS]
       if (ids) {
         const index = ids.indexOf(name)
         if (index >= 0) ids.splice(index, 1)
       }
-      origRemove.call(this, name)
-      const next = withScope(this, this.getAttribute('class'))
-      if (next) origSet.call(this, 'class', next)
-      else origRemove.call(this, 'class')
+      origRemove.call(el, name)
+      const next = withScope(el, el.getAttribute('class'))
+      if (next) origSet.call(el, 'class', next)
+      else origRemove.call(el, 'class')
       return
     }
     if (name === 'class') {
-      const next = withScope(this, '')
-      if (next) origSet.call(this, 'class', next)
-      else origRemove.call(this, 'class')
+      const next = withScope(el, '')
+      if (next) origSet.call(el, 'class', next)
+      else origRemove.call(el, 'class')
       return
     }
-    origRemove.call(this, name)
+    origRemove.call(el, name)
   }
 }
 
