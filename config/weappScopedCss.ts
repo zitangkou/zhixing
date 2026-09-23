@@ -27,12 +27,60 @@ function rewriteWxssFile(file: string) {
   if (next !== css) fs.writeFileSync(file, next)
 }
 
-function walkWxss(dir: string) {
+const PAGE_META =
+  '<page-meta page-style="{{zkTheme.pageStyle}}" background-color="{{zkTheme.backgroundColor}}" background-color-top="{{zkTheme.backgroundColorTop}}" background-color-bottom="{{zkTheme.backgroundColorBottom}}" root-background-color="{{zkTheme.rootBackgroundColor}}" background-text-style="{{zkTheme.backgroundTextStyle}}" />'
+
+function patchPageWxml(file: string) {
+  const rel = file.split(path.sep).join('/')
+  if (!rel.includes('/pages/')) return
+  let xml = fs.readFileSync(file, 'utf8')
+  if (xml.includes('<page-meta')) return
+  if (xml.includes('<import')) xml = xml.replace(/(<import[^>]*\/>)/, `$1\n${PAGE_META}`)
+  else xml = `${PAGE_META}\n${xml}`
+  fs.writeFileSync(file, xml)
+}
+
+function patchPageJson(file: string) {
+  const rel = file.split(path.sep).join('/')
+  if (!rel.includes('/pages/') || !file.endsWith('.json')) return
+  const json = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>
+  if (json.enablePageMeta === true) return
+  json.enablePageMeta = true
+  fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
+}
+
+function patchCompJson(file: string) {
+  if (path.basename(file) !== 'comp.json') return
+  const json = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>
+  if (json.addGlobalClass === true) return
+  json.addGlobalClass = true
+  fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
+}
+
+/** 页面 wxss 引入 app-origin，apply-shared 才能把 .theme-dark .nut-* 打进自定义组件。 */
+function importAppOrigin(file: string) {
+  const rel = file.split(path.sep).join('/')
+  if (!rel.includes('/pages/') || !file.endsWith('.wxss')) return
+  let css = fs.readFileSync(file, 'utf8')
+  if (css.includes('app-origin.wxss')) return
+  const stmt = '@import "../../app-origin.wxss";'
+  css = css.startsWith('@charset') ? css.replace(/^(@charset[^;]+;)/, `$1${stmt}`) : `${stmt}${css}`
+  fs.writeFileSync(file, css)
+}
+
+function walkDist(dir: string) {
   if (!fs.existsSync(dir)) return
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) walkWxss(full)
-    else if (entry.name.endsWith('.wxss')) rewriteWxssFile(full)
+    if (entry.isDirectory()) walkDist(full)
+    else if (entry.name.endsWith('.wxss')) {
+      rewriteWxssFile(full)
+      importAppOrigin(full)
+    } else if (entry.name.endsWith('.wxml')) patchPageWxml(full)
+    else if (entry.name.endsWith('.json')) {
+      patchPageJson(full)
+      patchCompJson(full)
+    }
   }
 }
 
@@ -51,7 +99,7 @@ export function weappScopedCss(): Plugin {
     writeBundle(options) {
       if (process.env.TARO_ENV !== 'weapp') return
       const dir = options.dir || path.resolve('dist')
-      walkWxss(dir)
+      walkDist(dir)
     },
   }
 }

@@ -1,4 +1,4 @@
-import { TaroElement } from '@tarojs/runtime'
+import { TaroElement, document as taroDocument } from '@tarojs/runtime'
 
 /**
  * 小程序模板渲染不出 Vue 的 data-v 属性。把 scope id 记成 class，
@@ -83,4 +83,68 @@ export function installWeappScopeClass(): void {
   }
 }
 
+/**
+ * NutUI 图标默认标签是 i。base.wxml 只有 tmpl_0_8 这类数字模板，
+ * 节点名会原样变成 tmpl_0_i，基础库在每次 setData 报 Template not found。
+ * 行内标签改走 text，块级标签改走 view，图标的 class / font 仍然生效。
+ */
+const AS_TEXT = new Set([
+  'i',
+  'em',
+  'b',
+  'strong',
+  'span',
+  'small',
+  'sub',
+  'sup',
+  'u',
+  's',
+  'cite',
+  'code',
+  'abbr',
+  'del',
+  'ins',
+  'mark',
+  'font',
+])
+const AS_VIEW = new Set([
+  'div',
+  'p',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'section',
+  'article',
+  'header',
+  'footer',
+  'nav',
+  'ul',
+  'ol',
+  'li',
+  'br',
+  'figure',
+  'figcaption',
+])
+
+function installWeappHtmlTagMap(): void {
+  if (process.env.TARO_ENV !== 'weapp') return
+  const proto = Object.getPrototypeOf(taroDocument) as {
+    createElement?: (type: string) => unknown
+    __zkHtmlTagMap?: boolean
+  }
+  if (!proto?.createElement || proto.__zkHtmlTagMap) return
+  proto.__zkHtmlTagMap = true
+  const orig = proto.createElement
+  proto.createElement = function (type: string) {
+    const name = String(type || '').toLowerCase()
+    if (AS_TEXT.has(name)) return orig.call(this, 'text')
+    if (AS_VIEW.has(name)) return orig.call(this, 'view')
+    return orig.call(this, type)
+  }
+}
+
 installWeappScopeClass()
+installWeappHtmlTagMap()
