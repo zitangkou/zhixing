@@ -53,11 +53,12 @@ page {
       --zk-primary: #{$lp};
       --zk-primary-mid: #{$lm};
       --zk-primary-dark: #{$ld};
-      --zk-primary-light: rgba($lp, 0.1);
-      --zk-primary-soft: rgba($lp, 0.14);
-      --zk-primary-faint: rgba($lp, 0.06);
-      --zk-primary-strong: rgba($lp, 0.3);
-      --zk-primary-bar: rgba($lp, 0.45);
+      // 自定义属性里必须 #{rgba()}。裸写 rgba($color, $a) 会原样留下 $，微信会丢弃整份 wxss。
+      --zk-primary-light: #{rgba($lp, 0.1)};
+      --zk-primary-soft: #{rgba($lp, 0.14)};
+      --zk-primary-faint: #{rgba($lp, 0.06)};
+      --zk-primary-strong: #{rgba($lp, 0.3)};
+      --zk-primary-bar: #{rgba($lp, 0.45)};
     }
   }
 }
@@ -108,16 +109,16 @@ page.theme-dark,
       --zk-primary: #{$dp};
       --zk-primary-mid: #{$dm};
       --zk-primary-dark: #{$dd};
-      --zk-primary-light: rgba($dp, 0.16);
-      --zk-primary-soft: rgba($dp, 0.22);
-      --zk-primary-faint: rgba($dp, 0.08);
-      --zk-primary-strong: rgba($dp, 0.4);
-      --zk-primary-bar: rgba($dp, 0.55);
+      --zk-primary-light: #{rgba($dp, 0.16)};
+      --zk-primary-soft: #{rgba($dp, 0.22)};
+      --zk-primary-faint: #{rgba($dp, 0.08)};
+      --zk-primary-strong: #{rgba($dp, 0.4)};
+      --zk-primary-bar: #{rgba($dp, 0.55)};
     }
   }
 }
 
-/* 运行时品牌色（勿再对 $primary-color 做 sass rgba()） */
+// 运行时品牌色。不要对 $primary-color 做 sass rgba()：它是 CSS 变量，且 $ 不能进入 wxss。
 $primary-color: var(--zk-primary);
 $primary-dark: var(--zk-primary-dark);
 $primary-mid: var(--zk-primary-mid);
@@ -211,7 +212,7 @@ $shadow-float: var(--zk-shadow-float);
   }
 }
 
-/** 轻量色标签：有色彩但不抢正文（$fg 需为 hex） */
+// 轻量色标签：有色彩但不抢正文。$fg 需为 hex，不能是 CSS 变量。
 @mixin soft-chip($fg, $bg-alpha: 0.1) {
   padding: 2px 8px;
   border-radius: 4px;
