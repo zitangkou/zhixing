@@ -1,3 +1,5 @@
+from fastapi.responses import JSONResponse
+
 from app.api.public._deps import *  # noqa: F401,F403
 
 router = APIRouter()
@@ -33,6 +35,27 @@ def app_login(body: AppLoginBody, db: Session = Depends(get_db)):
     user, err = authenticate_user(db, body.username, body.password)
     if err or not user:
         return ApiResponse.fail(err or "登录失败", code=401)
+    token = issue_app_token(user)
+    me = build_user_me_out(db, user)
+    return ApiResponse.ok(
+        AppAuthToken(access_token=token, user=me).model_dump()
+    )
+
+
+def _wechat_login_error(status_code: int, message: str) -> JSONResponse:
+    body = ApiResponse.fail(message, code=status_code).model_dump()
+    return JSONResponse(status_code=status_code, content=body)
+
+
+@router.post("/auth/wechat/login")
+def app_wechat_login(body: AppWechatLoginBody, db: Session = Depends(get_db)):
+    """小程序 wx.login code 换会话。未配置 AppId/AppSecret 时返回 503。"""
+    user, err = login_with_wechat_code(db, body.code)
+    if err or not user:
+        return _wechat_login_error(
+            err.status_code if err else 400,
+            err.message if err else "登录失败",
+        )
     token = issue_app_token(user)
     me = build_user_me_out(db, user)
     return ApiResponse.ok(

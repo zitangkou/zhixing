@@ -14,6 +14,7 @@ from app.schemas import (
     AppAuthToken,
     AppLoginBody,
     AppRegisterBody,
+    AppWechatLoginBody,
     AppUserPasswordChange,
     AppUserProfileUpdate,
     DailyReviewUpsert,
@@ -68,6 +69,7 @@ from app.services.auth_service import (
     register_user,
     update_user_profile,
 )
+from app.services.wechat_miniprogram_service import login_with_wechat_code
 from app.services.category_service import build_category_tree
 from app.services.countdown_service import delete_countdown, get_countdown, upsert_countdown
 from app.services.knowledge_service import (

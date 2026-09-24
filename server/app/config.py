@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     wechat_official_token: str = ""
     wechat_official_app_id: str = ""
     wechat_official_public_base_url: str = ""
+    # 微信小程序一键登录（jscode2session）。与公众号 AppId 分开配置。
+    miniprogram_app_id: str = ""
+    miniprogram_app_secret: str = ""
 
     llm_enabled: bool = False
     llm_api_key: str = ""
@@ -50,6 +53,10 @@ class Settings(BaseSettings):
     @property
     def enabled_product_key_set(self) -> set[str]:
         return {key.strip().lower() for key in self.enabled_product_keys.split(",") if key.strip()}
+
+    @property
+    def miniprogram_login_configured(self) -> bool:
+        return bool(self.miniprogram_app_id.strip() and self.miniprogram_app_secret.strip())
 
 
 @lru_cache

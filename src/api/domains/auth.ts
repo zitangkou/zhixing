@@ -48,6 +48,16 @@ export const apiAuth = {
         })
   },
 
+  loginWithWechat(code: string): Promise<d.ApiRes<d.AuthResult>> {
+    return d.isMock
+      ? d.mockService.loginWithWechat(code)
+      : d.request<d.AuthResult>('/api/auth/wechat/login', {
+          method: 'POST',
+          data: { code },
+          auth: false,
+        })
+  },
+
   getUserMe(): Promise<d.ApiRes<d.UserMeData>> {
     return d.isMock ? d.mockService.getUserMe() : d.request<d.UserMeData>('/api/user/me')
   },

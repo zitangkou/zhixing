@@ -38,6 +38,26 @@ export const mockAuth = {
     })
   },
 
+  async loginWithWechat(
+    _code: string,
+  ): Promise<import('@/types').ApiRes<import('@/api').AuthResult>> {
+    await m.delay()
+    m.mockState.userInfo = {
+      id: 'u-wechat',
+      nickname: '知行学员',
+      avatar: '',
+      email: '',
+      phone: '',
+      isMember: false,
+    }
+    const user = await this.getUserMe()
+    return m.ok({
+      access_token: 'mock-token',
+      token_type: 'bearer',
+      user: user.data,
+    })
+  },
+
   async login(
     username: string,
     _password: string,
