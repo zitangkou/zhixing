@@ -114,7 +114,7 @@ import { useArticleStore } from '@/store/article'
 import type { Article, RmrbArticle } from '@/types'
 import { rmrbToCard } from '@/utils/rmrbCard'
 import { showToast } from '@/utils/platform'
-import { isLoggedIn } from '@/utils/auth'
+import { bumpAuthView, isLoggedIn } from '@/utils/auth'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
@@ -209,7 +209,11 @@ onMounted(async () => {
 })
 
 useDidShow(async () => {
+  bumpAuthView()
   if (!pageReady.value) return
+  if (isLoggedIn() && !userStore.userInfo?.id) {
+    await userStore.bootstrap()
+  }
   await refreshOnShow()
 })
 

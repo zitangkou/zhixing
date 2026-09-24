@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import Taro from '@tarojs/taro'
 import { LOGIN_REDIRECT_KEY, normalizePagePath } from '@/constants/guestAccess'
 import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
@@ -5,20 +6,32 @@ import { resolveAfterAuthTarget } from '@/utils/postAuthRoute'
 
 const TOKEN_KEY = 'zhixing_token'
 
+/**
+ * Tab 页在后台时，登录写入的 userInfo 可能没画到界面上。
+ * 这个计数让 isLoggedIn() 的 computed 在回到页面时重新求值。
+ */
+const authEpoch = ref(0)
+
 export function getToken(): string {
   return Taro.getStorageSync(TOKEN_KEY) || ''
 }
 
 export function setToken(token: string): void {
   Taro.setStorageSync(TOKEN_KEY, token)
+  authEpoch.value += 1
 }
 
 export function clearToken(): void {
   Taro.removeStorageSync(TOKEN_KEY)
+  authEpoch.value += 1
+}
+
+export function bumpAuthView(): void {
+  authEpoch.value += 1
 }
 
 export function isLoggedIn(): boolean {
-  return !!getToken()
+  return authEpoch.value >= 0 && !!getToken()
 }
 
 export function isAuthPageRoute(route?: string): boolean {
