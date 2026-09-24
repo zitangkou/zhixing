@@ -104,8 +104,10 @@ TARO_APP_API_URL=https://zhixinggk.ltd npm run build:weapp
 
 下面两处只在 `TARO_ENV=weapp` 时生效，H5 构建会直接跳过。改小程序时不要让 H5 行为跟着变。
 
-- **分包循环**：`config/weappChunkCycle.ts` 的 `weappBreakVueChunkCycle`。Taro 4.0.9 把 Vue 打进 `taro.js`、把 `@babel/runtime` 打进 `vendors.js`，循环依赖下 `defineComponent` 还是空的。插件把 `@babel` 拆到 `babelHelpers` chunk。
+- **分包循环**：`config/weappChunkCycle.ts` 的 `weappBreakVueChunkCycle`。Taro 4.0.9 把 Vue 打进 `taro.js`、把 `@babel/runtime` 打进 `vendors.js`，循环依赖下 `defineComponent` 还是空的。插件把 `@babel` 拆到 `babelHelpers` chunk。同一插件把 KaTeX / `latex.ts` / `LatexBlock` 打进 `pages/ziliao/katex`，并去掉 KaTeX 的 woff/ttf（只留 woff2），避免主包超 1.5MB。
+- **页面分包**：`src/app.config.ts` 用 `subPackages`；主包只留启动页与 `pages/user/*`（含 tab）。`lazyCodeLoading: requiredComponents`。
 - **scoped CSS**：`config/weappScopedCss.ts` 的 `weappScopedCss`。小程序节点上没有 `data-v-*`，插件把选择器改成同类名，并补页面 `page-meta`、组件 `addGlobalClass`，以及图标用的 `comp.wxss`。运行时配合 `src/utils/weappScopeClass.ts`。
+- **体积预检**：`python3 scripts/release-preflight.py --weapp-dist dist`（或 `--artifact-dir`）会检查主包 ≤1.5MB / 上传 ≤2MB，以及 `lazyCodeLoading`。
 
 ### 排查（补丁已在 main，不要重复打一遍）
 
