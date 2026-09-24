@@ -11,7 +11,7 @@ Slogan：**以「上岸」为唯一目标**
 - 练习闭环：多种刷题模式、错题本（文章/手动）、艾宾浩斯复习、复习中心
 - 积分、签到、排行榜、知行足迹
 
-**全量功能说明（各模块明细）→ [FEATURES.md](./FEATURES.md)** ｜ 项目进度 → [PROGRESS.md](./PROGRESS.md)
+**全量功能说明（各模块明细）→ [FEATURES.md](./FEATURES.md)** ｜ 项目进度 → [PROGRESS.md](./PROGRESS.md) ｜ 在用/规划活文档 → [docs/planning/](./docs/planning/)（[FEATURE_INVENTORY](./docs/planning/FEATURE_INVENTORY.md) / [PRODUCT_ROADMAP](./docs/planning/PRODUCT_ROADMAP.md)）
 
 现行执行计划：[docs/plans/xingce-data-roadmap-2026.md](./docs/plans/xingce-data-roadmap-2026.md)（行测数据/出题调度中枢）、[docs/plans/optimization-plan-2026-09.md](./docs/plans/optimization-plan-2026-09.md)（项目级优化总盘）。
 

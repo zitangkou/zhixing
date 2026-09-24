@@ -108,6 +108,7 @@ ad46da5 [xingce] 2024三卷答案+解析入库，覆盖率100%（385/385）
 ## 6. 相关文档
 
 - 全量功能清单 → [`FEATURES.md`](./FEATURES.md)
+- **在用/隐藏 + 规划活文档** → [`docs/planning/`](./docs/planning/)（[`FEATURE_INVENTORY.md`](./docs/planning/FEATURE_INVENTORY.md) / [`PRODUCT_ROADMAP.md`](./docs/planning/PRODUCT_ROADMAP.md)）
 - 架构与模块边界 → [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - 待优化清单 → [`OPTIMIZATION.md`](./OPTIMIZATION.md)
 - 部署手册 → [`DEPLOY.md`](./DEPLOY.md)
