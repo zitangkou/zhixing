@@ -48,6 +48,7 @@ def get_app_user(
     user = db.get(AppUser, user_id)
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
-    if not user.username:
+    # 账密用户有 username；小程序微信登录用户只有 openid。两者都没有的占位账号不能持有会话。
+    if not user.username and not user.openid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请使用账号密码登录")
     return user

@@ -91,6 +91,17 @@ export const useUserStore = defineStore('user', {
       return res.data
     },
 
+    async loginWithWechat(code: string) {
+      const res = await api.loginWithWechat(code)
+      if (res.code !== 0 || !res.data) {
+        throw new Error(res.message || '登录失败')
+      }
+      setToken(res.data.access_token)
+      this.applyUserMe(res.data.user)
+      await this.fetchPointsLog()
+      return res.data
+    },
+
     async register(username: string, password: string, passwordConfirm: string) {
       const res = await api.register(username, password, passwordConfirm)
       if (res.code !== 0 || !res.data) {

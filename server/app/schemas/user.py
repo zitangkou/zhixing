@@ -42,6 +42,10 @@ class AppLoginBody(BaseModel):
     password: str
 
 
+class AppWechatLoginBody(BaseModel):
+    code: str = Field(min_length=1, max_length=128)
+
+
 class AppAuthToken(BaseModel):
     access_token: str
     token_type: str = "bearer"

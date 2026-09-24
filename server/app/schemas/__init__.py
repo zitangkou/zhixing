@@ -8,7 +8,7 @@ from app.schemas.content import (
     QuestionCreate, QuestionOut, QuestionUpdate,
 )
 from app.schemas.quiz import AnswerResult, AnswerSubmit, PointsLogOut, QuizCompleteBody, QuizCompleteResult, QuizRankItemOut, QuizStatsOut, RankItemOut
-from app.schemas.user import AppAuthToken, AppLoginBody, AppRegisterBody, AppUserPasswordChange, AppUserProfileUpdate, FeedbackHandleBody, FeedbackOut, UserMeOut
+from app.schemas.user import AppAuthToken, AppLoginBody, AppRegisterBody, AppUserPasswordChange, AppUserProfileUpdate, AppWechatLoginBody, FeedbackHandleBody, FeedbackOut, UserMeOut
 from app.schemas.study import ReviewCompleteBody, SectionReadBody, StudyRecordOut, WrongRedoBody
 from app.schemas.admin import AdminLogin, AdminPasswordChange, AdminToken, AdminUserOut, AppUserOut, AppUserUpdate, RoleOut, SettingOut, SettingUpdate
 from app.schemas.plan import DailyReviewOut, DailyReviewUpsert, DayPlanOut, PlanTaskCreate, PlanTaskOut, PlanTaskUpdate, PlanTemplateCreate, PlanTemplateOut, PlanTemplateUpdate

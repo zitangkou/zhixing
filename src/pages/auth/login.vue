@@ -2,19 +2,45 @@
   <view class="page-auth" :class="themeClass">
     <view class="auth-header">
       <BrandLogo size="lg" tagline="读得进，练得出" />
-      <text class="subtitle">账号登录</text>
+      <text class="subtitle">{{ isWeapp ? '微信快捷登录' : '账号登录' }}</text>
     </view>
 
     <view class="form-card">
       <text v-if="hasRedirect" class="resume-tip">登录后回到刚才的页面</text>
-      <nut-input v-model="username" placeholder="用户名" clearable />
-      <nut-input v-model="password" type="password" placeholder="密码" clearable />
-      <nut-button type="primary" block class="primary-btn" :loading="loading" @click="onLogin">
-        登录
-      </nut-button>
-      <view class="link-row">
-        <text class="link" @tap="goRegister">没有账号？去注册</text>
-      </view>
+      <template v-if="isWeapp">
+        <nut-button
+          type="primary"
+          block
+          class="primary-btn"
+          :loading="wechatLoading"
+          :disabled="passwordLoading"
+          @click="onWechatLogin"
+        >
+          微信一键登录
+        </nut-button>
+        <view class="link-row">
+          <text class="link" @tap="showPasswordForm = !showPasswordForm">
+            {{ showPasswordForm ? '收起账号密码登录' : '账号密码登录' }}
+          </text>
+        </view>
+      </template>
+      <template v-if="!isWeapp || showPasswordForm">
+        <nut-input v-model="username" placeholder="用户名" clearable />
+        <nut-input v-model="password" type="password" placeholder="密码" clearable />
+        <nut-button
+          :type="isWeapp ? 'default' : 'primary'"
+          block
+          class="primary-btn"
+          :loading="passwordLoading"
+          :disabled="wechatLoading"
+          @click="onLogin"
+        >
+          登录
+        </nut-button>
+        <view class="link-row">
+          <text class="link" @tap="goRegister">没有账号？去注册</text>
+        </view>
+      </template>
       <view class="link-row">
         <text class="link muted" @tap="skipAuth">先逛逛，稍后再登录</text>
       </view>
@@ -31,32 +57,57 @@ import { useUserStore } from '@/store/user'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { enterAfterAuth, skipAuth } from '@/utils/auth'
 import { LOGIN_REDIRECT_KEY } from '@/constants/guestAccess'
-import { showToast } from '@/utils/platform'
+import { getPlatform, showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '登录' })
 
 const { themeClass } = useThemeClass()
 const userStore = useUserStore()
+const isWeapp = getPlatform() === 'weapp'
 const username = ref('')
 const password = ref('')
-const loading = ref(false)
+const passwordLoading = ref(false)
+const wechatLoading = ref(false)
+const showPasswordForm = ref(false)
 const hasRedirect = ref(!!Taro.getStorageSync(LOGIN_REDIRECT_KEY))
+
+async function finishLogin(run: () => Promise<unknown>) {
+  await run()
+  await bootstrapApp(true)
+  enterAfterAuth()
+}
 
 async function onLogin() {
   if (!username.value.trim() || !password.value) {
     showToast('请输入用户名和密码', 'error')
     return
   }
-  loading.value = true
+  passwordLoading.value = true
   try {
-    await userStore.login(username.value.trim(), password.value)
-    await bootstrapApp(true)
-    enterAfterAuth()
+    await finishLogin(() => userStore.login(username.value.trim(), password.value))
   } catch (e) {
     showToast(e instanceof Error ? e.message : '登录失败', 'error')
   } finally {
-    loading.value = false
+    passwordLoading.value = false
+  }
+}
+
+async function onWechatLogin() {
+  if (!isWeapp) return
+  wechatLoading.value = true
+  try {
+    const loginRes = await Taro.login()
+    const code = loginRes?.code?.trim()
+    if (!code) {
+      showToast('微信登录失败，请重试', 'error')
+      return
+    }
+    await finishLogin(() => userStore.loginWithWechat(code))
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : '微信登录失败', 'error')
+  } finally {
+    wechatLoading.value = false
   }
 }
 
