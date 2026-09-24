@@ -25,9 +25,6 @@ export interface XingceOverview {
   papers: XingcePaperRow[]
   practiceableTotal: number
   positionTotal: number
-  dataDir: string
-  dataDirReady: boolean
-  allowedPaperTypes: string[]
 }
 
 export interface XingceImportStats {
@@ -42,16 +39,12 @@ export interface XingceImportStats {
 
 export const fetchXingceOverview = () => getData<XingceOverview>(http.get('/admin/xingce/overview'))
 
-export const importXingceJson = (file: File, paperType?: string) => {
+export const importXingceJson = (file: File) => {
   const form = new FormData()
   form.append('file', file)
-  const query = paperType ? `?paperType=${encodeURIComponent(paperType)}` : ''
   return getData<XingceImportStats>(
-    http.post(`/admin/xingce/import${query}`, form, {
+    http.post('/admin/xingce/import', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   )
 }
-
-export const importXingceBundled = (papers?: string[]) =>
-  getData<XingceImportStats>(http.post('/admin/xingce/import-bundled', { papers: papers || null }))

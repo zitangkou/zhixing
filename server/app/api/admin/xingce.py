@@ -3,13 +3,9 @@
 from app.api.admin._deps import *  # noqa: F401,F403
 
 from app.services import xingce_quiz_service as xingce
-from scripts.import_xingce_2025 import DATA_DIR, PAPER_FILES, import_uploaded_paper, run_import, stats_dict
+from scripts.import_xingce_2025 import PAPER_FILES, import_uploaded_paper
 
 router = APIRouter(prefix="/xingce", tags=["行测真题"])
-
-
-class XingceBundledImportBody(BaseModel):
-    papers: list[str] | None = None
 
 
 def _paper_type_from(raw: str | None, paper: dict) -> str:
@@ -23,11 +19,7 @@ def xingce_overview(
     db: Session = Depends(get_db),
 ):
     """学员端会看到的模块计数，以及库里每一卷的题位。"""
-    data = xingce.admin_overview(db)
-    data["dataDir"] = str(DATA_DIR)
-    data["dataDirReady"] = DATA_DIR.is_dir() and any(DATA_DIR.glob("*.json"))
-    data["allowedPaperTypes"] = list(PAPER_FILES.keys())
-    return ApiResponse.ok(data)
+    return ApiResponse.ok(xingce.admin_overview(db))
 
 
 @router.post("/import")
@@ -63,27 +55,3 @@ async def xingce_import_json(
         db.rollback()
         return ApiResponse.fail(f"导入失败：{exc}", code=400)
     return ApiResponse.ok(stats, message="导入完成")
-
-
-@router.post("/import-bundled")
-def xingce_import_bundled(
-    body: XingceBundledImportBody | None = None,
-    _admin=Depends(require_permission("xingce:write")),
-):
-    """若部署机上有 xingce-structured-data/2025/xingce/papers，按脚本导入。"""
-    if not DATA_DIR.is_dir() or not any(DATA_DIR.glob("*.json")):
-        return ApiResponse.fail(
-            f"服务器上没有题库目录 {DATA_DIR}。请改用 JSON 上传，或把卷文件放到该路径后重试。",
-            code=400,
-        )
-    selected = None
-    if body and body.papers:
-        unknown = [name for name in body.papers if name not in PAPER_FILES]
-        if unknown:
-            return ApiResponse.fail("未知卷种：" + "、".join(unknown), code=400)
-        selected = list(body.papers)
-    stats = run_import(selected)
-    payload = stats_dict(stats)
-    if stats.errors:
-        return ApiResponse.fail("导入未完成", code=400, data=payload)
-    return ApiResponse.ok(payload, message="导入完成")
