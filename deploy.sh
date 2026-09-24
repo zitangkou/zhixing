@@ -74,6 +74,16 @@ if [[ "${WECHAT_ENABLED,,}" == "true" ]] && [[ ! "$WECHAT_TOKEN" =~ ^[A-Za-z0-9]
 fi
 
 # ---------- 2/5 构建并启动 ----------
+# 2G 云主机禁止在本机 --build（会 OOM / SSH 假死）。日常更新用开发机：
+#   bash scripts/deploy-from-local.sh
+MEM_KB="$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 9999999)"
+if (( MEM_KB < 3000000 )) && [[ "${ALLOW_SERVER_BUILD:-}" != "1" ]]; then
+  echo "当前机器内存不足 3G，已拒绝 docker compose --build。"
+  echo "请在开发机执行：bash scripts/deploy-from-local.sh"
+  echo "仅排障需要服务器构建时：ALLOW_SERVER_BUILD=1 bash deploy.sh"
+  exit 1
+fi
+
 echo "[2/5] 构建并启动容器（http://127.0.0.1:${HTTP_PORT}）"
 docker compose up -d --build
 
@@ -161,6 +171,6 @@ echo ""
 echo "常用命令："
 echo "  日志:    docker compose logs -f zhixing-gongkao"
 echo "  重启:    docker compose restart"
-echo "  更新:    bash scripts/deploy-update.sh"
+echo "  更新:    开发机 bash scripts/deploy-from-local.sh（不要在 2G 服务器 --build）"
 echo "  备份:    bash deploy/backup.sh（每日定时：bash deploy/install-backup.sh）"
 echo "  停止:    docker compose down"

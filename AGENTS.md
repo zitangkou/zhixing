@@ -30,6 +30,12 @@ python3 -m pytest tests/test_api_smoke.py -q   # 单个文件
 cd server/admin-web && npm install
 npm run dev          # http://localhost:5173/manage/，/admin 代理到后端
 npm run build        # vue-tsc -b && vite build → 产出 server/admin-dist
+
+# ── 生产部署（≈2G 云主机 · 默认轻量）──
+# 禁止在服务器上 docker compose --build（会 OOM / SSH 假死）
+bash scripts/deploy-from-local.sh
+# 文档：docs/release/cloud-server-deploy-guide.md
+# 交接：docs/release/agent-handoff-20260924.md
 ```
 
 **注意**：H5 构建（esbuild）不做类型检查——只有 admin-web 的 `build` 跑 `vue-tsc`；前端类型问题靠 `npm run lint` 兜底。
@@ -66,5 +72,6 @@ npm run build        # vue-tsc -b && vite build → 产出 server/admin-dist
 
 ### 管理与业务文档
 
-- `FEATURES.md` — 全量功能清单（4 tab、Today 驾驶舱、52 页路由、后端域）；`ARCHITECTURE.md` — 架构、模块边界、关键业务流；`PROJECT_PROMPT.md` — 前端开发规范。
+- `FEATURES.md` — 全量功能清单；`ARCHITECTURE.md` — 架构与业务流；`PROJECT_PROMPT.md` — 前端开发规范。
+- **部署**：日常用 `scripts/deploy-from-local.sh`；见 `docs/release/cloud-server-deploy-guide.md`、`docs/release/agent-handoff-20260924.md`。生产目录常为 `/opt/zhixing-gongkao`（可能无 `.git`），版本看 `.deployed-sha`。
 - 环境变量默认值见 `ARCHITECTURE.md` §7.2：H5 端口 `10087`、后端 `8001`、`CORS_ORIGINS` 默认 `http://localhost:10087`。
