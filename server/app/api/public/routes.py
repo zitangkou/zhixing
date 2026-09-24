@@ -17,6 +17,7 @@ from app.api.public.practice import router as practice_router
 from app.api.public.product import router as product_router
 from app.api.public.rmrb import router as rmrb_router
 from app.api.public.wechat_official import router as wechat_official_router
+from app.api.public.xingce import router as xingce_router
 from app.api.public.ziliao import router as ziliao_router
 
 router = APIRouter(
@@ -38,6 +39,7 @@ router.include_router(rmrb_router)
 router.include_router(wechat_official_router)
 router.include_router(corpus_router)
 router.include_router(events_router)
+router.include_router(xingce_router)
 router.include_router(ziliao_router)
 router.include_router(countdown_router)
 router.include_router(data_router)

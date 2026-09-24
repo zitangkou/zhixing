@@ -32,6 +32,12 @@
         </view>
         <text>时政练习</text>
       </view>
+      <view class="action-item" @tap="go('/pages/question/xingce-hub')">
+        <view class="action-icon-wrap">
+          <Order :color="brandColor" size="20" />
+        </view>
+        <text>行测真题</text>
+      </view>
       <view class="action-item" @tap="go('/pages/rmrb/article-list')">
         <view class="action-icon-wrap">
           <CheckChecked :color="brandColor" size="20" />
