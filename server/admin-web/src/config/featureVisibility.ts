@@ -10,6 +10,7 @@ const VISIBLE_PATHS = new Set([
   '/rmrb/argument-methods',
   '/rmrb/sentence-types',
   '/users',
+  '/feedbacks',
   '/settings',
 ])
 

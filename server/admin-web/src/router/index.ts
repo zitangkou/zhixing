@@ -207,6 +207,12 @@ const router = createRouter({
           meta: { title: '时事事件', permissions: ['events:read'] },
         },
         {
+          path: 'feedbacks',
+          name: 'feedbacks',
+          component: () => import('@/views/feedbacks/List.vue'),
+          meta: { title: '反馈建议', permissions: ['feedback:read'] },
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/settings/Index.vue'),

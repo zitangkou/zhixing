@@ -25,6 +25,8 @@ PERMISSIONS = {
     "corpus:write": "管理语料本",
     "events:read": "查看时事事件",
     "events:write": "管理时事事件",
+    "feedback:read": "查看学员反馈",
+    "feedback:write": "处理学员反馈",
     "content_ops:read": "查看账号运营内容",
     "content_ops:write": "管理账号运营内容",
 }
