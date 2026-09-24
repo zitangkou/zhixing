@@ -4,14 +4,15 @@
       <el-upload :show-file-list="false" accept=".json" :http-request="onUpload" :disabled="importing">
         <el-button type="primary" :loading="importing">上传 JSON</el-button>
       </el-upload>
-      <el-select v-model="filter" style="width: 180px">
+      <span class="filter-label">年份</span>
+      <el-select v-model="yearFilter" style="width: 120px">
         <el-option label="全部" value="" />
-        <el-option-group label="年份">
-          <el-option v-for="year in yearOptions" :key="year" :label="String(year)" :value="`y:${year}`" />
-        </el-option-group>
-        <el-option-group label="卷种">
-          <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="`t:${item.value}`" />
-        </el-option-group>
+        <el-option v-for="year in yearOptions" :key="year" :label="String(year)" :value="year" />
+      </el-select>
+      <span class="filter-label">卷种</span>
+      <el-select v-model="typeFilter" style="width: 120px">
+        <el-option label="全部" value="" />
+        <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
     </div>
 
@@ -50,7 +51,8 @@ const TYPE_OPTIONS = [
 
 const { loading, loadError, runLoad } = useAdminList()
 const papers = ref<XingcePaperRow[]>([])
-const filter = ref('')
+const yearFilter = ref<number | ''>('')
+const typeFilter = ref('')
 const importing = ref(false)
 
 const yearOptions = computed(() => {
@@ -61,19 +63,13 @@ const yearOptions = computed(() => {
 
 const typeOptions = TYPE_OPTIONS
 
-const visiblePapers = computed(() => {
-  const value = filter.value
-  if (!value) return papers.value
-  if (value.startsWith('y:')) {
-    const year = Number(value.slice(2))
-    return papers.value.filter((paper) => paper.year === year)
-  }
-  if (value.startsWith('t:')) {
-    const paperType = value.slice(2)
-    return papers.value.filter((paper) => paper.paperType === paperType)
-  }
-  return papers.value
-})
+const visiblePapers = computed(() =>
+  papers.value.filter((paper) => {
+    if (yearFilter.value !== '' && paper.year !== yearFilter.value) return false
+    if (typeFilter.value && paper.paperType !== typeFilter.value) return false
+    return true
+  }),
+)
 
 async function load() {
   await runLoad(async () => {
@@ -106,5 +102,9 @@ onMounted(load)
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+}
+.filter-label {
+  color: var(--el-text-color-regular);
+  font-size: 14px;
 }
 </style>
