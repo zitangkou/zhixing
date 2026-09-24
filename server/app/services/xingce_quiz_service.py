@@ -220,6 +220,57 @@ def _unique_practiceable(rows) -> list[tuple[QuestionItem, QuestionVersion]]:
     return out
 
 
+def admin_overview(db: Session) -> dict:
+    """管理端：学员目录（可练题）+ 已入库试卷（含未达可练条件的题位）。"""
+    snap = catalog(db)
+    papers = (
+        db.query(ExamPaperUnified)
+        .filter(ExamPaperUnified.exam_kind == "国考")
+        .order_by(ExamPaperUnified.exam_year.desc(), ExamPaperUnified.paper_type.asc())
+        .all()
+    )
+    paper_rows: list[dict] = []
+    for paper in papers:
+        positions = (
+            db.query(PaperQuestionPosition)
+            .filter(PaperQuestionPosition.paper_id == paper.id)
+            .all()
+        )
+        practiceable = 0
+        module_counts: dict[str, int] = {}
+        for pos in positions:
+            item = db.get(QuestionItem, pos.question_id)
+            version = db.get(QuestionVersion, item.current_version_id) if item and item.current_version_id else None
+            name = (item.module if item and item.module else "未分类")
+            module_counts[name] = module_counts.get(name, 0) + 1
+            if item and version and _is_practiceable(item, version, _flag_names(pos.quality_flags_json)):
+                practiceable += 1
+        paper_rows.append(
+            {
+                "id": paper.id,
+                "year": paper.exam_year,
+                "paperType": paper.paper_type,
+                "title": paper.title or _paper_display_title(paper.exam_year, paper.paper_type),
+                "positionCount": len(positions),
+                "practiceableCount": practiceable,
+                "visibleOnHub": paper.exam_year in PRACTICE_YEARS and practiceable > 0,
+                "modules": [
+                    {"name": name, "count": count}
+                    for name, count in sorted(module_counts.items(), key=lambda kv: kv[0])
+                ],
+            }
+        )
+    return {
+        "modules": snap["modules"],
+        "years": snap["years"],
+        "paperTypes": snap["paperTypes"],
+        "studentPapers": snap["papers"],
+        "papers": paper_rows,
+        "practiceableTotal": sum(row["practiceableCount"] for row in paper_rows),
+        "positionTotal": sum(row["positionCount"] for row in paper_rows),
+    }
+
+
 def catalog(db: Session, year: int | None = None, paper_type: str | None = None) -> dict:
     rows = _candidate_rows(db, None, year, paper_type)
     years: set[int] = set()

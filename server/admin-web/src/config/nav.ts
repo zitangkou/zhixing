@@ -96,6 +96,7 @@ export const NAV_GROUPS: NavGroup[] = [
     children: [
       { path: '/users', title: '用户管理', icon: User, permissions: ['user:read'] },
       { path: '/feedbacks', title: '反馈建议', icon: ChatDotRound, permissions: ['feedback:read'] },
+      { path: '/xingce', title: '行测管理', icon: Tickets, permissions: ['xingce:read'] },
       { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read', 'admin:read'] },
     ],
   },
@@ -116,6 +117,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/categories': '分类管理',
   '/users': '用户管理',
   '/feedbacks': '反馈建议',
+  '/xingce': '行测管理',
   '/knowledge': '知识框架',
   '/plan': '学习计划',
   '/exam': '试卷题库',

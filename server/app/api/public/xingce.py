@@ -19,6 +19,7 @@ def xingce_catalog(
     paperType: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    """行测目录。库为空时仍返回 200：modules 为固定六模块且 count 为 0，papers 为 []。"""
     paper_type = (paperType or "").strip() or None
     return ApiResponse.ok(xingce.catalog(db, year=year, paper_type=paper_type))
 

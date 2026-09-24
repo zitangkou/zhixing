@@ -207,6 +207,12 @@ const router = createRouter({
           meta: { title: '时事事件', permissions: ['events:read'] },
         },
         {
+          path: 'xingce',
+          name: 'xingce',
+          component: () => import('@/views/xingce/Index.vue'),
+          meta: { title: '行测管理', permissions: ['xingce:read'] },
+        },
+        {
           path: 'feedbacks',
           name: 'feedbacks',
           component: () => import('@/views/feedbacks/List.vue'),

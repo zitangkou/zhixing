@@ -11,6 +11,7 @@ const VISIBLE_PATHS = new Set([
   '/rmrb/sentence-types',
   '/users',
   '/feedbacks',
+  '/xingce',
   '/settings',
 ])
 
