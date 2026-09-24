@@ -434,26 +434,41 @@ def sync_material_links(
     material_map: dict[str, Material],
     stats: ImportStats,
 ) -> None:
-    """同步题目-材料关联（先删后建，保证幂等）。"""
+    """同步题目-材料关联（先删后建，保证幂等）。
+
+    表上唯一键是 (question_id, material_id)，与 role / sort_order 无关。
+    2024 等卷里，文章阅读或多段材料被收成同一材料后，material_ids 会把同一个
+    来源 id 列两次（sort 0 与 1，role 都是 primary）；不同来源 id 也可能解析到
+    同一材料行。按材料主键去重，只保留第一次出现，避免一次 INSERT 撞唯一约束。
+    """
     if not material_ids:
         return
 
     # 删除旧关联
     db.query(QuestionMaterialLink).filter(QuestionMaterialLink.question_id == item.id).delete()
 
-    for idx, mid in enumerate(material_ids):
+    seen_material_ids: set[str] = set()
+    order = 0
+    for mid in material_ids:
         mat = material_map.get(mid)
         if mat is None:
             stats.warnings.append(f"material_id={mid} not found for question {item.id}")
             continue
+        if mat.id in seen_material_ids:
+            stats.warnings.append(
+                f"duplicate material link skipped: question={item.id} material={mat.id} source={mid}"
+            )
+            continue
+        seen_material_ids.add(mat.id)
         link = QuestionMaterialLink(
             question_id=item.id,
             material_id=mat.id,
             role="primary",
-            sort_order=idx,
+            sort_order=order,
         )
         db.add(link)
         stats.new_material_links += 1
+        order += 1
     db.flush()
 
 
