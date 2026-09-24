@@ -10,7 +10,10 @@ const VISIBLE_PATHS = new Set([
   '/rmrb/argument-methods',
   '/rmrb/sentence-types',
   '/users',
+  '/feedbacks',
+  '/xingce',
   '/settings',
+  '/roles',
 ])
 
 export function isAdminNavVisible(path: string): boolean {

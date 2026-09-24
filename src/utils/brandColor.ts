@@ -12,19 +12,19 @@ export function useBrandColor() {
 }
 
 /**
- * 页面根节点主题 class。
- * 小程序无 document，setDomTheme 是 no-op，需靠根 view 绑 class 让 CSS 变量跟随：
- * 默认红（DEFAULT_BRAND_THEME）无 class；暗色加 theme-dark，非红主题加 theme-<id>。
- * H5 端与 documentElement 上的 class 冗余但同值，无害。
+ * 页面根节点主题 class。调用方一律 `const { themeClass } = useThemeClass()`。
+ * 小程序没有 documentElement 上的 class，暗色必须落在根 view 上：
+ * 默认红无额外 class；暗色加 theme-dark，非红主题加 theme-<id>。
  */
 export function useThemeClass() {
   const { darkMode, brandTheme } = storeToRefs(useSettingsStore())
-  return computed(() => {
+  const themeClass = computed(() => {
     const cls: string[] = []
     if (darkMode.value) cls.push('theme-dark')
     if (brandTheme.value !== DEFAULT_BRAND_THEME) cls.push(`theme-${brandTheme.value}`)
     return cls.join(' ')
   })
+  return { themeClass }
 }
 
 /** hex 合成 rgba 字符串（供 swiper 指示点等只吃字符串的原生属性） */

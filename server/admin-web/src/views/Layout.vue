@@ -122,6 +122,9 @@ const crumbs = computed(() => {
     return title ? ['时政考点', title] : []
   }
   const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
+  if (['/users', '/feedbacks', '/xingce', '/settings', '/roles'].includes(path)) {
+    return title ? ['系统', title] : ['系统']
+  }
   return title ? [title] : []
 })
 

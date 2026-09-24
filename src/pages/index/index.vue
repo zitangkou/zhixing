@@ -32,6 +32,12 @@
         </view>
         <text>时政练习</text>
       </view>
+      <view class="action-item" @tap="go('/pages/question/xingce-hub')">
+        <view class="action-icon-wrap">
+          <Order :color="brandColor" size="20" />
+        </view>
+        <text>行测真题</text>
+      </view>
       <view class="action-item" @tap="go('/pages/rmrb/article-list')">
         <view class="action-icon-wrap">
           <CheckChecked :color="brandColor" size="20" />
@@ -108,7 +114,7 @@ import { useArticleStore } from '@/store/article'
 import type { Article, RmrbArticle } from '@/types'
 import { rmrbToCard } from '@/utils/rmrbCard'
 import { showToast } from '@/utils/platform'
-import { isLoggedIn } from '@/utils/auth'
+import { bumpAuthView, isLoggedIn } from '@/utils/auth'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
@@ -203,7 +209,11 @@ onMounted(async () => {
 })
 
 useDidShow(async () => {
+  bumpAuthView()
   if (!pageReady.value) return
+  if (isLoggedIn() && !userStore.userInfo?.id) {
+    await userStore.bootstrap()
+  }
   await refreshOnShow()
 })
 

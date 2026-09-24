@@ -120,9 +120,11 @@ export type {
   DataImportResult,
 }
 export type { RankType } from '@/constants'
+import Taro from '@tarojs/taro'
 import { mockService } from '@/mock/service'
 import { clearToken, getToken } from '@/utils/auth'
 import { API_BASE } from '@/utils/media'
+import { getPlatform } from '@/utils/platform'
 import { CURRENT_PRODUCT_KEY } from '@/constants/product'
 
 export { mockService } from '@/mock/service'
@@ -235,6 +237,29 @@ export async function request<T>(
     headers.Authorization = `Bearer ${token}`
   }
   try {
+    if (getPlatform() === 'weapp') {
+      const res = await Taro.request<ApiRes<T>>({
+        url: `${BASE_URL}${url}`,
+        method: (options?.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'DELETE',
+        header: headers,
+        data: options?.data,
+      })
+      if (res.statusCode === 401 && needAuth) {
+        clearToken()
+        return { code: 401, data: null as T, message: '登录已过期，请重新登录' }
+      }
+      if (res.statusCode === 403 && needAuth) {
+        return { code: 403, data: null as T, message: '未登录或登录已失效，请重新登录' }
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return {
+          code: res.statusCode,
+          data: null as T,
+          message: res.data?.message || `HTTP ${res.statusCode}`,
+        }
+      }
+      return res.data
+    }
     const res = await fetch(`${BASE_URL}${url}`, {
       method: options?.method || 'GET',
       headers,

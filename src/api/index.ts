@@ -8,6 +8,7 @@ import { apiPersonal } from './domains/personal'
 import { apiPlan } from './domains/plan'
 import { apiProduct } from './domains/product'
 import { apiRmrb } from './domains/rmrb'
+import { apiXingce } from './domains/xingce'
 import { apiZiliao } from './domains/ziliao'
 export { isMock, initUserFromMock } from './_shared'
 export type {
@@ -33,4 +34,5 @@ export const api = {
   ...apiRmrb,
   ...apiPersonal,
   ...apiZiliao,
+  ...apiXingce,
 }

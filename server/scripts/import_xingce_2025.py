@@ -509,8 +509,20 @@ def import_paper(
     batch: ImportBatch,
     stats: ImportStats,
 ) -> ExamPaperUnified:
-    """导入单份试卷（全量 upsert，幂等）。"""
+    """从磁盘 JSON 导入单份试卷（全量 upsert，幂等）。"""
     paper_data = json.loads(json_path.read_text(encoding="utf-8"))
+    return import_paper_data(db, paper_type, paper_data, batch, stats, json_path.name)
+
+
+def import_paper_data(
+    db: Session,
+    paper_type: str,
+    paper_data: dict,
+    batch: ImportBatch,
+    stats: ImportStats,
+    source_name: str,
+) -> ExamPaperUnified:
+    """导入已解析的试卷 JSON（全量 upsert，幂等）。管理端上传与脚本共用。"""
     year = paper_data.get("exam_year", 2025)
     title = paper_data.get("exam_name", "")
     schema_version = str(paper_data.get("schema_version", ""))
@@ -532,7 +544,7 @@ def import_paper(
             exam_kind="国考",
             paper_type=paper_type,
             title=title,
-            source_document=str(json_path.name),
+            source_document=source_name,
             schema_version=schema_version,
             total_questions=total_questions,
             import_batch_id=batch.id,
@@ -541,7 +553,7 @@ def import_paper(
         db.flush()
     else:
         paper.title = title
-        paper.source_document = str(json_path.name)
+        paper.source_document = source_name
         paper.schema_version = schema_version
         paper.total_questions = total_questions
         paper.import_batch_id = batch.id
@@ -580,6 +592,8 @@ def import_paper(
             number = qdata.get("number", 0)
             source_numbers.add(number)
 
+            if not qdata.get("section") and sec_name:
+                qdata = {**qdata, "section": sec_name}
             stem = qdata.get("stem", "") or ""
             options = qdata.get("options")
             items = qdata.get("items")
@@ -635,6 +649,55 @@ def import_paper(
     stats.per_paper[paper_type] = paper_stats
     db.flush()
     return paper
+
+
+def stats_dict(stats: ImportStats) -> dict:
+    return {
+        "newQuestions": stats.new_questions,
+        "reusedQuestions": stats.reused_questions,
+        "newVersions": stats.new_versions,
+        "newPositions": stats.new_positions,
+        "updatedPositions": stats.updated_positions,
+        "reusedPositions": stats.reused_positions,
+        "errors": stats.errors,
+        "warnings": stats.warnings,
+        "perPaper": stats.per_paper,
+    }
+
+
+def import_uploaded_paper(db: Session, paper_type: str, paper_data: dict, source_name: str) -> dict:
+    """把一份已解析的试卷 JSON 写入当前会话并提交。"""
+    if paper_type not in PAPER_FILES:
+        raise ValueError("paperType 须为 " + " / ".join(PAPER_FILES))
+    if not isinstance(paper_data, dict):
+        raise ValueError("试卷 JSON 须为对象")
+    sections = paper_data.get("sections")
+    if not isinstance(sections, list) or not sections:
+        raise ValueError("试卷 JSON 需要非空 sections")
+    year = paper_data.get("exam_year", 2025)
+    if not isinstance(year, int) or year < 2000 or year > 2100:
+        raise ValueError("exam_year 须为 2000–2100 的整数；学员端只展示 2023–2026")
+    stats = ImportStats()
+    raw = json.dumps(paper_data, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    batch = ImportBatch(
+        source_path=(source_name or "upload.json")[:512],
+        source_hash=hashlib.sha256(raw).hexdigest(),
+        schema_version=str(paper_data.get("schema_version") or "2"),
+        parsed_at=now(),
+        status="in_progress",
+    )
+    db.add(batch)
+    db.flush()
+    import_paper_data(db, paper_type, paper_data, batch, stats, (source_name or "upload.json")[:512])
+    batch.new_count = stats.new_questions + stats.new_positions + stats.new_materials
+    batch.updated_count = stats.updated_questions + stats.updated_positions
+    batch.reused_count = stats.reused_questions + stats.reused_positions + stats.reused_materials
+    batch.error_count = len(stats.errors)
+    batch.warnings_json = stats.warnings or None
+    batch.status = "failed" if stats.errors else "completed"
+    batch.detail_json = stats_dict(stats)
+    db.commit()
+    return stats_dict(stats)
 
 
 def run_import(paper_types: list[str] | None = None) -> ImportStats:

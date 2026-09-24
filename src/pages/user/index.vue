@@ -210,6 +210,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import { useDidShow } from '@tarojs/taro'
 import {
   Avatar as NutAvatar,
   Cell as NutCell,
@@ -248,7 +249,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useUserStore } from '@/store/user'
 import { resetBootstrap } from '@/utils/bootstrap'
 import { resolveMediaUrl } from '@/utils/media'
-import { isLoggedIn, requireLogin } from '@/utils/auth'
+import { bumpAuthView, isLoggedIn, requireLogin } from '@/utils/auth'
 import { navigateTo, showConfirm } from '@/utils/platform'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
@@ -258,6 +259,14 @@ const { themeClass } = useThemeClass()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 const loggedIn = computed(() => isLoggedIn() && !!userStore.userInfo?.id)
+
+useDidShow(() => {
+  bumpAuthView()
+  if (isLoggedIn() && !userStore.userInfo?.id) {
+    void userStore.bootstrap()
+  }
+})
+
 const avatarUrl = computed(() => resolveMediaUrl(userStore.userInfo?.avatar))
 const { brandColor: brandIcon } = useBrandColor()
 const darkMode = computed({

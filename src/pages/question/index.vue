@@ -7,6 +7,21 @@
 
     <view class="mode-panel">
       <view class="hub-section">
+        <text class="hub-title">行测真题</text>
+        <text class="hub-sub">按题型刷国考真题</text>
+        <view class="entry-list">
+          <view class="entry-row" @tap="goPage('/pages/question/xingce-hub')">
+            <view class="entry-icon"><Order :color="brandColor" size="18" /></view>
+            <view class="entry-text">
+              <text class="entry-name">题型入口</text>
+              <text class="entry-desc">政治理论 / 常识 / 言语 / 数量 / 判断 / 资料</text>
+            </view>
+            <text class="entry-arrow">›</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="hub-section">
         <text class="hub-title">时政刷题</text>
         <text class="hub-sub">按文章练，或随机抽题</text>
         <view class="mode-grid">

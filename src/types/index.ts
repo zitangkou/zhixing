@@ -71,6 +71,28 @@ export interface Question {
   correctAnswer: string | string[]
   analysis: string
   sourceSentence: string
+  module?: string
+  subtype?: string
+}
+
+export interface XingceCatalogModule {
+  key: string
+  name: string
+  count: number
+}
+
+export interface XingceCatalogPaper {
+  year: number
+  paperType: string
+  title: string
+  count: number
+}
+
+export interface XingceCatalog {
+  modules: XingceCatalogModule[]
+  years: number[]
+  paperTypes: string[]
+  papers: XingceCatalogPaper[]
 }
 
 export interface StudyRecord {

@@ -22,8 +22,11 @@ const GUEST_EXACT = new Set([
 ])
 
 export function normalizePagePath(url: string): string {
-  const path = (url || '').split('?')[0]
-  return path.startsWith('/') ? path : `/${path}`
+  let path = (url || '').split('?')[0].trim()
+  if (!path || path === '/') return ''
+  if (!path.startsWith('/')) path = `/${path}`
+  if (path.length > 1) path = path.replace(/\/+$/, '')
+  return path === '/' ? '' : path
 }
 
 /** 当前路径是否允许未登录访问 */

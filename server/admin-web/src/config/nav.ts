@@ -7,6 +7,7 @@ import {
   Folder,
   Notebook,
   Reading,
+  ChatDotRound,
   Setting,
   Tickets,
   TrendCharts,
@@ -94,7 +95,10 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Setting,
     children: [
       { path: '/users', title: '用户管理', icon: User, permissions: ['user:read'] },
-      { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read', 'admin:read'] },
+      { path: '/feedbacks', title: '反馈建议', icon: ChatDotRound, permissions: ['feedback:read'] },
+      { path: '/xingce', title: '行测管理', icon: Tickets, permissions: ['xingce:read'] },
+      { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read'] },
+      { path: '/roles', title: '角色与权限', icon: User, permissions: ['admin:read'] },
     ],
   },
 ]
@@ -113,6 +117,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/theory-learning': '时政学习入口',
   '/categories': '分类管理',
   '/users': '用户管理',
+  '/feedbacks': '反馈建议',
+  '/xingce': '行测管理',
   '/knowledge': '知识框架',
   '/plan': '学习计划',
   '/exam': '试卷题库',
@@ -133,6 +139,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/corpus': '语料本',
   '/events': '时事事件',
   '/settings': '系统设置',
+  '/roles': '角色与权限',
 }
 
 export function canAccess(userPerms: string[], required: string[]): boolean {

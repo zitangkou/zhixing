@@ -1,13 +1,16 @@
+import { ref } from 'vue'
 import Taro from '@tarojs/taro'
 import { LOGIN_REDIRECT_KEY, normalizePagePath } from '@/constants/guestAccess'
 import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
-
-const TAB_PATHS = new Set([
-  '/pages/index/index',
-  '/pages/user/index',
-])
+import { resolveAfterAuthTarget } from '@/utils/postAuthRoute'
 
 const TOKEN_KEY = 'zhixing_token'
+
+/**
+ * Tab 页在后台时，登录写入的 userInfo 可能没画到界面上。
+ * 这个计数让 isLoggedIn() 的 computed 在回到页面时重新求值。
+ */
+const authEpoch = ref(0)
 
 export function getToken(): string {
   return Taro.getStorageSync(TOKEN_KEY) || ''
@@ -15,14 +18,20 @@ export function getToken(): string {
 
 export function setToken(token: string): void {
   Taro.setStorageSync(TOKEN_KEY, token)
+  authEpoch.value += 1
 }
 
 export function clearToken(): void {
   Taro.removeStorageSync(TOKEN_KEY)
+  authEpoch.value += 1
+}
+
+export function bumpAuthView(): void {
+  authEpoch.value += 1
 }
 
 export function isLoggedIn(): boolean {
-  return !!getToken()
+  return authEpoch.value >= 0 && !!getToken()
 }
 
 export function isAuthPageRoute(route?: string): boolean {
@@ -30,7 +39,11 @@ export function isAuthPageRoute(route?: string): boolean {
 }
 
 export function rememberLoginRedirect(url?: string): void {
-  if (url) Taro.setStorageSync(LOGIN_REDIRECT_KEY, url)
+  const raw = (url || '').trim()
+  if (!raw) return
+  const path = normalizePagePath(raw)
+  if (!path.startsWith('/pages/') || path.includes('/pages/auth/')) return
+  Taro.setStorageSync(LOGIN_REDIRECT_KEY, resolveAfterAuthTarget(raw).url)
 }
 
 export function consumeLoginRedirect(): string {
@@ -44,27 +57,23 @@ export function requireLogin(redirectUrl?: string): boolean {
   if (isLoggedIn()) return true
   const pages = Taro.getCurrentPages()
   const current = pages[pages.length - 1]
-  const fallback = current?.route ? `/${current.route}` : PRODUCT_HOME_ROUTE
+  const fallback = normalizePagePath(current?.route || '') || PRODUCT_HOME_ROUTE
   rememberLoginRedirect(redirectUrl || fallback)
   if (isAuthPageRoute(current?.route)) return false
   Taro.navigateTo({ url: '/pages/auth/login' })
   return false
 }
 
-/** 登录成功后回到原功能（含查询串），否则进首页 */
+/** 登录成功后回到原功能（含查询串），否则进首页。tab 页走 switchTab。 */
 export function enterAfterAuth(): void {
-  const redirect = consumeLoginRedirect()
-  const path = normalizePagePath(redirect)
-  if (TAB_PATHS.has(path)) {
-    Taro.switchTab({ url: path })
+  const target = resolveAfterAuthTarget(consumeLoginRedirect())
+  if (target.method === 'switchTab') {
+    void Taro.switchTab({ url: target.url })
     return
   }
-  if (path && !path.includes('/pages/auth/')) {
-    const url = redirect.startsWith('/') ? redirect : `/${redirect}`
-    Taro.redirectTo({ url })
-    return
-  }
-  Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+  void Promise.resolve(Taro.redirectTo({ url: target.url })).catch(() => {
+    void Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+  })
 }
 
 export function skipAuth(): void {

@@ -1,3 +1,4 @@
+import '@/utils/weappScopeClass'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createPersistedState } from 'pinia-plugin-persistedstate'
