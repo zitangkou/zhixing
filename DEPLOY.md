@@ -1,6 +1,7 @@
 # 知行公考 · 云服务器一键部署
 
-> 适用：一台独立云服务器（建议 Ubuntu 22.04 / Debian 12，2核4G+）部署整套 H5 + FastAPI + 管理后台。
+> 适用：一台独立云服务器（建议 Ubuntu 22.04 / Debian 12，**2核4G+**）部署整套 H5 + FastAPI + 管理后台。  
+> **2G 内存可部署，但 Docker 构建前必须加 swap**，步骤与注意事项见 [docs/release/cloud-server-deploy-guide.md](docs/release/cloud-server-deploy-guide.md)。
 > 当前默认：备案前由项目容器直接监听公网 80；备案和证书完成后切换为宿主机 Nginx HTTPS 网关。
 > 代码是单主线学员端（`src/`），Docker 只构建一份 H5 + 管理后台，不再部署 `/theory/`、`/shenlun/` 垂直站。服务器目录与 Compose 服务名仍用 `zhixing-gongkao`，以免已有数据卷挂错。
 > 更新：2026-09-09
@@ -176,6 +177,7 @@ docker compose exec -T zhixing-gongkao sh -c 'cd /app/server && tar -xzf -' < /o
 
 ## 7. 常见问题
 
+- **2G 小内存构建被 Killed**：先加 2G swap 再跑 `deploy.sh`，详见 [cloud-server-deploy-guide.md](docs/release/cloud-server-deploy-guide.md) §2。
 - **Docker Hub 超时**：`setup-docker.sh` 已配置多源镜像加速；仍超时可在本机构建后 `docker save/load` 导入（见下）。
 - **`npm ci` 报 ERESOLVE**：Dockerfile 会复制根目录 `.npmrc`（`legacy-peer-deps=true`），与本地行为一致。
 - **端口被占**：改 `.env` 的 `HTTP_PORT` 后重跑 `bash deploy.sh`。

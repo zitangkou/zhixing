@@ -1,8 +1,9 @@
 # 云服务器部署 Runbook（知行公考）
 
 > v1 · 2026-09-05 · 基于阿里云 ECS 首次部署实战沉淀
-> 适用：Docker 单容器方案——`deploy.sh` 构建综合 H5（`/`）+ admin-dist + FastAPI，默认监听公网 80 或本机 8081。
-> 服务器应对齐的版本：`origin/main`（当前 `bb29d1f`，已含国内镜像源修复）。
+> 适用：Docker 单容器方案——`deploy.sh` 构建综合 H5（`/`）+ admin-dist + FastAPI，默认监听公网 80 或本机 8081。  
+> **完整步骤与 2G 内存说明**：[cloud-server-deploy-guide.md](./cloud-server-deploy-guide.md)。  
+> 服务器代码应对齐 **`origin/main`**（部署前 `git fetch && git log -1 origin/main` 确认）。
 
 ## 1. 一次性初始化（新服务器，8 步）
 
@@ -44,8 +45,8 @@ cd server && python3 scripts/launch_readiness_check.py
 ## 2. 日常更新
 
 ```bash
-cd /opt/zhixinggongkao && bash scripts/deploy-update.sh
-# （git pull --ff-only，被本地改动阻塞时自动 reset --hard origin/main，.env 不受影响）
+cd /opt/zhixing-gongkao && bash scripts/deploy-update.sh
+# （git pull --ff-only；被本地 tracked 改动阻塞时会停止，需人工处理，.env 不受影响）
 ```
 
 ## 3. 故障排查表（2026-09-05 首次部署实战沉淀）

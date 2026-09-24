@@ -162,7 +162,10 @@
     </el-dialog>
 
     <el-dialog v-model="articleImportVisible" title="新建文章" width="720px" destroy-on-close>
-      <p class="import-hint">先核对来源等信息，再粘贴运营结构化 HTML。点预览会从引导卡回填上方字段。</p>
+      <p class="import-hint">
+        请粘贴物料「素材」目录下的 <strong>*_结构化HTML.html</strong>（含【文章精读】引导卡）。
+        不要用公众号「一图读懂」类 HTML。点预览会从引导卡回填上方字段。
+      </p>
       <el-form label-width="96px" class="import-options">
         <el-form-item label="来源">
           <el-input v-model="articleImportSource" placeholder="预览可从「来源：」带出" />
