@@ -108,6 +108,98 @@ def check_env(path: Path, report: Report) -> None:
             report.warn("WECHAT_OFFICIAL_APP_ID 尚未配置；明文被动回复可联调，主动接口暂不可用")
 
 
+
+def _subpackage_roots(app_json: dict) -> list[str]:
+    roots: list[str] = []
+    for key in ("subPackages", "subpackages"):
+        for item in app_json.get(key) or []:
+            root = str(item.get("root") or "").strip().strip("/")
+            if root:
+                roots.append(root)
+    return roots
+
+
+def _is_under_subpackage(rel: str, roots: list[str]) -> bool:
+    rel = rel.replace("\\", "/").lstrip("./")
+    for root in roots:
+        if rel == root or rel.startswith(root.rstrip("/") + "/"):
+            return True
+    return False
+
+
+def check_weapp_package_size(dist_dir: Path, report: Report, *, fatal_main_mb: float = 2.0, quality_main_mb: float = 1.5) -> None:
+    """检查微信小程序主包体积。主包 = dist 内不在任何 subPackage root 下的文件。"""
+    if not dist_dir.is_dir():
+        report.error(f"小程序 dist 不存在: {dist_dir}")
+        return
+    app_json_path = dist_dir / "app.json"
+    if not app_json_path.is_file():
+        report.error(f"缺少 app.json: {app_json_path}")
+        return
+    try:
+        app_json = json.loads(app_json_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        report.error(f"app.json 无法读取: {exc}")
+        return
+
+    if app_json.get("lazyCodeLoading") == "requiredComponents":
+        report.ok("lazyCodeLoading=requiredComponents")
+    else:
+        report.warn("未设置 lazyCodeLoading=requiredComponents（质量审计可能失败）")
+
+    roots = _subpackage_roots(app_json)
+    if roots:
+        report.ok(f"已配置 {len(roots)} 个分包: {', '.join(roots)}")
+    else:
+        report.warn("未配置 subPackages；全部页面计入主包")
+
+    total = 0
+    main = 0
+    top_main: list[tuple[int, str]] = []
+    for path in dist_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        # 开发者工具项目配置不计入上传源码包
+        if path.name == "project.config.json" and path.parent == dist_dir:
+            continue
+        size = path.stat().st_size
+        total += size
+        rel = path.relative_to(dist_dir).as_posix()
+        if _is_under_subpackage(rel, roots):
+            continue
+        main += size
+        top_main.append((size, rel))
+
+    def fmt(n: int) -> str:
+        return f"{n / 1024:.1f}KB"
+
+    report.ok(f"小程序产物总大小 {fmt(total)}（含分包）")
+    quality_limit = int(quality_main_mb * 1024 * 1024)
+    upload_limit = int(fatal_main_mb * 1024 * 1024)
+    for root in roots:
+        sub_dir = dist_dir / root
+        if not sub_dir.is_dir():
+            continue
+        sub_size = sum(f.stat().st_size for f in sub_dir.rglob("*") if f.is_file())
+        if sub_size > upload_limit:
+            report.error(f"分包 {root} 源码 {fmt(sub_size)} 超过单分包上限 {fatal_main_mb:g}MB")
+        elif sub_size > quality_limit:
+            report.warn(f"分包 {root} 源码 {fmt(sub_size)} 接近单分包上限 {fatal_main_mb:g}MB")
+    if main > upload_limit:
+        report.error(
+            f"主包源码 {fmt(main)} 超过上传上限 {fatal_main_mb:g}MB"
+            f"（不含分包；最大文件: {', '.join(f'{fmt(s)} {n}' for s, n in sorted(top_main, reverse=True)[:5])}）"
+        )
+    elif main > quality_limit:
+        report.error(
+            f"主包源码 {fmt(main)} 超过质量审计建议 {quality_main_mb:g}MB"
+            f"（上传上限 {fatal_main_mb:g}MB 仍可能通过；最大文件: "
+            f"{', '.join(f'{fmt(s)} {n}' for s, n in sorted(top_main, reverse=True)[:5])}）"
+        )
+    else:
+        report.ok(f"主包源码 {fmt(main)} ≤ {quality_main_mb:g}MB（质量）且 ≤ {fatal_main_mb:g}MB（上传）")
+
+
 def check_artifacts(path: Path, report: Report) -> None:
     if not path.is_dir():
         report.error(f"发布产物目录不存在: {path}")
@@ -138,6 +230,7 @@ def check_artifacts(path: Path, report: Report) -> None:
                 )
             else:
                 report.ok("归档小程序 AppID 已写入（值不显示）")
+        check_weapp_package_size(path / "weapp" / "dist", report)
     else:
         report.error("微信小程序产物不完整")
 
@@ -173,6 +266,10 @@ def main() -> int:
     parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[1]))
     parser.add_argument("--env-file")
     parser.add_argument("--artifact-dir")
+    parser.add_argument(
+        "--weapp-dist",
+        help="直接检查仓库/本地 weapp dist（如 ./dist），用于分包体积迭代",
+    )
     parser.add_argument("--base-url")
     args = parser.parse_args()
 
@@ -183,6 +280,8 @@ def main() -> int:
         check_env(Path(args.env_file).resolve(), report)
     if args.artifact_dir:
         check_artifacts(Path(args.artifact_dir).resolve(), report)
+    if args.weapp_dist:
+        check_weapp_package_size(Path(args.weapp_dist).resolve(), report)
     if args.base_url:
         check_url(args.base_url, report)
     report.print()
