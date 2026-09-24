@@ -22,10 +22,10 @@
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button link size="small" @click="openDetail(row)">查看</el-button>
-            <el-button v-if="row.status === 'new'" link size="small" type="primary" @click="openHandle(row, 'adopted')">
+            <el-button v-if="canHandle && row.status === 'new'" link size="small" type="primary" @click="openHandle(row, 'adopted')">
               采纳
             </el-button>
-            <el-button v-if="row.status === 'new'" link size="small" type="danger" @click="openHandle(row, 'rejected')">
+            <el-button v-if="canHandle && row.status === 'new'" link size="small" type="danger" @click="openHandle(row, 'rejected')">
               驳回
             </el-button>
           </template>
@@ -49,7 +49,7 @@
         <p class="meta">{{ formatTime(current) }}</p>
         <p class="content">{{ current.content }}</p>
         <p v-if="current.note" class="note">处理备注：{{ current.note }}</p>
-        <div v-if="current.status === 'new'" class="detail-actions">
+        <div v-if="canHandle && current.status === 'new'" class="detail-actions">
           <el-button type="primary" @click="openHandle(current, 'adopted')">采纳</el-button>
           <el-button type="danger" plain @click="openHandle(current, 'rejected')">驳回</el-button>
         </div>
@@ -74,13 +74,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type { FeedbackItem } from '@/api/feedbacks'
 import ListState from '@/components/ListState.vue'
 import { useAdminList } from '@/composables/useAdminList'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
+const canHandle = computed(() => auth.hasPermission('feedback:write'))
 const { loading, loadError, runLoad } = useAdminList()
 const items = ref<FeedbackItem[]>([])
 const total = ref(0)

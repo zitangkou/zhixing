@@ -1,7 +1,13 @@
 <template>
   <div class="page">
     <div class="toolbar">
-      <el-upload :show-file-list="false" accept=".json" :http-request="onUpload" :disabled="importing">
+      <el-upload
+        v-if="canImport"
+        :show-file-list="false"
+        accept=".json"
+        :http-request="onUpload"
+        :disabled="importing"
+      >
         <el-button type="primary" :loading="importing">上传 JSON</el-button>
       </el-upload>
       <span class="filter-label">年份</span>
@@ -42,6 +48,7 @@ import { fetchXingceOverview, importXingceJson } from '@/api/xingce'
 import type { XingcePaperRow } from '@/api/xingce'
 import ListState from '@/components/ListState.vue'
 import { useAdminList } from '@/composables/useAdminList'
+import { useAuthStore } from '@/stores/auth'
 
 const TYPE_OPTIONS = [
   { label: '省级', value: '省级' },
@@ -49,6 +56,8 @@ const TYPE_OPTIONS = [
   { label: '行政执法', value: '行政执法类' },
 ]
 
+const auth = useAuthStore()
+const canImport = computed(() => auth.hasPermission('xingce:write'))
 const { loading, loadError, runLoad } = useAdminList()
 const papers = ref<XingcePaperRow[]>([])
 const yearFilter = ref<number | ''>('')

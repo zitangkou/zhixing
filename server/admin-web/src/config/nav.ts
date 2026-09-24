@@ -97,7 +97,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/users', title: '用户管理', icon: User, permissions: ['user:read'] },
       { path: '/feedbacks', title: '反馈建议', icon: ChatDotRound, permissions: ['feedback:read'] },
       { path: '/xingce', title: '行测管理', icon: Tickets, permissions: ['xingce:read'] },
-      { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read', 'admin:read'] },
+      { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read'] },
+      { path: '/roles', title: '角色与权限', icon: User, permissions: ['admin:read'] },
     ],
   },
 ]
@@ -138,6 +139,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/corpus': '语料本',
   '/events': '时事事件',
   '/settings': '系统设置',
+  '/roles': '角色与权限',
 }
 
 export function canAccess(userPerms: string[], required: string[]): boolean {

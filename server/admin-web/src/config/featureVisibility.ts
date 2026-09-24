@@ -13,6 +13,7 @@ const VISIBLE_PATHS = new Set([
   '/feedbacks',
   '/xingce',
   '/settings',
+  '/roles',
 ])
 
 export function isAdminNavVisible(path: string): boolean {

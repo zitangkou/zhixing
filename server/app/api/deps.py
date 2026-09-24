@@ -2,7 +2,6 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.permissions import role_has_permission
 from app.core.security import decode_token
 from app.database import get_db
 from app.models import AdminUser, AppUser
@@ -29,11 +28,12 @@ def get_current_admin(
 
 def require_permission(permission: str):
     def checker(admin: AdminUser = Depends(get_current_admin)) -> AdminUser:
+        if admin.role.code == "super_admin":
+            return admin
         perms = parse_json(admin.role.permissions, [])
-        role_code = admin.role.code
-        if role_code != "super_admin" and permission not in perms and not role_has_permission(role_code, permission):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"缺少权限: {permission}")
-        return admin
+        if permission in perms or "*" in perms:
+            return admin
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"缺少权限: {permission}")
 
     return checker
 
