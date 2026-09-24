@@ -8,6 +8,8 @@
 > 新增功能前先查阅本文档，防止功能重复或与全局不兼容。
 > 配套开发规范见 [`PROJECT_PROMPT.md`](./PROJECT_PROMPT.md)，架构细节见 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。
 
+> **在用/隐藏状态活文档** → [`docs/planning/FEATURE_INVENTORY.md`](./docs/planning/FEATURE_INVENTORY.md)（操作真相源）；规划清单 → [`docs/planning/PRODUCT_ROADMAP.md`](./docs/planning/PRODUCT_ROADMAP.md)。本文件保留模块明细目录角色。
+
 ---
 
 ## 目录
