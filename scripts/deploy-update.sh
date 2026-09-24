@@ -1,12 +1,26 @@
 #!/usr/bin/env bash
-# 在服务器 /opt/zhixing-gongkao 下执行：拉代码并一键重建
+# 仅在「≥4G 且允许服务器构建」且目录为 git 仓库时使用。
+# 2G 机 / 无 .git 的生产机日常更新请在开发机：
+#   bash scripts/deploy-from-local.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+if [[ "${ALLOW_SERVER_BUILD:-}" != "1" ]]; then
+  echo "已停止：不要在云服务器上 pull + --build（2G 机会把 SSH 打挂）。"
+  echo "日常上线在开发机执行：bash scripts/deploy-from-local.sh"
+  echo "若确认机器 ≥4G、有 .git、且要在服务器构建：ALLOW_SERVER_BUILD=1 bash scripts/deploy-update.sh"
+  exit 1
+fi
+
 if [[ ! -f .env ]]; then
   echo "缺少 .env，请先: cp .env.docker.example .env 并编辑，或直接 bash deploy.sh 自动生成"
+  exit 1
+fi
+
+if [[ ! -d .git ]]; then
+  echo "当前目录不是 git 仓库，无法 pull。请改用开发机：bash scripts/deploy-from-local.sh"
   exit 1
 fi
 
@@ -29,4 +43,4 @@ if ! git pull --ff-only origin "$BRANCH"; then
   echo "请人工检查 git log --oneline --decorate --graph --all，确认后再更新。"
   exit 1
 fi
-bash deploy.sh
+ALLOW_SERVER_BUILD=1 bash deploy.sh

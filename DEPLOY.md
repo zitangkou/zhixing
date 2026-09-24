@@ -1,10 +1,11 @@
 # 知行公考 · 云服务器一键部署
 
 > 适用：一台独立云服务器（建议 Ubuntu 22.04 / Debian 12，**2核4G+**）部署整套 H5 + FastAPI + 管理后台。  
-> **2G 内存可部署，但 Docker 构建前必须加 swap**，步骤与注意事项见 [docs/release/cloud-server-deploy-guide.md](docs/release/cloud-server-deploy-guide.md)。
-> 当前默认：备案前由项目容器直接监听公网 80；备案和证书完成后切换为宿主机 Nginx HTTPS 网关。
-> 代码是单主线学员端（`src/`），Docker 只构建一份 H5 + 管理后台，不再部署 `/theory/`、`/shenlun/` 垂直站。服务器目录与 Compose 服务名仍用 `zhixing-gongkao`，以免已有数据卷挂错。
-> 更新：2026-09-09
+> **日常更新（默认）：开发机 `bash scripts/deploy-from-local.sh`。禁止在 ≈2G 云主机上 `docker compose --build`。**  
+> 步骤与故障见 [docs/release/cloud-server-deploy-guide.md](docs/release/cloud-server-deploy-guide.md)；智能体交接见 [docs/release/agent-handoff-20260924.md](docs/release/agent-handoff-20260924.md)。  
+> 当前默认：备案前可由项目容器监听公网 80；正式环境常为宿主机 Nginx HTTPS → `127.0.0.1:8081`。  
+> 代码是单主线学员端（`src/`），Docker 只构建一份 H5 + 管理后台。服务器目录与 Compose 服务名仍用 `zhixing-gongkao`，以免已有数据卷挂错。  
+> 更新：2026-09-24
 
 ## 快速命令速查
 
@@ -14,9 +15,9 @@ apt update && apt install -y git
 cd /opt && git clone git@github.com:zitangkou/zhixing-gongkao.git
 cd zhixing-gongkao && bash deploy/setup-docker.sh   # Docker 已就绪时会自动跳过，不影响其它项目
 
-# ② 首次部署 / 安全更新
-bash deploy.sh
-bash scripts/deploy-update.sh
+# ② 日常更新（开发机，默认；2G 云主机必须走这条）
+bash scripts/deploy-from-local.sh
+# 仅 ≥4G 且显式允许时才可在服务器：ALLOW_SERVER_BUILD=1 bash deploy.sh
 
 # ③ 备案与证书完成后切换 HTTPS 域名网关
 cp deploy/nginx.conf /etc/nginx/sites-available/zhixing-gongkao
@@ -177,22 +178,21 @@ docker compose exec -T zhixing-gongkao sh -c 'cd /app/server && tar -xzf -' < /o
 
 ## 7. 常见问题
 
-- **2G 小内存构建被 Killed**：先加 2G swap 再跑 `deploy.sh`，详见 [cloud-server-deploy-guide.md](docs/release/cloud-server-deploy-guide.md) §2。
-- **Docker Hub 超时**：`setup-docker.sh` 已配置多源镜像加速；仍超时可在本机构建后 `docker save/load` 导入（见下）。
-- **`npm ci` 报 ERESOLVE**：Dockerfile 会复制根目录 `.npmrc`（`legacy-peer-deps=true`），与本地行为一致。
-- **端口被占**：改 `.env` 的 `HTTP_PORT` 后重跑 `bash deploy.sh`。
-- **管理后台 404**：确认 `server/admin-dist` 已构建（Dockerfile 会自动构建；本地直接跑需先 `cd server/admin-web && npm run build`）。
+- **2G 构建把 SSH/站点打挂**：不要在服务器 `--build`，用 `bash scripts/deploy-from-local.sh`。见 [cloud-server-deploy-guide.md](docs/release/cloud-server-deploy-guide.md)。
+- **Docker Hub / npm 超时**：Dockerfile 已配国内镜像；本机构建失败可重跑轻量脚本（内含重试）。
+- **`npm ci` 报 ERESOLVE**：Dockerfile 会复制根目录 `.npmrc`（`legacy-peer-deps=true`）。
+- **端口被占**：改服务器 `.env` 的 `HTTP_PORT` 后轻量部署或 `compose up -d --no-build`。
+- **管理后台 404**：确认镜像内含 admin-dist（Dockerfile 构建）；本地直跑需先 `cd server/admin-web && npm run build`。
 
-## 8. Docker Hub 超时时：本地构建导入
+## 8. 日常上线：本机构建导入（默认）
 
 ```bash
-docker compose build
-docker save zhixing-gongkao-zhixing-gongkao:latest | gzip > zhengkao-image.tar.gz
-scp zhengkao-image.tar.gz root@<IP>:/opt/
-# 服务器
-docker load < /opt/zhengkao-image.tar.gz
-cd /opt/zhixing-gongkao && docker compose up -d
+# 本机（Docker Desktop；compose 已指定 linux/amd64）
+bash scripts/deploy-from-local.sh
+# SSH 默认 Host：zhixing-aliyun（可用 DEPLOY_SSH_HOST 覆盖）
 ```
+
+细节与清理策略见 [cloud-server-deploy-guide.md §4](docs/release/cloud-server-deploy-guide.md)。
 
 ## 9. 本地开发
 

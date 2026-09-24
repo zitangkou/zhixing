@@ -1,9 +1,10 @@
 # 云服务器部署 Runbook（知行公考）
 
-> v1 · 2026-09-05 · 基于阿里云 ECS 首次部署实战沉淀
-> 适用：Docker 单容器方案——`deploy.sh` 构建综合 H5（`/`）+ admin-dist + FastAPI，默认监听公网 80 或本机 8081。  
-> **完整步骤与 2G 内存说明**：[cloud-server-deploy-guide.md](./cloud-server-deploy-guide.md)。  
-> 服务器代码应对齐 **`origin/main`**（部署前 `git fetch && git log -1 origin/main` 确认）。
+> v2 · 2026-09-24 · 首次部署实战 + 轻量部署约定  
+> 适用：Docker 单容器方案——综合 H5（`/`）+ admin-dist + FastAPI。  
+> **日常更新**：开发机 `bash scripts/deploy-from-local.sh`（见 [cloud-server-deploy-guide.md](./cloud-server-deploy-guide.md) §4）。  
+> **智能体交接**：[agent-handoff-20260924.md](./agent-handoff-20260924.md)。  
+> 生产机多为 ≈2G + **无 `.git`**：不要依赖本文件旧版「服务器 pull + deploy.sh」。
 
 ## 1. 一次性初始化（新服务器，8 步）
 
@@ -42,11 +43,17 @@ curl -s -X POST http://127.0.0.1:8081/api/auth/register -H 'Content-Type: applic
 cd server && python3 scripts/launch_readiness_check.py
 ```
 
-## 2. 日常更新
+## 2. 日常更新（默认 · 轻量）
 
 ```bash
-cd /opt/zhixing-gongkao && bash scripts/deploy-update.sh
-# （git pull --ff-only；被本地 tracked 改动阻塞时会停止，需人工处理，.env 不受影响）
+# 在开发机仓库根目录（不要 SSH 进 2G 机 --build）
+bash scripts/deploy-from-local.sh
+```
+
+仅当机器 ≥4G、目录有 `.git`、且显式允许时：
+
+```bash
+ALLOW_SERVER_BUILD=1 bash scripts/deploy-update.sh
 ```
 
 ## 3. 故障排查表（2026-09-05 首次部署实战沉淀）
@@ -79,7 +86,8 @@ cat /proc/net/dev | grep eth0 && sleep 5 && cat /proc/net/dev | grep eth0   # �
 
 ## 5. 中期部署优化路线（按收益排序）
 
-1. **预构建镜像 + ACR**：本地或 CI 构建镜像推阿里云容器镜像服务，服务器只 `pull + up`——把三前端编译从 2 核小机彻底挪走，部署变分钟级、不受服务器算力/网络影响（推荐，接入时改 `deploy.sh` 支持 `DEPLOY_MODE=registry`）。
-2. **CI 构建**：GitHub Actions 已有 lint/pytest/admin build 三门禁，加一条 docker build/push 即为 1 提供产物。
-3. **SKIP_TYPECHECK**：Dockerfile 加 ARG 让服务器构建跳过 `vue-tsc -b`（类型检查由本地/CI 把关），admin 阶段从 20 分钟级降到构建 vite 本身。
-4. **带宽**：若确认实例为固定小带宽，构建期临时升级带宽（按量）跑完再降，比换镜像源更治本。
+1. **已落地：本机构建 + scp/load**（`scripts/deploy-from-local.sh`）——2G 机日常可用。
+2. **下一步：预构建镜像 + ACR**：CI 推阿里云容器镜像，服务器只 `pull + up`（改 `deploy.sh` 支持 `DEPLOY_MODE=registry`）。
+3. **CI 构建**：GitHub Actions 已有 lint/pytest/admin build，加 docker build/push 即可接 ACR。
+4. **SKIP_TYPECHECK**：仅当你仍在大内存机上服务器构建时有用；2G 机应继续禁止 `--build`。
+5. **带宽**：固定小带宽时构建期临时升配，不如直接走轻量/ACR。

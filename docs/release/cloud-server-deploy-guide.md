@@ -1,42 +1,50 @@
 # 云服务器部署指南（知行公考）
 
-> 与 [DEPLOY.md](../../DEPLOY.md) 配套：本文侧重**完整步骤、2G 小内存注意项、Git 与验证**；命令真值以仓库内 `deploy.sh`、`scripts/deploy-update.sh` 为准。  
-> 仓库：`git@github.com:zitangkou/zhixing.git` · 服务器推荐路径：`/opt/zhixing-gongkao`
+> 与 [DEPLOY.md](../../DEPLOY.md) 配套。  
+> **日常更新真值（2026-09-24 起）：开发机 `bash scripts/deploy-from-local.sh`。禁止在 ≈2G 云主机上 `docker compose --build`。**  
+> 仓库：`git@github.com:zitangkou/zhixing.git` · 服务器路径：`/opt/zhixing-gongkao`  
+> 智能体交接摘要：[agent-handoff-20260924.md](./agent-handoff-20260924.md)
 
-## 1. 部署前：本地与 GitHub 对齐
+---
 
-在**本机**确认再让服务器拉代码：
+## 1. 部署前：本机与要上线的提交对齐
 
 ```bash
 cd /path/to/zhixing
 git fetch origin
 git status -sb
 git log --oneline -3 HEAD
-git log --oneline -3 origin/main
 ```
 
 | 情况 | 做法 |
 |------|------|
-| `origin/main` 比本地新 | `git pull --ff-only origin main` |
-| 本地有未提交改动还要上线 | 先 `git add` / `commit` / `git push origin main`，再登服务器更新 |
-| 服务器 `git pull` 非快进 | 在服务器**不要**强推；本机理清分支后，服务器按 runbook 人工处理 |
+| 要上 `main` | 先 `git checkout main && git pull --ff-only origin main` |
+| 要上特性分支 | 明确告知用户；`.deployed-sha` 会记该分支 HEAD |
+| 有未提交改动且要进镜像 | 先 commit（或确认脏文件是否应进 Docker 上下文） |
 
 **禁止**把 `.env`、真实 `SECRET_KEY`、`ADMIN_PASSWORD`、微信 Token/AppSecret 提交进 Git。
 
 ---
 
-## 2. 服务器规格与 2G 内存（重要）
+## 2. 服务器规格与为什么必须「轻量部署」
 
-文档与脚本按 **单机 Docker 构建**（镜像内会跑：学员 H5 构建 + admin-web 的 `vue-tsc` + Vite + Python 依赖）。  
+当前生产机约 **1.7GiB RAM + 2G swap**。`Dockerfile` 会在构建期跑：
 
-| 规格 | 说明 |
+- 学员端 `npm ci` + `build:h5`
+- admin `npm ci` + `npm run build`（含 **`vue-tsc`**，最吃内存）
+- Python `pip install`
+
+在 2G 机上 `--build` 的典型后果：
+
+- 日志停在 admin/`vue-tsc` 很久 → 随后 **SSH banner 超时**、站点超时（像宕机）
+- 控制台重启后旧容器可恢复，**新代码并未上线**
+
+| 规格 | 策略 |
 |------|------|
-| **推荐** | 2 核 **4G** 及以上（[DEPLOY.md](../../DEPLOY.md) 默认假设） |
-| **2G 可跑，但构建极易 OOM** | 首次 `bash deploy.sh` / `docker compose up --build` 前**务必加 swap** |
+| **≈2G（当前生产）** | **只**跑已编好的镜像：`deploy-from-local.sh` |
+| **≥4G** | 仍推荐轻量部署；若坚持服务器构建：`ALLOW_SERVER_BUILD=1 bash deploy.sh`，并保持 swap |
 
-### 2.1 2G 机器：部署前加 swap（建议常驻）
-
-在服务器执行（只需配置一次，重启后需在 fstab 持久化）：
+### 2.1 Swap（建议常驻，构建逃生 / 运行余量）
 
 ```bash
 sudo fallocate -l 2G /swapfile
@@ -44,136 +52,160 @@ sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-free -h
+free -h && swapon --show
 ```
 
-期望：`Swap` 行约 2G，`swapon --show` 可见 `/swapfile`。
+### 2.2 绝对不要做的事
 
-### 2.2 构建期判活（避免误杀长时间编译）
-
-另开 SSH 窗口：
-
-```bash
-ps aux --sort=-%cpu | head -8    # node/vue-tsc 高 CPU = 仍在构建
-free -h && swapon --show         # 内存顶满且无 swap = 即将 Killed
-docker compose logs -f --tail=50 # 看构建阶段输出
-```
-
-常见现象：`vue-tsc` 或 `npm run build` 日志突然 `Killed` → **OOM**，加 swap 后重跑 `bash deploy.sh`。
-
-### 2.3 网络与 Docker（国内 ECS）
-
-- 镜像与 npm/apt 源：Dockerfile 已配国内镜像；仍慢时见 [server-deploy-runbook.md](./server-deploy-runbook.md) §3（MTU 1400、DNS、`registry-mirrors` **合并**写入，勿覆盖原有加速配置）。
-- 带宽：1Mbps 级带宽下整镜像构建可能 **1 小时+**；可临时升带宽或改用「本地/CI 构建镜像再 `docker save/load`」（[DEPLOY.md §8](../../DEPLOY.md)）。
-
-### 2.4 构建时不要做的事
-
-- 不要在 2G 机上同时跑其他大内存任务（再开一套 `npm run dev`、全库导入等）。
-- **禁止** `docker compose down -v`（会删 SQLite / uploads 数据卷）。
-- 不要在公网 HTTP 阶段用管理后台传敏感资料（备案前无 HTTPS）。
+- 在 2G 服务器上 `docker compose up -d --build` / 无门禁的 `deploy.sh`
+- `docker compose down -v`（删 SQLite / uploads 卷）
+- 覆盖服务器 `.env`
+- 用公网 IP 测 HTTPS 证书是否匹配（应用域名）
 
 ---
 
-## 3. 首次部署（新机器）
+## 3. 生产机实况（接手请先核实）
 
-```bash
-apt update && apt install -y git
-# SSH 公钥加入 GitHub 后：
-cd /opt && git clone git@github.com:zitangkou/zhixing.git zhixing-gongkao
-cd zhixing-gongkao
+用本机 SSH 别名（示例配置）：
 
-bash deploy/setup-docker.sh
-
-cp .env.docker.example .env
-nano .env   # SECRET_KEY、ADMIN_PASSWORD、ALLOW_REGISTER、HTTP_BIND/PORT、域名等
-# 2G 机器：先完成 §2.1 swap，再：
-
-bash deploy.sh
-curl -fsS "http://127.0.0.1:${HTTP_PORT:-80}/health"
+```text
+Host zhixing-aliyun
+  HostName 121.40.169.2
+  User root
+  IdentityFile ~/.ssh/zhixing_aliyun
+  IdentitiesOnly yes
 ```
 
-备案前常用 `.env`：
+```bash
+ssh zhixing-aliyun 'echo ok; free -h; cat /opt/zhixing-gongkao/.deployed-sha; \
+  test -d /opt/zhixing-gongkao/.git && echo HAS_GIT || echo NO_GIT; \
+  docker compose -f /opt/zhixing-gongkao/docker-compose.yml ps'
+```
 
-- `HTTP_BIND=0.0.0.0`，`HTTP_PORT=80` → 公网 `http://IP/`、`http://IP/manage/`
-- 安全组：放行 **22、80**（HTTPS 上线后再开 **443**）
+常见现状：
+
+- 目录 **`NO_GIT`**：不靠 `git pull` 更新，靠镜像 load
+- 容器监听 **`127.0.0.1:8081->80`**，前面有宿主机 Nginx 做 HTTPS
+- 版本文件：**`.deployed-sha`**
 
 ---
 
-## 4. 日常更新（重新部署代码）
+## 4. 日常更新：轻量级部署（默认）
 
-在服务器项目根目录：
+### 4.1 一键（推荐）
+
+```bash
+cd /path/to/zhixing
+bash scripts/deploy-from-local.sh
+```
+
+等价流程：
+
+```bash
+docker compose build                          # linux/amd64（见 docker-compose.yml）
+docker save zhixing-gongkao-zhixing-gongkao:latest | gzip > "$TMPDIR/zhixing-gongkao.tar.gz"
+scp … zhixing-aliyun:/opt/zhixing-gongkao.tar.gz
+# 服务器：
+docker load -i /opt/zhixing-gongkao.tar.gz
+cd /opt/zhixing-gongkao && docker compose up -d --no-build
+# 写 .deployed-sha；删 tar；curl 127.0.0.1:${HTTP_PORT}/health
+```
+
+可选环境变量：`DEPLOY_SSH_HOST`、`DEPLOY_REMOTE_DIR`、`DEPLOY_IMAGE`。
+
+### 4.2 脚本会清理什么
+
+| 位置 | 清理 |
+|------|------|
+| 本机 tar.gz | `trap`：成功/失败都删 |
+| 服务器 tar.gz | load 成功后删 |
+| 本机 Docker | `image prune` + `builder prune`（保留当前镜像名以便下次增量） |
+
+编译进程退出后 **内存归还系统**；慢涨的是磁盘上的 build cache。仍过大：`docker builder prune -af`（下次构建变慢）。
+
+### 4.3 仅重启（不换代码镜像）
+
+```bash
+ssh zhixing-aliyun 'cd /opt/zhixing-gongkao && docker compose restart'
+```
+
+### 4.4 服务器侧旧脚本
+
+- `scripts/deploy-update.sh`：设计为 pull + `deploy.sh`；**在无 `.git` 的机器上不可用**；2G 上即使有 Git 也不应使用。
+- `deploy.sh`：含 `--build`；内存不足时应拒绝（见脚本内 `ALLOW_SERVER_BUILD` / MemTotal 门禁）。
+
+---
+
+## 5. 首次部署（新机器 / ≥4G 或可接受长构建）
+
+仍可按旧路径：装 Docker → 配 `.env` →（2G 则**不要**本机构建，改用开发机首次 `deploy-from-local.sh` 灌镜像）。
+
+若新机 ≥4G 且已 clone：
 
 ```bash
 cd /opt/zhixing-gongkao
-bash scripts/deploy-update.sh
+cp .env.docker.example .env   # 编辑密钥与 HTTP_BIND/PORT
+ALLOW_SERVER_BUILD=1 bash deploy.sh   # 仅当确认内存充足
 ```
 
-脚本会：`git fetch` + **当前分支快进 pull** → 再执行 `bash deploy.sh`（重建并启动容器）。  
-若提示「服务器存在未提交的 tracked 修改」，先 `git status` 处理，**不要**在未确认的情况下覆盖服务器上的改动。
+备案前 / HTTPS 阶段的 `HTTP_BIND`/`HTTP_PORT` 见 [DEPLOY.md](../../DEPLOY.md)。
 
-仅重启、不拉代码：
+---
+
+## 6. 部署后验证
 
 ```bash
-docker compose restart
-docker compose logs -f zhixing-gongkao
+ssh zhixing-aliyun 'curl -fsS http://127.0.0.1:8081/health'
+ssh zhixing-aliyun 'curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/'
+ssh zhixing-aliyun 'curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/manage/'
+ssh zhixing-aliyun 'curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/api/config'
 ```
 
----
-
-## 5. 部署后验证
+公网用**域名**打开 `/`、`/manage/`。可选：
 
 ```bash
-# 健康检查
-curl -fsS http://127.0.0.1/health    # 或按 .env 的 HTTP_PORT
-
-# 路由（公网 IP 或域名）
-curl -fsS -o /dev/null -w '%{http_code}\n' http://你的入口/
-curl -fsS -o /dev/null -w '%{http_code}\n' http://你的入口/manage/
-
-# 可选：发布前检查（不打印密钥内容）
-python3 scripts/release-preflight.py --env-file .env --base-url http://你的入口
+python3 scripts/release-preflight.py --env-file .env --base-url https://你的域名
 ```
 
-管理后台：浏览器打开 `/manage/`，用 `.env` 中 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 登录。
+---
+
+## 7. 备案后 HTTPS（方案 B）
+
+1. `.env`：`HTTP_BIND=127.0.0.1`、`HTTP_PORT=8081`，域名 / CORS / 公众号 URL 改为 `https://…`
+2. 换镜像上线（轻量部署）
+3. 宿主机 Nginx：[deploy/nginx.conf](../../deploy/nginx.conf) + certbot
+4. 微信后台回调：`https://域名/api/wechat/callback`
 
 ---
 
-## 6. 备案后 HTTPS（方案 B）
-
-1. `.env` 改为 `HTTP_BIND=127.0.0.1`、`HTTP_PORT=8081`，`DOMAIN`、CORS、公众号 `WECHAT_OFFICIAL_PUBLIC_BASE_URL` 改为 `https://域名`  
-2. `bash deploy.sh`  
-3. 宿主机 Nginx： [deploy/nginx.conf](../../deploy/nginx.conf) + certbot  
-4. 微信后台 URL 改为 `https://域名/api/wechat/callback`
-
----
-
-## 7. 备份与恢复
+## 8. 备份与恢复
 
 ```bash
-bash deploy/backup.sh
-bash deploy/install-backup.sh   # 可选：每日 03:00，保留 14 天
+ssh zhixing-aliyun 'cd /opt/zhixing-gongkao && bash deploy/backup.sh'
 ```
 
-恢复见 [DEPLOY.md §5](../../DEPLOY.md)。
+恢复见 [DEPLOY.md §5](../../DEPLOY.md)。**永远不要** `down -v` 当「清缓存」。
 
 ---
 
-## 8. 故障速查
+## 9. 故障速查
 
 | 症状 | 优先检查 |
 |------|----------|
-| 构建 `Killed` | §2.1 swap、`free -h` |
-| `npm ci` / 拉镜像超时 | 网络、daemon.json MTU/DNS、账户带宽 |
-| 管理端 HTML 预览异常 | 是否部署最新后端；粘贴的是否 `*_结构化HTML.html`（见 [政治理论每日出题运营物料](../政治理论每日出题运营物料_会话沉淀_20260905.md)） |
-| `deploy-update.sh` 拒绝 pull | 服务器工作区有本地修改，需人工合并 |
-| 502 / 连接拒绝 | `docker compose ps`、`HTTP_PORT` 与安全组是否一致 |
-
-更细表格见 [server-deploy-runbook.md](./server-deploy-runbook.md) §3。
+| SSH `banner exchange` 超时 | 是否又在服务器构建；控制台重启；改轻量部署 |
+| 构建 `Killed` / OOM | 勿在 2G 构建；本机编 |
+| 本机 `npm ci` `ECONNRESET` | 重跑 `deploy-from-local.sh`（脚本已重试） |
+| `/health` 短暂 502 | 容器刚 Recreate，等 healthy |
+| 功能仍是旧版 | 对比 `.deployed-sha` 与本机 `git rev-parse HEAD` |
+| 管理端 HTML 预览异常 | 后端是否最新；物料是否 `*_结构化HTML.html` |
+| Docker 构建静默 >10min、CPU≈0 | daemon.json MTU/DNS，见 [server-deploy-runbook.md](./server-deploy-runbook.md) §3 |
 
 ---
 
-## 9. 相关文档
+## 10. 相关文档
 
-- [DEPLOY.md](../../DEPLOY.md) — 架构、环境变量、公众号回调、本地开发  
-- [server-deploy-runbook.md](./server-deploy-runbook.md) — 首次实战沉淀、故障表  
-- [deploy/nginx.conf](../../deploy/nginx.conf) — 正式域名 HTTPS 网关  
+- [agent-handoff-20260924.md](./agent-handoff-20260924.md) — 会话沉淀与智能体约束  
+- [DEPLOY.md](../../DEPLOY.md) — 架构、环境变量、本地开发  
+- [server-deploy-runbook.md](./server-deploy-runbook.md) — 首次实战故障表、ACR 中期路线  
+- [weapp-build-guide.md](./weapp-build-guide.md) — 小程序构建（与 H5 Docker 构建分开）  
+- [scripts/deploy-from-local.sh](../../scripts/deploy-from-local.sh) — 日常上线脚本源码  
