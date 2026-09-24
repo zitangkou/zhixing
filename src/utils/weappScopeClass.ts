@@ -84,8 +84,9 @@ export function installWeappScopeClass(): void {
 }
 
 /**
- * Vue 的 onClick 在小程序里注册成 click，基础库只派发 tap，
- * 所以 nut-cell / nut-button / nut-switch 点了没反应。
+ * Vue 的 onClick 在小程序里注册成 click，基础库只派发 tap。
+ * nut-cell / nut-switch 的根是 view，改成 tap 就能点。
+ * nut-button 的根是原生 button，见下面的标签映射：disabled 空绑定会吞掉 tap。
  * 同时写了 @click 和 @tap 的节点会挂上两个 tap；业务回调本身可重复调用。
  */
 const CLICK_PATCHED = '__zkClickAlias'
@@ -117,6 +118,11 @@ function installWeappClickAlias(): void {
  * NutUI 图标默认标签是 i。base.wxml 没有 tmpl_0_i，
  * 基础库在每次 setData 报 Template not found，图标格子是空的。
  * i 改走 view（:before 图标字体才能画出来）；其它行内标签改走 text，块级标签改走 view。
+ *
+ * NutUI Button 渲染原生 button。模板里是 disabled="{{i.pN}}"，没有像 loading 那样的 false 兜底。
+ * NutUI 不传 disabled 时这个值是 undefined，按钮看起来正常，但基础库不派发 tap，所以没有报错。
+ * 页面上的 @click 只是在等子组件 emit，点不到内部 button 就不会进 onLogin。
+ * 本应用没有 open-type / form-type=submit，把 button 画成 view 后走和「去注册」一样的 tap。
  */
 const AS_TEXT = new Set([
   'em',
@@ -169,7 +175,8 @@ function installWeappHtmlTagMap(): void {
   const orig = proto.createElement
   proto.createElement = function (type: string) {
     const name = String(type || '').toLowerCase()
-    if (name === 'i') return orig.call(this, 'view')
+    // button：见上方注释。必须在通用映射之前。
+    if (name === 'i' || name === 'button') return orig.call(this, 'view')
     if (AS_TEXT.has(name)) return orig.call(this, 'text')
     if (AS_VIEW.has(name)) return orig.call(this, 'view')
     return orig.call(this, type)
