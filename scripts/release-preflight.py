@@ -64,9 +64,12 @@ def check_source(root: Path, report: Report) -> None:
     if data.get("setting", {}).get("urlCheck") is False:
         report.warn("urlCheck=false；本地联调可用，正式真机验收必须验证合法域名")
     if data.get("appid") in (None, "", "touristappid"):
-        report.warn("AppID 仍为 touristappid；正式发布需填写真实 AppID")
+        report.warn(
+            "仓库 project.config.json 的 AppID 仍为 touristappid；"
+            "正式包由 build-release-artifacts.sh 从 MINIPROGRAM_APP_ID 写入归档，不改此文件"
+        )
     else:
-        report.ok("AppID 已配置")
+        report.ok("仓库 project.config.json 已配置 AppID（值不显示）")
 
 
 def check_env(path: Path, report: Report) -> None:
@@ -122,6 +125,19 @@ def check_artifacts(path: Path, report: Report) -> None:
     project = path / "weapp" / "project.config.json"
     if mini_app.is_file() and project.is_file():
         report.ok("微信小程序产物可导入")
+        try:
+            project_data = json.loads(project.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            report.error(f"归档 project.config.json 无法读取: {exc}")
+        else:
+            appid = project_data.get("appid")
+            if appid in (None, "", "touristappid"):
+                report.warn(
+                    "归档小程序 AppID 仍为 touristappid；"
+                    "build-release-artifacts.sh 应从 MINIPROGRAM_APP_ID 写入该文件"
+                )
+            else:
+                report.ok("归档小程序 AppID 已写入（值不显示）")
     else:
         report.error("微信小程序产物不完整")
 

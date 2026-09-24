@@ -28,7 +28,7 @@ python3 scripts/release-preflight.py --artifact-dir '<OUTPUT_DIR>'
 | 步骤 | 环境变量 | 命令 | 归档 |
 |------|----------|------|------|
 | H5 | `TARO_APP_API_URL=`（空字符串） | `npm run build:h5` | 拷到 `<OUTPUT>/h5/` |
-| 小程序 | `TARO_APP_API_URL` = 上面的 HTTPS 地址 | `npm run build:weapp` | 拷到 `<OUTPUT>/weapp/dist/`，并复制根目录 `project.config.json` |
+| 小程序 | `TARO_APP_API_URL` = 上面的 HTTPS 地址 | `npm run build:weapp` | 拷到 `<OUTPUT>/weapp/dist/`，复制 `project.config.json` 后只改归档副本 |
 
 空字符串和「未设置」不一样。`config/index.ts` 里 `API_BASE_URL` 取 `process.env.TARO_APP_API_URL ?? 'http://127.0.0.1:8001'`：未设置时是本地 `http://127.0.0.1:8001`；空字符串是同域 `/api`（Docker H5）。小程序没有同域页面，正式包必须带 HTTPS 域名，不能留空、也不能落回 `127.0.0.1`。
 
@@ -39,9 +39,19 @@ python3 scripts/release-preflight.py --artifact-dir '<OUTPUT_DIR>'
   RELEASE.txt                 # created_at、api_url、git_commit
   h5/                         # 含 index.html；同域 /api
   weapp/
-    project.config.json       # 从仓库复制，miniprogramRoot 为 dist/
+    project.config.json       # 归档副本：appid 来自 MINIPROGRAM_APP_ID
     dist/                     # 含 app.json；请求打到 --api-url
 ```
+
+复制之后，脚本用内联 Python 只改 `<OUTPUT>/weapp/project.config.json`：
+
+- `appid` 取仓库根 `.env` 的 `MINIPROGRAM_APP_ID`。该键为空或不存在时，再用当前 shell 已导出的同名变量。
+- `MINIPROGRAM_NAME` 有值时写入 `projectname`；没有则保持仓库里的项目名。
+- 值为空、`touristappid`，或不是小程序 AppID（`wx` 加 16 位十六进制）时，构建失败。报错只点名 `MINIPROGRAM_APP_ID`，不打印值。
+- 不读、不写、不打印 `MINIPROGRAM_APP_SECRET`。
+- 不回写仓库根目录的 `project.config.json`，提交版本继续是 `touristappid`。
+
+成功时日志是「已写入归档 weapp/project.config.json 的 appid（值不显示）」。
 
 脚本结束后，仓库里的 `dist/` 是**后一次的小程序产物**，不是 H5。要发布的是归档目录，不要把仓库 `dist/` 当正式包。
 
@@ -50,8 +60,9 @@ python3 scripts/release-preflight.py --artifact-dir '<OUTPUT_DIR>'
 - `RELEASE.txt` 存在
 - `h5/index.html` 存在
 - `weapp/dist/app.json` 与 `weapp/project.config.json` 都在（打印「微信小程序产物可导入」）
+- 归档 `appid` 仍是 `touristappid` 时只告警：正式构建应由 `build-release-artifacts.sh` 从 `MINIPROGRAM_APP_ID` 写入。已写入则打印「归档小程序 AppID 已写入（值不显示）」
 
-同时它会看**仓库根**的 `project.config.json`（不是只看归档副本）：`compileType` 须为 `miniprogram`、`miniprogramRoot` 须为 `dist/`；`urlCheck: false` 和 `appid` 仍为 `touristappid` 时只告警、不阻断。服务器环境和公网路由另见 [DEPLOY.md](../../DEPLOY.md) §10 的 `--env-file` / `--base-url`。
+仓库根 `project.config.json` 保持 `touristappid` 是预期状态，预检对此只告警、不阻断。它仍检查 `compileType` 为 `miniprogram`、`miniprogramRoot` 为 `dist/`，以及 `urlCheck: false`。服务器环境和公网路由另见 [DEPLOY.md](../../DEPLOY.md) §10 的 `--env-file` / `--base-url`。
 
 ### 只打小程序、本地反复迭代
 
@@ -59,7 +70,7 @@ python3 scripts/release-preflight.py --artifact-dir '<OUTPUT_DIR>'
 TARO_APP_API_URL=https://zhixinggk.ltd npm run build:weapp
 ```
 
-对应脚本是 `taro build --type weapp`。监听模式是 `npm run dev:weapp`（同一条构建加 `--watch`），适合改代码，不代替上面的正式归档。
+对应脚本是 `taro build --type weapp`。监听模式是 `npm run dev:weapp`（同一条构建加 `--watch`），适合改代码，不代替上面的正式归档。这条命令**不会**读取 `MINIPROGRAM_APP_ID`，导入仓库根目录时 AppID 仍是 `touristappid`。要带上真实 AppID，用本节的归档脚本。
 
 导入方式：
 
@@ -73,7 +84,7 @@ TARO_APP_API_URL=https://zhixinggk.ltd npm run build:weapp
 手工步骤（仓库无上传 CLI）：
 
 1. 微信开发者工具 → 导入项目。正式包导入归档的 **`weapp/`**（该目录有 `project.config.json`，代码在 `weapp/dist/`）。本地迭代导入仓库根目录，见上一节。
-2. 游客预览可以暂时用 `touristappid`。游客模式之外，把导入工程的 `appid` 改成小程序真实 AppID（开发者工具「项目详情」，或改归档里的 `weapp/project.config.json`）。AppID 不是密钥。仓库里的 `project.config.json` 目前是 `touristappid`；不要为了一次预览把 AppSecret 写进该文件。
+2. 归档里的 `appid` 来自构建时的 `MINIPROGRAM_APP_ID`，不是仓库里的 `touristappid`。重新构建后要重新导入这个 `weapp/` 目录（或在开发者工具里重新打开该项目），否则工具仍用上一次导入的 AppID。仓库根 `project.config.json` 保持 `touristappid`，不要把归档副本提交回去。`MINIPROGRAM_APP_SECRET` 不参与这次打包。
 3. 微信公众平台 → 开发管理 → 开发设置 → 服务器域名：把 **request 合法域名** 配成生产 API 主机（HTTPS，无路径），与构建时的 `--api-url` 主机一致，例如 `https://zhixinggk.ltd`。
 4. 仓库 `project.config.json` 的 `setting.urlCheck` 是 `false`，只方便本地不校验域名。正式真机必须在合法域名已配置的前提下再验一遍请求是否打到生产 HTTPS，不要靠关掉校验蒙混过关。`release-preflight.py` 对此有同样的告警。
 
@@ -81,13 +92,13 @@ TARO_APP_API_URL=https://zhixinggk.ltd npm run build:weapp
 
 | 位置 | 变量 | 用途 |
 |------|------|------|
-| 本次前端构建 | `TARO_APP_API_URL` | 唯一需要传入的前端地址；写入 `API_BASE_URL` |
-| 服务器 / 本机 `.env`（已 gitignore） | `MINIPROGRAM_APP_ID` | 小程序 AppID |
-| 同上 | `MINIPROGRAM_NAME` | 名称占位 |
-| 同上 | `MINIPROGRAM_BASE_URL` | 小程序侧基地址占位 |
-| 同上 | `MINIPROGRAM_APP_SECRET` | AppSecret，只放 `.env` |
+| 本次前端构建 | `TARO_APP_API_URL` | 写入 `API_BASE_URL` 的接口根 |
+| 仓库根 `.env`（已 gitignore），或已导出的环境变量 | `MINIPROGRAM_APP_ID` | 只写入归档 `weapp/project.config.json` 的 `appid` |
+| 同上，可选 | `MINIPROGRAM_NAME` | 有值时写入归档的 `projectname` |
+| 同上，打包不读取 | `MINIPROGRAM_BASE_URL` | 后端占位，前端构建不用 |
+| 同上，打包不读取 | `MINIPROGRAM_APP_SECRET` | AppSecret。归档脚本不读这个键 |
 
-占位说明见 `.env.docker.example`。`.env`、`server/.env`、`dist/` 都在 `.gitignore`。文档和提交里只写变量名，不写、不粘贴任何密钥值。打包时不要设 `USE_MOCK=true`（生产走真实 API）。
+密钥留在 `.env`，不要提交，不要写进文档或日志。前端构建不用 AppSecret。占位说明见 `.env.docker.example`。`.env`、`server/.env`、`dist/` 都在 `.gitignore`。打包时不要设 `USE_MOCK=true`（生产走真实 API）。归档目录里的 `project.config.json` 含本次 AppID，不要把它拷回仓库。
 
 ## 5. 已在仓库里的小程序构建补丁
 
@@ -117,7 +128,7 @@ TARO_APP_API_URL=https://zhixinggk.ltd npm run build:weapp
 
 ## 7. 不要做
 
-- 不要提交 `.env`、`server/.env`、`dist/`，不要把 AppSecret 或其它密钥写进文档、PR、聊天记录。
+- 不要提交 `.env`、`server/.env`、`dist/`，也不要提交带真实 AppID 的归档 `project.config.json`。不要把 AppSecret 或其它密钥写进文档、PR、聊天记录。
 - 不要对同一个 `dist/` 并行或连续跑 `build:h5` 和 `build:weapp` 而不立刻归档。用 `scripts/build-release-artifacts.sh`。
 - 不要在文档或示例里写假的 AppSecret。变量名以 `.env.docker.example` 为准，值留空。
 - 不要在 bug 还没修完时打正式预览包，除非明确要求出包。
