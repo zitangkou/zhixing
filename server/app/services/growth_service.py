@@ -1,4 +1,4 @@
-"""知行足迹：聚合各模块学习数据，供成长总览页展示"""
+"""学习足迹：聚合各模块学习数据，供成长总览页展示"""
 from __future__ import annotations
 
 from datetime import timedelta

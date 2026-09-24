@@ -35,7 +35,7 @@ def get_or_create_demo_user(db: Session, user_id: str | None = None) -> AppUser:
     uid = user_id or "u-demo-001"
     user = db.get(AppUser, uid)
     if not user:
-        user = AppUser(id=uid, nickname="知行学员", points=120)
+        user = AppUser(id=uid, nickname="杜衡阁学员", points=120)
         db.add(user)
         db.commit()
         db.refresh(user)

@@ -2,7 +2,7 @@
   "name": "zhixing-gongkao",
   "version": "1.0.0",
   "private": true,
-  "description": "知行公考——以「上岸」为唯一目标的公考备考应用",
+  "description": "杜衡阁——学习与阅读助手",
   "templateInfo": {
     "name": "default",
     "typescript": true,

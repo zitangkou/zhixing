@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '知行',
+  navigationBarTitleText: '杜衡阁',
   enablePullDownRefresh: true,
   onReachBottomDistance: 80,
 })

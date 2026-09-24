@@ -100,7 +100,7 @@ export default defineAppConfig({
   lazyCodeLoading: 'requiredComponents',
   window: {
     navigationBarBackgroundColor: '#D0021B',
-    navigationBarTitleText: '知行公考',
+    navigationBarTitleText: '杜衡阁',
     navigationBarTextStyle: 'white',
     backgroundColor: '#F3F4F6',
   },

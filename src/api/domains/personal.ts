@@ -1,7 +1,7 @@
 import * as d from '../_shared'
 
 export const apiPersonal = {
-  // ===== 知行足迹 =====
+  // ===== 学习足迹 =====
 
   getGrowthOverview(): Promise<d.ApiRes<d.GrowthOverview>> {
     return d.isMock ? d.mockService.getGrowthOverview() : d.request('/api/growth/overview')

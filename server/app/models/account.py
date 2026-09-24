@@ -53,7 +53,7 @@ class AppUser(Base):
     username: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     openid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
-    nickname: Mapped[str] = mapped_column(String(64), default="知行学员")
+    nickname: Mapped[str] = mapped_column(String(64), default="杜衡阁学员")
     avatar: Mapped[str] = mapped_column(String(512), default="")
     email: Mapped[str] = mapped_column(String(128), default="")
     phone: Mapped[str] = mapped_column(String(20), default="")

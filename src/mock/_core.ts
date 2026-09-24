@@ -147,7 +147,7 @@ export const mockState = {
   }>,
   userInfo: {
     id: 'self',
-    nickname: '知行学员',
+    nickname: '杜衡阁学员',
     avatar: '',
     email: '',
     phone: '',

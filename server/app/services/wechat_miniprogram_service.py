@@ -102,7 +102,7 @@ def login_with_wechat_code(db: Session, code: str) -> tuple[AppUser | None, Wech
         username=None,
         password_hash=None,
         openid=openid,
-        nickname="知行学员",
+        nickname="杜衡阁学员",
         points=0,
     )
     db.add(user)

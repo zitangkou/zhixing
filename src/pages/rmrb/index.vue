@@ -39,7 +39,7 @@ import { api } from '@/api'
 import type { ShenlunStats } from '@/types'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '知行申论' })
+definePageConfig({ navigationBarTitleText: '申论' })
 
 const { themeClass } = useThemeClass()
 const stats = ref<ShenlunStats | null>(null)

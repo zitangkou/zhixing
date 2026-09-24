@@ -41,8 +41,8 @@ class ProductContext:
 PRODUCTS: dict[str, ProductContext] = {
     "general": ProductContext(
         key="general",
-        name="知行公考",
-        short_name="知行",
+        name="杜衡阁",
+        short_name="杜衡",
         theme_key="red",
         home_mode="dashboard",
         daily_target_min=30,
