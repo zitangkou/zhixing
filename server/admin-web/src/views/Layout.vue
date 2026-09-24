@@ -2,8 +2,8 @@
   <el-container class="layout">
     <el-aside :width="asideWidth" class="aside" :class="{ collapsed }">
       <div class="brand">
-        <span v-if="!collapsed" class="brand-text">知行管理后台</span>
-        <span v-else class="brand-short" title="知行管理后台">知</span>
+        <span v-if="!collapsed" class="brand-text">杜衡阁管理后台</span>
+        <span v-else class="brand-short" title="杜衡阁管理后台">杜</span>
         <button
           type="button"
           class="collapse-btn"

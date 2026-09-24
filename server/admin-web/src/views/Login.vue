@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <el-card class="login-card">
-      <h1>知行管理后台</h1>
+      <h1>杜衡阁管理后台</h1>
       <p class="subtitle">内容审核 · 题库配置 · 学习资源</p>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="onSubmit">
         <el-form-item label="用户名" prop="username">
