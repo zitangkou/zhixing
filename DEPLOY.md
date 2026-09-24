@@ -204,7 +204,7 @@ cd server/admin-web && npm run dev
 
 ## 10. 发布产物与上线检查
 
-学员端 H5 和微信小程序构建都会写入 `dist`，不能并行构建，也不能构建完两种目标后只取最后一个 `dist`。使用以下命令顺序构建并立即归档：
+学员端 H5 和微信小程序构建都会写入 `dist`，不能并行构建，也不能构建完两种目标后只取最后一个 `dist`。使用以下命令顺序构建并立即归档。微信小程序导入开发者工具、预览与上传见 [docs/release/weapp-build-guide.md](docs/release/weapp-build-guide.md)。
 
 ```bash
 bash scripts/build-release-artifacts.sh --api-url https://你的正式域名
