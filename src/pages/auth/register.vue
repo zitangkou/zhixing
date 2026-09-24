@@ -1,7 +1,7 @@
 <template>
   <view class="page-auth" :class="themeClass">
     <view class="auth-header">
-      <BrandLogo size="md" tagline="知行合一 · 开启学习" />
+      <BrandLogo size="md" tagline="开启今日学习" />
       <text class="subtitle">用户名 3-32 位，支持字母、数字、下划线</text>
     </view>
 

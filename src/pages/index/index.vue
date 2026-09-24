@@ -118,7 +118,7 @@ import { bumpAuthView, isLoggedIn } from '@/utils/auth'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '知行' })
+definePageConfig({ navigationBarTitleText: '杜衡阁' })
 
 const { themeClass } = useThemeClass()
 const userStore = useUserStore()

@@ -217,7 +217,7 @@ def growth_overview(
     user: AppUser = Depends(get_app_user),
     db: Session = Depends(get_db),
 ):
-    """知行足迹：个人成长总览"""
+    """学习足迹：个人成长总览"""
     return ApiResponse.ok(get_growth_overview(db, user).model_dump())
 
 

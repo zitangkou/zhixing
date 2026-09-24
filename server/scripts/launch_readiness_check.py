@@ -96,7 +96,7 @@ def check_db(path: str) -> None:
             n = con.execute(f'select count(*) from "{t}" where nickname = ?', ("政考学员",)).fetchone()[0]
             if n:
                 print(f"{BAD} {t}: {n} 行仍是「政考学员」——执行：")
-                print(f"   sqlite3 {path} \"UPDATE {t} SET nickname='知行学员' WHERE nickname='政考学员';\"（先备份整库）")
+                print(f"   sqlite3 {path} \"UPDATE {t} SET nickname='杜衡阁学员' WHERE nickname='政考学员';\"（先备份整库）")
             else:
                 print(f"{OK} {t}: 无残留")
         except sqlite3.Error:

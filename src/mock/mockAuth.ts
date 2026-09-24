@@ -44,7 +44,7 @@ export const mockAuth = {
     await m.delay()
     m.mockState.userInfo = {
       id: 'u-wechat',
-      nickname: '知行学员',
+      nickname: '杜衡阁学员',
       avatar: '',
       email: '',
       phone: '',

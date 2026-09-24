@@ -64,7 +64,7 @@
           <nut-tag v-if="!userStore.hasSignedToday" type="primary" size="small"> 未签到 </nut-tag>
         </template>
       </nut-cell>
-      <nut-cell v-if="SHOW_GROWTH" title="知行足迹" is-link @click="go('/pages/user/growth')">
+      <nut-cell v-if="SHOW_GROWTH" title="学习足迹" is-link @click="go('/pages/user/growth')">
         <template #icon>
           <view class="cell-icon">
             <Fabulous :color="brandIcon" size="18" />

@@ -545,7 +545,7 @@ export interface ShenlunDrillLog {
   createdAt: string
 }
 
-/** 知行足迹 / 成长总览 */
+/** 学习足迹 / 成长总览 */
 export interface GrowthDayBar {
   date: string
   label: string

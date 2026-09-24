@@ -4,5 +4,5 @@ export type ProductKey = 'general'
 export const CURRENT_PRODUCT_KEY: ProductKey = 'general'
 
 export const LOCAL_PRODUCT_DEFAULTS = {
-  general: { name: '知行公考', shortName: '知行', themeKey: 'red', homeMode: 'dashboard', dailyTargetMin: 30 },
+  general: { name: '杜衡阁', shortName: '杜衡', themeKey: 'red', homeMode: 'dashboard', dailyTargetMin: 30 },
 } as const

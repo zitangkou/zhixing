@@ -76,7 +76,7 @@ import { api } from '@/api'
 import type { GrowthOverview } from '@/types'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '知行足迹' })
+definePageConfig({ navigationBarTitleText: '学习足迹' })
 
 const { themeClass } = useThemeClass()
 const data = ref<GrowthOverview | null>(null)

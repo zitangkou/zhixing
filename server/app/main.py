@@ -54,8 +54,8 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="知行公考 API",
-    description="知行公考后端服务 — 多产品学习内容、练习闭环、错题复习与内容运营",
+    title="杜衡阁 API",
+    description="杜衡阁后端服务 — 多产品学习内容、练习闭环、错题复习与内容运营",
     version="1.0.0",
     lifespan=lifespan,
 )

@@ -116,7 +116,7 @@ def test_create_user_then_reuse_openid(monkeypatch, configured, client, db_sessi
     assert body["data"]["token_type"] == "bearer"
     assert body["data"]["access_token"]
     user = body["data"]["user"]
-    assert user["nickname"] == "知行学员"
+    assert user["nickname"] == "杜衡阁学员"
     assert user["username"] is None
     _assert_no_secret(first.text)
     assert fake.calls[0][0] == "https://api.weixin.qq.com/sns/jscode2session"
@@ -143,7 +143,7 @@ def test_create_user_then_reuse_openid(monkeypatch, configured, client, db_sessi
         assert len(rows) == 1
         assert rows[0].username is None
         assert rows[0].password_hash is None
-        assert rows[0].nickname == "知行学员"
+        assert rows[0].nickname == "杜衡阁学员"
 
 
 def test_invalid_code_does_not_leak_secret(monkeypatch, configured, client, caplog):
