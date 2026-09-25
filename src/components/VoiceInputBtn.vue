@@ -1,5 +1,5 @@
 <template>
-  <view class="voice-btn-wrap">
+  <view v-if="isH5" class="voice-btn-wrap">
     <view class="voice-btn" :class="{ on: listening, busy }" @tap="onTap">
       <text class="icon">
         {{ listening ? '⏹' : '🎙' }}
@@ -37,6 +37,12 @@ const props = withDefaults(
   },
 )
 
+/**
+ * 语音输入依赖浏览器 fetch / MediaRecorder / Web Speech，仅 H5 可用；
+ * 小程序端不渲染按钮，也不走任何录音/识别逻辑。
+ */
+const isH5 = process.env.TARO_ENV === 'h5'
+
 const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
   (e: 'result', v: string): void
@@ -73,6 +79,7 @@ function flush(spoken: string) {
 }
 
 async function onTap() {
+  if (!isH5) return
   if (busy.value && !listening.value) return
 
   if (listening.value) {
