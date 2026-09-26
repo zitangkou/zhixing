@@ -4,6 +4,8 @@
       <!-- eslint-disable-next-line vue/no-v-html, vue/no-v-text-v-html-on-component -->
       <view v-html="html" />
     </view>
+    <!-- 小程序：不渲染 KaTeX，公式直接显示可读纯文本（同一文本不再在下方重复） -->
+    <text v-else-if="!isH5" class="latex-text">{{ weappText }}</text>
     <text v-else class="latex-fallback">
       {{ fallbackText }}
     </text>
@@ -15,7 +17,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { renderLatex } from '@/utils/latex'
+// 相对路径导入，Taro 多端文件才生效：weapp 解析到 latex.weapp.ts（不含 KaTeX），H5 用 latex.ts
+import { renderLatex } from '../utils/latex'
+import { latexToPlain } from '@/utils/latexPlain'
 
 const props = withDefaults(
   defineProps<{
@@ -36,6 +40,9 @@ const props = withDefaults(
 
 const html = computed(() => renderLatex(props.latex || '', { displayMode: props.displayMode }))
 const fallbackText = computed(() => props.plain || props.latex || '')
+
+const isH5 = process.env.TARO_ENV === 'h5'
+const weappText = computed(() => (props.plain || '').trim() || latexToPlain(props.latex || ''))
 </script>
 
 <style lang="scss" scoped>
@@ -71,6 +78,24 @@ const fallbackText = computed(() => props.plain || props.latex || '')
 }
 .size-lg .latex-render {
   font-size: 20px;
+}
+/* 小程序纯文本公式 */
+.latex-text {
+  display: block;
+  color: $text-primary;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.size-sm .latex-text {
+  font-size: 14px;
+}
+.size-md .latex-text {
+  font-size: 16px;
+}
+.size-lg .latex-text {
+  font-size: 18px;
 }
 .latex-render :deep(.katex-display) {
   margin: 0.35em 0;

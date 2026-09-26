@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import type { Plugin } from 'vite'
 
 /**
@@ -11,56 +9,10 @@ import type { Plugin } from 'vite'
  * 与上游 https://github.com/NervJS/taro/pull/17541 相同：把 @babel 拆到独立的
  * babelHelpers chunk，让 taro chunk 不再依赖 vendors。
  *
- * 额外：KaTeX 仅资料（ziliao）公式页使用。默认会进主包 vendors（JS + 三套字体
- * base64 约 1.4MB）。这里把 katex / latex 工具 / LatexBlock 打进
- * pages/ziliao/katex，并在 CSS 里只保留 woff2，避免主包/分包超限。
+ * KaTeX：小程序端不再打包（src/utils/latex.weapp.ts 替代 latex.ts，公式显示纯文本），
+ * 因此这里不再需要 KaTeX 分包与字体裁剪逻辑。
  */
 const BABEL_DEP = /node_modules[\\/]@babel[\\/]/
-const KATEX_DEP = /node_modules[\\/]katex[\\/]/
-const LATEX_UTIL = /[\\/]utils[\\/]latex\.ts$/
-const LATEX_BLOCK = /[\\/]components[\\/]LatexBlock\.vue$/
-
-/** 去掉同包的 woff/ttf（含 Vite 已 base64 内联的 data: URL），只留 woff2。 */
-export function stripKatexExtraFonts(css: string): string {
-  if (!css.includes('KaTeX_') && !/katex/i.test(css)) return css
-  let next = css
-  // 构建前：url(fonts/xxx.woff) format("woff")
-  next = next.replace(/,?\s*url\(([^)]+\.woff)\)\s*format\("woff"\)/g, '')
-  next = next.replace(/,?\s*url\(([^)]+\.ttf)\)\s*format\("truetype"\)/g, '')
-  // 构建后：url(data:font/woff;base64,...) format("woff")
-  next = next.replace(
-    /,?\s*url\(data:font\/woff;base64,[A-Za-z0-9+/=]+\)\s*format\("woff"\)/g,
-    '',
-  )
-  next = next.replace(
-    /,?\s*url\(data:font\/(?:ttf|truetype);base64,[A-Za-z0-9+/=]+\)\s*format\("truetype"\)/g,
-    '',
-  )
-  next = next.replace(/src:\s*,/g, 'src:')
-  next = next.replace(/format\("woff2"\)\s*,(?=\s*[;}])/g, 'format("woff2")')
-  return next
-}
-
-function isKatexRelatedModule(id: string): boolean {
-  const bare = id.split('?')[0] || id
-  return KATEX_DEP.test(bare) || LATEX_UTIL.test(bare) || LATEX_BLOCK.test(bare)
-}
-
-function walkStripWxss(dir: string) {
-  if (!fs.existsSync(dir)) return
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      walkStripWxss(full)
-      continue
-    }
-    if (!entry.name.endsWith('.wxss')) continue
-    const css = fs.readFileSync(full, 'utf8')
-    if (!css.includes('KaTeX_') && !css.includes('font/woff')) continue
-    const next = stripKatexExtraFonts(css)
-    if (next !== css) fs.writeFileSync(full, next)
-  }
-}
 
 export function weappBreakVueChunkCycle(): Plugin {
   return {
@@ -74,23 +26,8 @@ export function weappBreakVueChunkCycle(): Plugin {
       const original = output.manualChunks
       output.manualChunks = (id, meta) => {
         if (BABEL_DEP.test(id)) return 'babelHelpers'
-        // chunkFileNames 为 [name].js → 落在分包目录，不进主包 vendors
-        if (isKatexRelatedModule(id)) return 'pages/ziliao/katex'
         return original(id, meta)
       }
-    },
-    transform(code, id) {
-      if (process.env.TARO_ENV !== 'weapp') return null
-      const bare = id.split('?')[0] || id
-      if (!KATEX_DEP.test(bare) || !/\.css$/i.test(bare)) return null
-      const next = stripKatexExtraFonts(code)
-      if (next === code) return null
-      return { code: next, map: null }
-    },
-    writeBundle(options) {
-      if (process.env.TARO_ENV !== 'weapp') return
-      const dir = options.dir || path.resolve('dist')
-      walkStripWxss(dir)
     },
   }
 }
