@@ -37,12 +37,15 @@ def admin_rmrb_preview_html(
     body: _RmrbPreviewHtmlBody,
     _admin=Depends(require_permission("rmrb:write")),
 ):
-    from app.services.article_import import parse_rmrb_source_html
+    from app.services.article_import import parse_rmrb_source_html, rmrb_source_rejection
 
     try:
         parsed, parse_errors = parse_rmrb_source_html(body.html)
     except ValueError as e:
         return ApiResponse.fail(str(e), code=400)
+    reason = rmrb_source_rejection(parsed.get("source") or "", parsed.get("source_url") or "")
+    if reason:
+        return ApiResponse.fail(reason, code=400)
     return ApiResponse.ok({
         "title": parsed["title"],
         "source": parsed.get("source") or "",

@@ -340,6 +340,7 @@ import type {
   ShenlunVerbItem,
 } from '@/types'
 import { useThemeClass } from '@/utils/brandColor'
+import { todayBJ } from '@/utils/date'
 
 definePageConfig({ navigationBarTitleText: '三刀解剖' })
 
@@ -393,7 +394,7 @@ const sentenceTypes = ref<ShenlunSentenceType[]>(
   })),
 )
 
-const today = new Date().toISOString().slice(0, 10)
+const today = todayBJ()
 const form = ref({
   mineDate: today,
   articleTitle: decodeURIComponent(router.params?.title || ''),

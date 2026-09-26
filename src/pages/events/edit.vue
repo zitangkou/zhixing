@@ -66,6 +66,7 @@ import { flushFormBeforeSave } from '@/utils/formFlush'
 import type { KnowledgePickValue } from '@/utils/knowledge'
 import { showConfirm, showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
+import { todayBJ } from '@/utils/date'
 
 definePageConfig({ navigationBarTitleText: '记事件印象' })
 
@@ -78,7 +79,7 @@ const loadedForId = ref<string | null>(null)
 
 const form = reactive({
   title: '',
-  eventDate: new Date().toISOString().slice(0, 10),
+  eventDate: todayBJ(),
   place: '',
   coreContent: '',
   note: '',
@@ -97,7 +98,7 @@ async function load() {
     if (loadedForId.value === '') return
     loadedForId.value = ''
     form.title = ''
-    form.eventDate = new Date().toISOString().slice(0, 10)
+    form.eventDate = todayBJ()
     form.place = ''
     form.coreContent = ''
     form.note = ''

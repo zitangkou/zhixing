@@ -22,6 +22,15 @@ def _parse_source_html(raw: str) -> dict:
     return parsed
 
 
+def _ensure_rmrb_source(source: str, source_url: str) -> None:
+    """时评模块只收人民日报文章，来源明确不是人民日报时拒绝。"""
+    from app.services.article_import import rmrb_source_rejection
+
+    reason = rmrb_source_rejection(source, source_url)
+    if reason:
+        raise ValueError(reason)
+
+
 def _to_out(a: RmrbArticle, *, include_html: bool = True) -> RmrbArticleOut:
     return RmrbArticleOut(
         id=a.id,
@@ -147,7 +156,8 @@ def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
     title = (body.title or "").strip()
     source = (body.source or "人民时评").strip()
     source_url = (body.sourceUrl or "").strip()
-    publish_date = (body.publishDate or today_str()).strip()
+    # 回填历史文章：优先用手填日期，其次 HTML 解析出的原文日期，最后才用今天
+    publish_date = (body.publishDate or "").strip()
     summary = (body.summary or "").strip()
     tags = list(body.tags or [])
     content = body.content or ""
@@ -165,8 +175,10 @@ def create_article(db: Session, body: RmrbArticleCreate) -> RmrbArticleOut:
         publish_date = publish_date or parsed.get("publish_date") or today_str()
         summary = summary or parsed.get("summary") or ""
         tags = tags or list(parsed.get("tags") or [])
+    publish_date = publish_date or today_str()
     if not title:
         raise ValueError("标题不能为空（可在 HTML 中提供 h1）")
+    _ensure_rmrb_source(source, source_url)
     a = RmrbArticle(
         id=gen_id("rmrb"),
         title=title,
@@ -201,6 +213,7 @@ def update_article(db: Session, article_id: str, body: RmrbArticleUpdate) -> Rmr
         "contentHtml": "content_html",
     }
     html_raw = data.pop("contentHtml", None)
+    parsed_source = ""
     content_raw = data.get("content")
     if html_raw is None and isinstance(content_raw, str) and _looks_like_html(content_raw):
         html_raw = content_raw
@@ -208,6 +221,7 @@ def update_article(db: Session, article_id: str, body: RmrbArticleUpdate) -> Rmr
         html_raw = (html_raw or "").strip()
         if html_raw:
             parsed = _parse_source_html(html_raw)
+            parsed_source = parsed.get("source") or ""
             a.content_html = parsed["content_html"]
             if content_raw is None or not str(content_raw).strip() or _looks_like_html(str(content_raw)):
                 a.content = parsed["content"]
@@ -224,6 +238,18 @@ def update_article(db: Session, article_id: str, body: RmrbArticleUpdate) -> Rmr
                 data["tags"] = parsed["tags"]
         else:
             a.content_html = ""
+    if html_raw or "source" in data or "sourceUrl" in data:
+        final_source = str(data.get("source") or "").strip()
+        if not final_source or final_source == "人民时评":
+            final_source = parsed_source or final_source or (a.source or "")
+        final_url = str(data["sourceUrl"] if "sourceUrl" in data else (a.source_url or "")).strip()
+        try:
+            if parsed_source:
+                _ensure_rmrb_source(parsed_source, "")
+            _ensure_rmrb_source(final_source, final_url)
+        except ValueError:
+            db.rollback()
+            raise
     for k, v in data.items():
         if k == "tags":
             a.tags = _dump_tags(v)

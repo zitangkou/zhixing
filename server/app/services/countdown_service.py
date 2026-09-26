@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import AppUser, ExamCountdown, gen_id
 from app.schemas import ExamCountdownOut, ExamCountdownUpsert
+from app.timezone import today as today_str
 
 
 def _to_out(m: ExamCountdown | None) -> ExamCountdownOut | None:
@@ -15,7 +16,7 @@ def _to_out(m: ExamCountdown | None) -> ExamCountdownOut | None:
     days_left = 0
     if m.exam_date:
         try:
-            days_left = (date.fromisoformat(m.exam_date) - date.today()).days
+            days_left = (date.fromisoformat(m.exam_date) - date.fromisoformat(today_str())).days
         except ValueError:
             days_left = 0
     return ExamCountdownOut(
