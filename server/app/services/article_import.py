@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 from app.services.section_parser import _extract_highlight, sections_to_content
 
@@ -727,12 +728,119 @@ def _rmrb_people_href(html: str, raw: str) -> str:
     return hrefs[0].strip() if hrefs else ""
 
 
+# 署名行：「—— 人民日报 2026-09-24 第07版」「来源：经济日报 2026-09-24」「原文出处：…」
+_BYLINE_PREFIX_RE = re.compile(r"^(?:[—–－\-]{1,3}\s*|来源\s*[：:]\s*|原文出处\s*[：:]\s*)")
+_SOURCE_PAREN_RE = re.compile(r"[（(][^）)]*[）)]")
+
+# 原文链接域名 → 来源（仅用于署名行缺失时兜底判断）
+_RMRB_URL_DOMAINS = ("people.com.cn", "people.cn")
+_OTHER_SOURCE_DOMAINS: tuple[tuple[str, str], ...] = (
+    ("ce.cn", "经济日报"),
+    ("workercn.cn", "中工网"),
+    ("gmw.cn", "光明日报"),
+    ("xinhuanet.com", "新华社"),
+    ("news.cn", "新华社"),
+    ("qstheory.cn", "求是"),
+    ("chinadaily.com.cn", "中国日报"),
+    ("cyol.com", "中国青年报"),
+    ("youth.cn", "中国青年网"),
+    ("chinanews.com.cn", "中国新闻网"),
+    ("chinanews.com", "中国新闻网"),
+    ("china.com.cn", "中国网"),
+    ("cctv.com", "央视网"),
+    ("banyuetan.org", "半月谈"),
+    ("thepaper.cn", "澎湃新闻"),
+)
+
+
+def _url_host(url: str) -> str:
+    try:
+        return (urlparse((url or "").strip()).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def _host_matches(host: str, domain: str) -> bool:
+    return host == domain or host.endswith("." + domain)
+
+
+def source_from_url(url: str) -> str:
+    """按原文链接域名推断来源；人民日报系返回「人民日报」，未知域名返回空串。"""
+    host = _url_host(url)
+    if not host:
+        return ""
+    if any(_host_matches(host, d) for d in _RMRB_URL_DOMAINS):
+        return "人民日报"
+    for domain, name in _OTHER_SOURCE_DOMAINS:
+        if _host_matches(host, domain):
+            return name
+    return ""
+
+
+def is_rmrb_source(name: str) -> bool:
+    text = (name or "").strip().strip("《》")
+    return text.startswith("人民日报") or text in ("人民网", "人民时评")
+
+
+def rmrb_source_rejection(source: str, source_url: str = "") -> str | None:
+    """时评模块只收人民日报：署名来源优先，其次原文链接域名。返回拒绝原因；可收则返回 None。"""
+    name = _SOURCE_PAREN_RE.sub("", (source or "")).strip().strip("《》")
+    # 「人民时评」是栏目名/默认值，不足以证明来源，继续看原文链接
+    if name and name != "人民时评":
+        if is_rmrb_source(name):
+            return None
+        return f"该文来源为《{name}》，时评模块仅接收人民日报文章"
+    url_name = source_from_url(source_url)
+    if url_name and not is_rmrb_source(url_name):
+        host = _url_host(source_url)
+        return f"该文原文链接来自{url_name}（{host}），时评模块仅接收人民日报文章"
+    return None
+
+
+_VIEW_ORIGINAL_RE = re.compile(r"查看原文\s*[（(]\s*([^）)]{2,20})\s*[）)]")
+_HREF_RE = re.compile(r"""href\s*=\s*["'](https?://[^"']+)["']""", re.I)
+
+
+def display_html_source_rejection(html: str) -> str | None:
+    """三刀解剖 HTML：按「查看原文（XX）」链接文字或外链域名判断原文是否人民日报。"""
+    raw = html or ""
+    m = _VIEW_ORIGINAL_RE.search(re.sub(r"<[^>]+>", "", raw))
+    if m:
+        reason = rmrb_source_rejection(m.group(1), "")
+        if reason:
+            return reason
+    for href in _HREF_RE.findall(raw):
+        reason = rmrb_source_rejection("", href)
+        if reason:
+            return reason
+    return None
+
+
+def _explicit_byline(lines: list[str]) -> tuple[str, str]:
+    """优先认正文署名行（—— / 来源： / 原文出处：），不认页头「人民时评 · 精读系列」等套话。"""
+    for text in lines:
+        m = _BYLINE_PREFIX_RE.match(text)
+        if not m:
+            continue
+        rest = text[m.end() :].split("|", 1)[0].strip()
+        if not rest:
+            continue
+        name, date = _split_source_blob(rest)
+        name = _SOURCE_PAREN_RE.sub("", name).strip(" ·-—《》")
+        known = bool(_SOURCE_NAME_RE.match(rest))
+        # 没有日期又不是已知媒体名的「——」行（如引语落款）不当署名
+        if name and (known or date):
+            return name, date
+    return "", ""
+
+
 def _rmrb_byline(plain: str) -> tuple[str, str]:
-    source = ""
-    publish_date = ""
-    for line in (plain or "").splitlines():
-        text = line.strip()
-        if not text:
+    lines = [line.strip() for line in (plain or "").splitlines() if line.strip()]
+    source, publish_date = _explicit_byline(lines)
+    if source:
+        return source, publish_date
+    for text in lines:
+        if _RMRB_SOURCE_SKIP_RE.search(text):
             continue
         text = re.sub(r"^[\s—–\-－]+", "", text)
         text = re.sub(r"^.*?原文出处[：:]\s*", "", text)
@@ -813,6 +921,8 @@ def parse_rmrb_source_html(text: str) -> tuple[dict[str, Any], list[str]]:
     plain = _html_to_text(html)
     source, publish_date = _rmrb_byline(plain)
     source_url = _rmrb_people_href(html, raw)
+    if not source:
+        source = source_from_url(source_url)
     tags, _labeled = _rmrb_labeled_fields(plain)
     summary = _rmrb_lead_summary(html, plain, title)
     if not source:

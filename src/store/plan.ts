@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { api, isMock } from '@/api'
 import type { DayPlan, DailyReview, PlanTask } from '@/types'
+import { todayBJ } from '@/utils/date'
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+const todayStr = () => todayBJ()
 
 export const usePlanStore = defineStore('plan', {
   state: () => ({

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from datetime import date
 
 from app.schemas.rmrb import (
     ShenlunArgumentPoint,
@@ -16,6 +15,7 @@ from app.schemas.rmrb import (
     ShenlunTransferGuide,
     ShenlunVerbItem,
 )
+from app.timezone import today as today_str
 
 
 def _strip(text: str) -> str:
@@ -228,7 +228,7 @@ def parse_three_knife_markdown(md: str) -> ShenlunMineLogUpsert:
     if not title:
         m = re.search(r"文章标题[：:]\s*《(.+?)》", md)
         title = m.group(1).strip() if m else ""
-    mine_date = meta.get("mine_date") or date.today().isoformat()
+    mine_date = meta.get("mine_date") or today_str()
 
     argument = ShenlunArgumentSkeleton(
         mode="points",
