@@ -153,7 +153,7 @@ usePullDownRefresh(async () => {
 
 | 组件 | 用途 | 禁止 |
 |---|---|---|
-| `LatexBlock` | 公式渲染（KaTeX） | 禁止页面内自行 `katex.renderToString` |
+| `LatexBlock` | 公式渲染（H5 KaTeX；小程序纯文本） | 禁止页面内自行 `katex.renderToString` |
 | `KnowledgeTree` | 知识树递归展示 | 禁止重写树组件 |
 | `KnowledgePointPicker` | 知识点选择弹层 | — |
 | `AppTabBar` | 自定义 TabBar（3 tab 页必须用） | 禁止用原生 tabBar |
