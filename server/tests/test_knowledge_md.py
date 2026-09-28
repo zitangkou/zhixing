@@ -162,3 +162,30 @@ def test_parse_is_linear_time():
     assert r.stats["nodeCount"] == 20 + 20 * 10 * 10
     assert r.stats["leafCount"] == 20 * 10 * 9
     assert elapsed < 1.0, elapsed
+
+
+def test_archive_stats_match_manifest():
+    """存档 md 的解析统计必须与 manifest.json 一致（改 md 后需同步 manifest）。"""
+    import hashlib
+    import json
+
+    manifest = json.loads((ARCHIVE / "manifest.json").read_text(encoding="utf-8"))
+    for t in manifest["trees"]:
+        raw = (ARCHIVE / t["file"]).read_bytes()
+        r = parse_md(raw.decode("utf-8"))
+        assert r.stats["nodeCount"] == t["nodeCount"], t["file"]
+        assert r.stats["leafCount"] == t["leafCount"], t["file"]
+        assert r.stats["maxDepth"] == t["maxDepth"], t["file"]
+        assert hashlib.sha256(raw).hexdigest() == t["sha256"], t["file"]
+
+
+def test_shenlun_zuoda_liucheng_removed():
+    """决策（2026-09-29）：删除「作答流程」整支（其子分支与顶层同名分支重复），申论 535 节点。"""
+    r = parse_md((ARCHIVE / "申论.md").read_text(encoding="utf-8"))
+    assert r.stats["nodeCount"] == 535
+    top = [c.title for c in r.tree.children]
+    assert "作答流程" not in top
+    for name in ("提炼要点", "审清题意", "加工要点"):
+        assert top.count(name) == 1
+    shenfa = next(c for c in r.tree.children if c.title == "申发论述题")
+    assert {"审清题意", "提炼要点", "加工要点"} <= {c.title for c in shenfa.children}

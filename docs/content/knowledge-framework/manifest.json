@@ -22,11 +22,11 @@
     {
       "treeKey": "申论",
       "file": "申论.md",
-      "bytes": 31359,
-      "nodeCount": 630,
-      "leafCount": 319,
+      "bytes": 26865,
+      "nodeCount": 535,
+      "leafCount": 268,
       "maxDepth": 7,
-      "sha256": "798581ad52ae7d598787dbc5a3b95fb27f23902e4c97c070a640b8648ae81ead"
+      "sha256": "0ad132fead1f183ed3982e27af3513002760f58b9ad2f4d3fb25572ad5a19e00"
     },
     {
       "treeKey": "言语理解与表达",
@@ -95,6 +95,12 @@
       "treeKey": "申论",
       "path": "作答流程",
       "message": "从「申论题型」合并独有子树（+95 节点）"
+    },
+    {
+      "code": "BRANCH_REMOVED",
+      "treeKey": "申论",
+      "path": "作答流程",
+      "message": "已删除分支「作答流程」（子分支与顶层同名分支重复，-95 节点）"
     }
   ]
 }

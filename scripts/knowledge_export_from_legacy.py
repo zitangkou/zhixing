@@ -155,6 +155,20 @@ def drop_empty_branch(roots: list[Node], title: str, tree_key: str, warns: list[
     roots[:] = kept
 
 
+def drop_branch(roots: list[Node], title: str, tree_key: str, warns: list[Warn], reason: str) -> int:
+    """删除顶层分支（含整棵子树），返回删除的节点数。"""
+    kept: list[Node] = []
+    removed = 0
+    for n in roots:
+        if n.title == title:
+            removed += count_nodes([n])
+            warns.append(Warn("BRANCH_REMOVED", tree_key, n.title, f"已删除分支「{title}」（{reason}，-{count_nodes([n])} 节点）"))
+            continue
+        kept.append(n)
+    roots[:] = kept
+    return removed
+
+
 def iter_paths(roots: list[Node], parent: str = "") -> list[str]:
     out: list[str] = []
     for n in roots:
@@ -384,6 +398,11 @@ def main() -> None:
     )
     ap.add_argument("--verify", action="store_true")
     ap.add_argument(
+        "--keep-zuoda-liucheng",
+        action="store_true",
+        help="保留合并进来的「申论 / 作答流程」（默认删除：其 3 个子分支与顶层同名分支完全重复）",
+    )
+    ap.add_argument(
         "--keep-empty-yuedu",
         action="store_true",
         help="保留「言语理解与表达 / 文章阅读」空分支（默认删除）",
@@ -416,6 +435,10 @@ def main() -> None:
         warns.extend(w)
         added = merge_unique_paths(forest["申论"], src, "申论", warns)
         print(f"merged unique from 申论题型: +{added} nodes into 申论")
+        if not args.keep_zuoda_liucheng:
+            # 决策（2026-09-29）：作答流程下的 提炼要点/审清题意/加工要点 与顶层同名分支逐节点相同，整支删除
+            gone = drop_branch(forest["申论"], "作答流程", "申论", warns, "子分支与顶层同名分支重复")
+            print(f"dropped 申论/作答流程: -{gone} nodes")
     elif "申论题型" in all_trees:
         warns.append(
             Warn(
@@ -504,6 +527,11 @@ def main() -> None:
                 # only check path consistency vs merged forest, not raw db
                 if count_nodes(roots) < 514:
                     errors.append(f"申论 nodes {count_nodes(roots)} < 514 after merge")
+                if not args.keep_zuoda_liucheng:
+                    if find_by_path(roots, "作答流程") is not None:
+                        errors.append("申论/作答流程 should be removed")
+                    if count_nodes(roots) != 535:
+                        errors.append(f"申论 nodes {count_nodes(roots)} != 535 (merged, 作答流程 dropped)")
                 continue
             exp = expect.get(tk)
             if exp is not None and count_nodes(roots) != exp:
