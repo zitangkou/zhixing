@@ -15,7 +15,6 @@ my_note / is_starred / mastery_level / next_review_at / review_count / last_revi
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -36,9 +35,6 @@ _PRESERVE_FIELDS = (
 
 # 后端本地 fallback 目录（上传 md 落地处、部署时也可挂载这里）
 LOCAL_KB = Path(__file__).resolve().parents[2] / "data" / "knowledge"
-
-_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
-_LIST_RE = re.compile(r"^([-*+]|\d+\.)\s+")
 
 # tree_key -> 中文标题（可由 md 文件名 stem 推导，也允许动态新增）
 TREE_TITLES = {
@@ -64,96 +60,11 @@ def _resolve_kb_dir() -> Path | None:
     return None
 
 
-def _strip_md(text: str) -> str:
-    """去掉 md 行的 `- `、`*`、`**`、`[[]]` 等标记，返回纯文本"""
-    s = text.strip()
-    s = re.sub(r"^[-*+]\s+", "", s)
-    s = re.sub(r"^\d+\.\s+", "", s)
-    s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
-    s = re.sub(r"\*(.+?)\*", r"\1", s)
-    s = re.sub(r"\[\[(.+?)(?:\|(.+?))?\]\]", lambda m: m.group(2) or m.group(1), s)
-    s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
-    s = re.sub(r"`([^`]+)`", r"\1", s)
-    return s.strip()
-
-
-def _append_content(node: dict, text: str) -> None:
-    t = text.strip()
-    if not t:
-        return
-    prev = (node.get("content") or "").rstrip()
-    node["content"] = f"{prev}\n{t}".strip() if prev else t
-
-
 def _parse_md_to_tree(content: str, tree_key: str = "", source_file: str = "") -> list[dict]:
-    """解析 md 为扁平节点列表（含 parent_index / depth / sort_order / line / content）
+    """解析 md 为扁平节点列表；实现见 knowledge_md.parse_md。"""
+    from app.services.knowledge_md import parse_md_to_legacy_flat
 
-    层级规则：
-    - `#` 文档标题跳过
-    - `##` depth=0，`###` depth=1，`####` depth=2 …
-    - 列表项挂在当前标题下：depth = 标题depth + 1 + 缩进层级
-    - 纯列表文档（无标题）仍按缩进解析，兼容旧 md
-    """
-    nodes: list[dict] = []
-    stack: list[tuple[int, int]] = []  # (depth, node_index)
-    last_heading_depth = -1
-
-    def add_node(title: str, depth: int, line_no: int) -> int:
-        while stack and stack[-1][0] >= depth:
-            stack.pop()
-        parent_index = stack[-1][1] if stack else -1
-        node = {
-            "title": title,
-            "depth": depth,
-            "parent_index": parent_index,
-            "sort_order": len(nodes),
-            "line": line_no,
-            "content": "",
-        }
-        idx = len(nodes)
-        nodes.append(node)
-        stack.append((depth, idx))
-        return idx
-
-    for line_no, raw in enumerate(content.splitlines(), start=1):
-        stripped = raw.lstrip(" ")
-        if not stripped:
-            continue
-        if stripped.startswith("---"):
-            continue
-
-        heading = _HEADING_RE.match(stripped)
-        if heading:
-            level = len(heading.group(1))
-            title = _strip_md(heading.group(2))
-            if not title:
-                continue
-            # 单级 # 视为文档名，不进树
-            if level == 1:
-                continue
-            depth = level - 2  # ## -> 0
-            add_node(title, depth, line_no)
-            last_heading_depth = depth
-            continue
-
-        indent = len(raw) - len(stripped)
-        if _LIST_RE.match(stripped):
-            title = _strip_md(stripped)
-            if not title:
-                continue
-            # 有标题上下文：列表挂在当前标题下；否则纯列表按缩进
-            if last_heading_depth >= 0:
-                depth = last_heading_depth + 1 + (indent // 2)
-            else:
-                depth = indent // 2
-            add_node(title, depth, line_no)
-            continue
-
-        # 普通段落 / 公式行：记入最近节点 content
-        if nodes and not stripped.startswith("<!--"):
-            _append_content(nodes[-1], stripped)
-
-    return nodes
+    return parse_md_to_legacy_flat(content, tree_key=tree_key, source_file=source_file)
 
 
 def _build_path(parent_path: str | None, title: str) -> str:
