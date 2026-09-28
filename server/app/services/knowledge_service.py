@@ -14,8 +14,10 @@ md 结构支持：
 1. 配置 KNOWLEDGE_KB_DIR（settings.knowledge_kb_dir，部署时指向挂载目录 / 开发时指向 Obsidian）
 2. 后端 data/knowledge/ fallback（上传 md 落地处）
 
-同步策略：merge 而非 delete+rebuild，按 (tree_key, path) 匹配保留
-my_note / is_starred / mastery_level / next_review_at / review_count / last_reviewed_at。
+学员个人状态（备注/星标/掌握度/复习进度）只读写 user_knowledge_state。
+knowledge_nodes 上的旧字段 my_note / is_starred / mastery_level / next_review_at /
+review_count / last_reviewed_at 已废弃：按产品决定旧笔记与进度直接丢弃，不迁移、不回读，
+也没有任何启动时/自动迁移（列仅为兼容老库而保留）。
 """
 from __future__ import annotations
 

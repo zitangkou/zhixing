@@ -34,7 +34,7 @@ class KnowledgeNode(Base):
     )
     title: Mapped[str] = mapped_column(String(256))
     content: Mapped[str] = mapped_column(Text, default="")
-    # 旧用户字段：保留列但新代码不再读写（状态迁至 user_knowledge_state）
+    # 旧用户字段：已废弃，只保留列兼容老库；新代码不读不写，按产品决定旧数据丢弃、不迁移
     my_note: Mapped[str] = mapped_column(Text, default="")
     is_starred: Mapped[bool] = mapped_column(Boolean, default=False)
     mastery_level: Mapped[str] = mapped_column(String(16), default="new")
