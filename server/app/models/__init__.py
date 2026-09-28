@@ -4,7 +4,7 @@ from app.models.account import AdminUser, AppUser, Role, SystemSetting
 from app.models.content import Article, Category, Question
 from app.models.practice import ManualWrong, PointsLog, PracticeAnswer, QuizAttempt, SectionRead, SignRecord, StudyRecord, WrongAnswer
 from app.models.plan import DailyReview, PlanTask, PlanTemplate
-from app.models.knowledge import KnowledgeNode
+from app.models.knowledge import KnowledgeNode, KnowledgeTree, KnowledgeTreeVersion, UserKnowledgeState
 from app.models.exam import ExamAnswer, ExamAttempt, ExamPaper, ExamQuestion
 from app.models.rmrb import (
     RmrbArticle,

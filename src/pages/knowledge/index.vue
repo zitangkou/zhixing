@@ -1,65 +1,98 @@
 <template>
   <view class="page-knowledge" :class="themeClass">
-    <view class="kb-header">
-      <view class="kb-header-row">
-        <text class="kb-tip">共 {{ trees.length }} 棵知识树 · 长按节点可加备注/标重点</text>
-        <text class="kb-quiz" @tap="goQuiz">抽查</text>
+    <!-- 科目列表 -->
+    <view v-if="!currentKey" class="map-list">
+      <view v-if="loading" class="empty">加载中...</view>
+      <view v-else-if="!maps.length" class="empty">暂无已发布的知识导图</view>
+      <view
+        v-for="m in maps"
+        :key="m.treeKey"
+        class="map-card"
+        @tap="onSelect(m.treeKey)"
+      >
+        <image
+          v-if="m.cover?.url"
+          class="map-cover"
+          :src="resolveMediaUrl(m.cover.url)"
+          mode="aspectFill"
+        />
+        <view class="map-meta">
+          <text class="map-title">{{ m.title }}</text>
+          <text class="map-sub">{{ m.nodeCount }} 个节点 · v{{ m.version }}</text>
+        </view>
       </view>
-      <view v-if="current" class="kb-stats">
-        <text class="kb-stat known">已掌握 {{ progress.known }}</text>
-        <text class="kb-stat fuzzy">待复习 {{ progress.fuzzy }}</text>
-        <text class="kb-stat fresh">未学 {{ progress.fresh }}</text>
+    </view>
+
+    <!-- 科目详情 -->
+    <view v-else>
+      <view class="kb-header">
+        <view class="kb-header-row">
+          <text class="kb-back" @tap="backToList">← 科目</text>
+          <text class="kb-tip">{{ currentTitle }}</text>
+          <text class="kb-quiz" @tap="goQuiz">抽查</text>
+        </view>
+        <view v-if="current" class="kb-stats">
+          <text class="kb-stat known">已掌握 {{ progress.known }}</text>
+          <text class="kb-stat fuzzy">待复习 {{ progress.fuzzy }}</text>
+          <text class="kb-stat fresh">未学 {{ progress.fresh }}</text>
+        </view>
+      </view>
+
+      <view class="seg-tabs">
+        <text class="seg-tab" :class="{ active: viewMode === 'outline' }" @tap="viewMode = 'outline'">
+          大纲
+        </text>
+        <text class="seg-tab" :class="{ active: viewMode === 'map' }" @tap="viewMode = 'map'">
+          导图
+        </text>
+      </view>
+
+      <view v-if="viewMode === 'outline'">
+        <view class="kb-toolbar">
+          <input
+            class="kb-search"
+            type="text"
+            placeholder="搜索知识点…"
+            :value="searchQuery"
+            @input="onSearchInput"
+            confirm-type="search"
+          />
+          <text class="kb-expand-btn" @tap="toggleExpandAll">
+            {{ allExpanded ? '折叠全部' : '展开全部' }}
+          </text>
+        </view>
+
+        <view v-if="loading" class="empty">加载中...</view>
+        <view v-else-if="current" class="tree-body">
+          <KnowledgeTree
+            :nodes="displayNodes"
+            :expand-all="effectiveExpandAll"
+            @node-tap="onNodeTap"
+          />
+        </view>
+        <view v-else class="empty">暂无大纲数据</view>
+      </view>
+
+      <view v-else class="map-pane">
+        <MarkmapView v-if="isH5 && mapDetail?.tree" :tree="mapDetail.tree" />
+        <view v-if="isH5" class="map-pic-label">图片版（可双指缩放）</view>
+        <MapSegmentList :manifest="mapDetail?.manifest" />
       </view>
     </view>
 
-    <view class="kb-toolbar">
-      <input
-        class="kb-search"
-        type="text"
-        placeholder="搜索知识点…"
-        :value="searchQuery"
-        @input="onSearchInput"
-        confirm-type="search"
-      />
-      <text class="kb-expand-btn" @tap="toggleExpandAll">
-        {{ allExpanded ? '折叠全部' : '展开全部' }}
-      </text>
-    </view>
-
-    <view class="tree-tabs">
-      <text
-        v-for="t in trees"
-        :key="t.treeKey"
-        class="tab"
-        :class="{ active: currentKey === t.treeKey }"
-        @tap="onSelect(t.treeKey)"
-      >{{ t.title }}</text>
-    </view>
-
-    <view v-if="loading" class="empty">加载中...</view>
-    <view v-else-if="current" class="tree-body">
-      <KnowledgeTree
-        :nodes="displayNodes"
-        :expand-all="effectiveExpandAll"
-        @node-tap="onNodeTap"
-      />
-    </view>
-    <view v-else class="empty">请选择一棵知识树</view>
-
-    <!-- 节点内容弹窗 -->
     <nut-popup v-model:visible="popupVisible" position="bottom" round :closeable="true">
-      <view class="node-popup" v-if="activeNode">
+      <view v-if="activeNode" class="node-popup">
         <text class="np-title">{{ activeNode.title }}</text>
         <text class="np-path">{{ formatPath(activeNode.path) }}</text>
 
-        <view class="np-content" v-if="activeNode.content">
+        <view v-if="activeNode.content" class="np-content">
           <text class="np-content-text">{{ activeNode.content }}</text>
         </view>
-        <view class="np-content np-empty" v-else>
-          <text class="np-content-text">暂无知识要点，长按节点可添加备注</text>
+        <view v-else class="np-content np-empty">
+          <text class="np-content-text">暂无知识要点，可添加备注</text>
         </view>
 
-        <view class="np-note" v-if="activeNode.myNote">
+        <view v-if="activeNode.myNote" class="np-note">
           <text class="np-note-label">我的备注</text>
           <text class="np-note-text">{{ activeNode.myNote }}</text>
         </view>
@@ -67,17 +100,12 @@
         <text class="np-edit-note" @tap="editNote">编辑备注</text>
 
         <view class="np-actions">
-          <nut-button
-            plain
-            type="warning"
-            :loading="answering"
-            @click="onAnswer('again')"
-          >模糊</nut-button>
-          <nut-button
-            type="primary"
-            :loading="answering"
-            @click="onAnswer('good')"
-          >记住了</nut-button>
+          <nut-button plain type="warning" :loading="answering" @click="onAnswer('again')">
+            模糊
+          </nut-button>
+          <nut-button type="primary" :loading="answering" @click="onAnswer('good')">
+            记住了
+          </nut-button>
         </view>
       </view>
     </nut-popup>
@@ -89,8 +117,11 @@ import { computed, onMounted, ref } from 'vue'
 import Taro, { useRouter } from '@tarojs/taro'
 import { Button as NutButton, Popup as NutPopup } from '@nutui/nutui-taro'
 import KnowledgeTree from '@/components/KnowledgeTree.vue'
+import MapSegmentList from '@/components/knowledge/MapSegmentList.vue'
+import MarkmapView from '@/components/knowledge/MarkmapView'
 import { useKnowledgeStore } from '@/store/knowledge'
 import { promptText, showToast } from '@/utils/platform'
+import { resolveMediaUrl } from '@/utils/media'
 import type { KnowledgeNode, KnowledgeReviewResult } from '@/types'
 import { useThemeClass } from '@/utils/brandColor'
 
@@ -102,23 +133,26 @@ const kbStore = useKnowledgeStore()
 const currentKey = ref('')
 const searchQuery = ref('')
 const allExpanded = ref(false)
+const viewMode = ref<'outline' | 'map'>('outline')
+const isH5 = process.env.TARO_ENV === 'h5'
 
-// popup 状态
 const popupVisible = ref(false)
 const activeNode = ref<KnowledgeNode | null>(null)
 const answering = ref(false)
 
-const trees = computed(() => kbStore.trees)
+const maps = computed(() => kbStore.maps)
+const mapDetail = computed(() => kbStore.mapDetail)
 const current = computed(() => kbStore.current)
 const loading = computed(() => kbStore.loading)
+const currentTitle = computed(
+  () => maps.value.find((m) => m.treeKey === currentKey.value)?.title || currentKey.value,
+)
 
-// 搜索时强制展开，否则跟随用户选择
 const effectiveExpandAll = computed<boolean>(() => {
   if (searchQuery.value.trim()) return true
   return allExpanded.value
 })
 
-// 搜索过滤
 const displayNodes = computed(() => {
   if (!current.value) return []
   const q = searchQuery.value.trim().toLowerCase()
@@ -139,7 +173,6 @@ function filterTree(nodes: KnowledgeNode[], q: string): KnowledgeNode[] {
   return result
 }
 
-// 进度统计
 const progress = computed(() => {
   if (!current.value) return { known: 0, fuzzy: 0, fresh: 0 }
   let known = 0
@@ -163,14 +196,10 @@ function formatPath(path: string): string {
 }
 
 async function load() {
-  await kbStore.fetchTrees()
+  await kbStore.fetchMaps()
   const fromQuery = router.params?.treeKey ? decodeURIComponent(router.params.treeKey) : ''
-  if (fromQuery && trees.value.some((t) => t.treeKey === fromQuery)) {
+  if (fromQuery) {
     await onSelect(fromQuery)
-    return
-  }
-  if (trees.value.length && !currentKey.value) {
-    await onSelect(trees.value[0].treeKey)
   }
 }
 
@@ -178,7 +207,14 @@ async function onSelect(key: string) {
   currentKey.value = key
   searchQuery.value = ''
   allExpanded.value = false
-  await kbStore.fetchTree(key)
+  viewMode.value = 'outline'
+  await Promise.all([kbStore.fetchTree(key), kbStore.fetchMap(key)])
+}
+
+function backToList() {
+  currentKey.value = ''
+  kbStore.mapDetail = null
+  kbStore.current = null
 }
 
 function onSearchInput(e: { detail: { value: string } }) {
@@ -221,7 +257,6 @@ async function editNote() {
   const r = await kbStore.updateNode(activeNode.value.id, { myNote: content })
   if (r.code === 0) {
     showToast('已保存', 'success')
-    // 同步更新弹窗内的显示
     if (activeNode.value) activeNode.value.myNote = content
   } else {
     showToast(r.message || '保存失败', 'error')
@@ -243,6 +278,42 @@ onMounted(load)
   padding-bottom: 40px;
 }
 
+.map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.map-card {
+  @include card;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: $radius-lg;
+}
+.map-cover {
+  width: 88px;
+  height: 66px;
+  border-radius: 8px;
+  background: $page-bg;
+  flex-shrink: 0;
+}
+.map-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.map-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: $text-primary;
+}
+.map-sub {
+  font-size: 12px;
+  color: $text-muted;
+}
+
 .kb-header {
   margin-bottom: 12px;
   .kb-header-row {
@@ -250,10 +321,16 @@ onMounted(load)
     align-items: center;
     gap: 12px;
   }
+  .kb-back {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: $accent-blue;
+  }
   .kb-tip {
     flex: 1;
-    font-size: 12px;
-    color: $text-muted;
+    font-size: 15px;
+    font-weight: 600;
+    color: $text-primary;
   }
   .kb-quiz {
     flex-shrink: 0;
@@ -273,9 +350,34 @@ onMounted(load)
   .kb-stat {
     font-size: 12px;
     font-weight: 500;
-    &.known { color: #22c55e; }
-    &.fuzzy { color: #f59e0b; }
-    &.fresh { color: $text-muted; }
+    &.known {
+      color: $success;
+    }
+    &.fuzzy {
+      color: $accent-amber;
+    }
+    &.fresh {
+      color: $text-muted;
+    }
+  }
+}
+
+.seg-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.seg-tab {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: $card-bg;
+  color: $text-secondary;
+  box-shadow: $shadow-card;
+  &.active {
+    background: $primary-color;
+    color: #fff;
+    font-weight: 600;
   }
 }
 
@@ -303,30 +405,21 @@ onMounted(load)
   padding: 4px 0;
 }
 
-.tree-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-  .tab {
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    background: $card-bg;
-    color: $text-secondary;
-    box-shadow: $shadow-card;
-    &.active {
-      background: $primary-color;
-      color: #fff;
-      font-weight: 600;
-    }
-  }
-}
-
 .tree-body {
   @include card;
   padding: 14px 16px;
   border-radius: $radius-lg;
+}
+
+.map-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.map-pic-label {
+  font-size: 12px;
+  color: $text-muted;
+  margin-top: 4px;
 }
 
 .empty {
@@ -336,7 +429,6 @@ onMounted(load)
   font-size: 14px;
 }
 
-/* ===== 节点弹窗 ===== */
 .node-popup {
   padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
   max-height: 70vh;

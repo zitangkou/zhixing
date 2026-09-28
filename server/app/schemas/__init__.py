@@ -12,7 +12,29 @@ from app.schemas.user import AppAuthToken, AppLoginBody, AppRegisterBody, AppUse
 from app.schemas.study import ReviewCompleteBody, SectionReadBody, StudyRecordOut, WrongRedoBody
 from app.schemas.admin import AdminLogin, AdminPasswordChange, AdminToken, AdminUserOut, AppUserOut, AppUserUpdate, RoleOut, SettingOut, SettingUpdate
 from app.schemas.plan import DailyReviewOut, DailyReviewUpsert, DayPlanOut, PlanTaskCreate, PlanTaskOut, PlanTaskUpdate, PlanTemplateCreate, PlanTemplateOut, PlanTemplateUpdate
-from app.schemas.knowledge import KnowledgeNodeCreate, KnowledgeNodeOut, KnowledgeNodeUpdate, KnowledgeReviewAnswerBody, KnowledgeReviewAnswerOut, KnowledgeReviewCardOut, KnowledgeReviewDueOut, KnowledgeReviewSessionBody, KnowledgeReviewSessionOut, KnowledgeTreeOut
+from app.schemas.knowledge import (
+    KnowledgeDocOut,
+    KnowledgeDocPutBody,
+    KnowledgeDocPutOut,
+    KnowledgeMapDetailOut,
+    KnowledgeMapListItemOut,
+    KnowledgeNodeCreate,
+    KnowledgeNodeOut,
+    KnowledgeNodeUpdate,
+    KnowledgePreviewBody,
+    KnowledgePublishBody,
+    KnowledgeReviewAnswerBody,
+    KnowledgeReviewAnswerOut,
+    KnowledgeReviewCardOut,
+    KnowledgeReviewDueOut,
+    KnowledgeReviewSessionBody,
+    KnowledgeReviewSessionOut,
+    KnowledgeTreeCreateBody,
+    KnowledgeTreeMetaOut,
+    KnowledgeTreeOut,
+    KnowledgeTreePatchBody,
+    KnowledgeUserStateUpdate,
+)
 from app.schemas.review import ManualWrongCreate, ManualWrongOut, ManualWrongUpdate, ReviewHubOut
 from app.schemas.exam import ExamAnswerSubmit, ExamAttemptDetailOut, ExamAttemptOut, ExamPaperCreate, ExamPaperDetailOut, ExamPaperOut, ExamPaperUpdate, ExamQuestionCreate, ExamQuestionOut, ExamQuestionUpdate
 from app.schemas.rmrb import (

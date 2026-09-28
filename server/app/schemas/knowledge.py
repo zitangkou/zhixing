@@ -1,11 +1,10 @@
-"""Pydantic schema · 域模块
-
-按业务域拆分，统一由 app/schemas/__init__.py re-export，保持 from app.schemas import X 兼容。
-"""
+"""Pydantic schema · 知识框架"""
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+
 class KnowledgeNodeOut(BaseModel):
     id: str
     treeKey: str
@@ -82,3 +81,84 @@ class KnowledgeReviewAnswerOut(BaseModel):
     lastReviewedAt: datetime | None = None
 
 
+# ===== 新草稿 / 发布 / 学员 maps =====
+
+
+class KnowledgeTreeMetaOut(BaseModel):
+    treeKey: str
+    title: str
+    sortOrder: int = 0
+    isVisible: bool = False
+    draftRevision: int = 0
+    draftUpdatedAt: datetime | None = None
+    latestVersion: int = 0
+    liveVersion: int = 0
+    hasUnpublishedChanges: bool = False
+    liveNodeCount: int = 0
+    livePublishedAt: datetime | None = None
+
+
+class KnowledgeTreeCreateBody(BaseModel):
+    treeKey: str
+    title: str
+    md: str = ""
+
+
+class KnowledgeTreePatchBody(BaseModel):
+    title: str | None = None
+    sortOrder: int | None = None
+    isVisible: bool | None = None
+
+
+class KnowledgeDocOut(BaseModel):
+    treeKey: str
+    title: str
+    mdDraft: str
+    draftRevision: int
+    draftUpdatedAt: datetime | None = None
+    draftUpdatedBy: str = ""
+    liveVersion: int = 0
+    liveMd: str = ""
+
+
+class KnowledgeDocPutBody(BaseModel):
+    md: str
+    baseRevision: int
+
+
+class KnowledgeDocPutOut(BaseModel):
+    draftRevision: int
+    draftUpdatedAt: datetime | None = None
+    issues: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class KnowledgePreviewBody(BaseModel):
+    md: str
+
+
+class KnowledgePublishBody(BaseModel):
+    baseRevision: int
+    note: str = ""
+
+
+class KnowledgeUserStateUpdate(BaseModel):
+    myNote: str | None = None
+    isStarred: bool | None = None
+
+
+class KnowledgeMapListItemOut(BaseModel):
+    treeKey: str
+    title: str
+    version: int
+    publishedAt: datetime | None = None
+    nodeCount: int = 0
+    cover: dict[str, Any] | None = None
+
+
+class KnowledgeMapDetailOut(BaseModel):
+    treeKey: str
+    title: str
+    version: int
+    publishedAt: datetime | None = None
+    tree: dict[str, Any]
+    manifest: dict[str, Any] = Field(default_factory=dict)

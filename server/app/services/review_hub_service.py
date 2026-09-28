@@ -21,7 +21,7 @@ from app.timezone import now
 
 
 def get_review_hub(db: Session, user: AppUser) -> ReviewHubOut:
-    knowledge_due = count_due(db)
+    knowledge_due = count_due(db, user.id)
     article_review = len(generate_review_tasks(db, user.id))
     corpus_inbox = get_corpus_stats(db, user).inboxCount
 

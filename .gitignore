@@ -12,6 +12,9 @@ server/**/__pycache__/
 server/tests/_smoke.db
 server/tests/_smoke.db-shm
 server/tests/_smoke.db-wal
+server/tests/_knowledge_publish.db
+server/tests/_knowledge_publish.db-shm
+server/tests/_knowledge_publish.db-wal
 server/tests/_ops_alignment.db
 server/tests/_ops_alignment.db-shm
 server/tests/_ops_alignment.db-wal

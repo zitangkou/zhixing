@@ -262,6 +262,64 @@ export interface KnowledgeTree {
   nodes: KnowledgeNode[]
 }
 
+export interface KnowledgeMapCover {
+  url: string
+  width: number
+  height: number
+}
+
+export interface KnowledgeMapListItem {
+  treeKey: string
+  title: string
+  version: number
+  publishedAt?: string | null
+  nodeCount: number
+  cover?: KnowledgeMapCover | null
+}
+
+export interface KnowledgeMapNode {
+  id: string
+  title: string
+  content?: string
+  depth: number
+  line: number
+  path: string
+  children?: KnowledgeMapNode[] | null
+  myNote?: string
+  isStarred?: boolean
+}
+
+export interface KnowledgeMapAsset {
+  url: string
+  width: number
+  height: number
+  bytes?: number
+  thumbUrl?: string
+  thumbWidth?: number
+  thumbHeight?: number
+  sha256?: string
+}
+
+export interface KnowledgeMapManifest {
+  version: number
+  generatedAt?: string
+  theme?: string
+  scale?: number
+  overview?: KnowledgeMapAsset
+  segments?: Array<KnowledgeMapAsset & { key: string; title: string; rootPath: string; nodeCount: number }>
+  svg?: { url: string; bytes: number }
+  treeJsonUrl?: string
+}
+
+export interface KnowledgeMapDetail {
+  treeKey: string
+  title: string
+  version: number
+  publishedAt?: string | null
+  tree: KnowledgeMapNode
+  manifest: KnowledgeMapManifest
+}
+
 export interface KnowledgeReviewCard {
   id: string
   title: string

@@ -102,7 +102,7 @@ def _ensure_manual_wrong_images_column():
 
 
 def _ensure_knowledge_node_columns():
-    """兼容旧 knowledge_nodes 表：补 my_note / is_starred / 掌握度字段"""
+    """兼容旧 knowledge_nodes 表：补 my_note / is_starred / 掌握度 / archived_at 字段"""
     from sqlalchemy import inspect, text
 
     insp = inspect(engine)
@@ -122,6 +122,8 @@ def _ensure_knowledge_node_columns():
         alters.append("ALTER TABLE knowledge_nodes ADD COLUMN review_count INTEGER DEFAULT 0")
     if "last_reviewed_at" not in cols:
         alters.append("ALTER TABLE knowledge_nodes ADD COLUMN last_reviewed_at DATETIME")
+    if "archived_at" not in cols:
+        alters.append("ALTER TABLE knowledge_nodes ADD COLUMN archived_at DATETIME")
     if not alters:
         return
     with engine.begin() as conn:

@@ -20,7 +20,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import KnowledgeNode, gen_id
+from app.models import KnowledgeNode, UserKnowledgeState, gen_id
 from app.schemas import KnowledgeNodeCreate, KnowledgeNodeOut, KnowledgeNodeUpdate, KnowledgeTreeOut
 
 # 同步时按 path 保留的 App 侧字段
@@ -180,31 +180,50 @@ def sync_knowledge(db: Session, force: bool = False, only_tree_key: str | None =
     return result
 
 
-def _node_to_out(n: KnowledgeNode, children_map: dict[str | None, list[KnowledgeNode]]) -> KnowledgeNodeOut:
+def _user_state_map(db: Session, user_id: str | None, tree_key: str | None = None) -> dict[str, UserKnowledgeState]:
+    if not user_id:
+        return {}
+    q = db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user_id)
+    if tree_key:
+        q = q.filter(UserKnowledgeState.tree_key == tree_key)
+    return {s.node_id: s for s in q.all()}
+
+
+def _node_to_out(
+    n: KnowledgeNode,
+    children_map: dict[str | None, list[KnowledgeNode]],
+    states: dict[str, UserKnowledgeState] | None = None,
+) -> KnowledgeNodeOut:
     children = children_map.get(n.id, [])
+    st = (states or {}).get(n.id)
     return KnowledgeNodeOut(
         id=n.id,
         treeKey=n.tree_key,
         parentId=n.parent_id,
         title=n.title,
         content=n.content or "",
-        myNote=n.my_note or "",
-        isStarred=bool(n.is_starred),
-        masteryLevel=n.mastery_level or "new",
-        nextReviewAt=n.next_review_at,
-        reviewCount=int(n.review_count or 0),
-        lastReviewedAt=n.last_reviewed_at,
+        myNote=(st.my_note if st else "") or "",
+        isStarred=bool(st.is_starred) if st else False,
+        masteryLevel=(st.mastery_level if st else None) or "new",
+        nextReviewAt=st.next_review_at if st else None,
+        reviewCount=int(st.review_count or 0) if st else 0,
+        lastReviewedAt=st.last_reviewed_at if st else None,
         depth=n.depth,
         sortOrder=n.sort_order,
         path=n.path or "",
         sourceFile=n.source_file or "",
-        children=[_node_to_out(c, children_map) for c in children] if children else None,
+        children=[_node_to_out(c, children_map, states) for c in children] if children else None,
     )
 
 
-def list_trees(db: Session) -> list[KnowledgeTreeOut]:
-    """列出所有知识树（按 tree_key 分组，组成树形结构）"""
-    all_nodes = db.query(KnowledgeNode).order_by(KnowledgeNode.tree_key, KnowledgeNode.sort_order).all()
+def list_trees(db: Session, *, user_id: str | None = None) -> list[KnowledgeTreeOut]:
+    """列出所有知识树（按 tree_key 分组，组成树形结构）；用户状态按本人合并。"""
+    all_nodes = (
+        db.query(KnowledgeNode)
+        .filter(KnowledgeNode.archived_at.is_(None))
+        .order_by(KnowledgeNode.tree_key, KnowledgeNode.sort_order)
+        .all()
+    )
     by_tree: dict[str, list[KnowledgeNode]] = {}
     tree_keys_in_order: list[str] = []
     for n in all_nodes:
@@ -212,6 +231,7 @@ def list_trees(db: Session) -> list[KnowledgeTreeOut]:
             tree_keys_in_order.append(n.tree_key)
         by_tree.setdefault(n.tree_key, []).append(n)
 
+    states = _user_state_map(db, user_id)
     out: list[KnowledgeTreeOut] = []
     for tree_key in tree_keys_in_order:
         nodes = by_tree.get(tree_key, [])
@@ -225,16 +245,16 @@ def list_trees(db: Session) -> list[KnowledgeTreeOut]:
             KnowledgeTreeOut(
                 treeKey=tree_key,
                 title=TREE_TITLES.get(tree_key, tree_key),
-                nodes=[_node_to_out(r, children_map) for r in roots],
+                nodes=[_node_to_out(r, children_map, states) for r in roots],
             )
         )
     return out
 
 
-def get_tree(db: Session, tree_key: str) -> KnowledgeTreeOut | None:
+def get_tree(db: Session, tree_key: str, *, user_id: str | None = None) -> KnowledgeTreeOut | None:
     nodes = (
         db.query(KnowledgeNode)
-        .filter(KnowledgeNode.tree_key == tree_key)
+        .filter(KnowledgeNode.tree_key == tree_key, KnowledgeNode.archived_at.is_(None))
         .order_by(KnowledgeNode.sort_order)
         .all()
     )
@@ -244,10 +264,11 @@ def get_tree(db: Session, tree_key: str) -> KnowledgeTreeOut | None:
     for n in nodes:
         children_map.setdefault(n.parent_id, []).append(n)
     roots = children_map.get(None, [])
+    states = _user_state_map(db, user_id, tree_key)
     return KnowledgeTreeOut(
         treeKey=tree_key,
         title=TREE_TITLES.get(tree_key, tree_key),
-        nodes=[_node_to_out(r, children_map) for r in roots],
+        nodes=[_node_to_out(r, children_map, states) for r in roots],
     )
 
 

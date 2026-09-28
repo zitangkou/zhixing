@@ -9,10 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/lint": "^6.8.4",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.2",
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.7.9",
+    "codemirror": "^6.0.2",
     "element-plus": "^2.9.1",
     "katex": "^0.18.1",
+    "markmap-toolbar": "^0.18.12",
+    "markmap-view": "^0.18.12",
     "pinia": "^2.2.6",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"

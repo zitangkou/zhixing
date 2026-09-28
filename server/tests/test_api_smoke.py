@@ -79,15 +79,13 @@ def test_api_smoke_critical_path():
         growth = _ok(client.get("/api/growth/overview", headers=headers))
         assert "weekBars" in growth and "domains" in growth
 
-        # 知识：列表始终可用；sync 在无目录时返回业务错误（非 5xx）
+        # 知识：列表始终可用；学员端已移除 sync
         trees = _ok(client.get("/api/knowledge/trees", headers=headers))
         assert isinstance(trees, list)
+        maps = _ok(client.get("/api/knowledge/maps", headers=headers))
+        assert isinstance(maps, list)
         sync_res = client.post("/api/knowledge/sync", headers=headers)
-        assert sync_res.status_code == 200
-        sync_body = sync_res.json()
-        assert sync_body.get("code") in (0, 400)
-        status = _ok(client.get("/api/knowledge/status", headers=headers))
-        assert status is not None
+        assert sync_res.status_code in (404, 405)
 
         # 行测错题 + 考点字段
         wrong = _ok(

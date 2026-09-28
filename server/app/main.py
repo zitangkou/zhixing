@@ -25,13 +25,7 @@ async def lifespan(_app: FastAPI):
     db = SessionLocal()
     try:
         seed_if_empty(db)
-        # 启动时尝试同步 Obsidian 知识库（目录不存在则跳过）
-        try:
-            from app.services.knowledge_service import sync_knowledge
-
-            sync_knowledge(db)
-        except Exception as e:
-            print(f"[knowledge] 启动同步失败: {e}")
+        # 知识框架改为管理端草稿/发布；禁止启动时用 md 覆盖 DB
         # 启动时确保 plan 模板有默认数据
         try:
             from app.services.plan_service import seed_default_templates

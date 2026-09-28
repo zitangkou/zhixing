@@ -67,7 +67,7 @@ const router = createRouter({
         {
           path: 'knowledge',
           name: 'knowledge',
-          component: () => import('@/views/knowledge/List.vue'),
+          component: () => import('@/views/knowledge/Index.vue'),
           meta: { title: '知识框架', permissions: ['knowledge:read'] },
         },
         {
