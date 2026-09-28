@@ -4,6 +4,7 @@ import devConfig from './dev'
 import prodConfig from './prod'
 import { weappBreakVueChunkCycle } from './weappChunkCycle'
 import { weappScopedCss } from './weappScopedCss'
+import { h5MarkmapChunk } from './h5MarkmapChunk'
 
 export default defineConfig<'vite'>(async (merge) => {
   const baseConfig: UserConfigExport<'vite'> = {
@@ -52,6 +53,7 @@ export default defineConfig<'vite'>(async (merge) => {
         },
         weappBreakVueChunkCycle(),
         weappScopedCss(),
+        h5MarkmapChunk(),
       ],
     },
     alias: {

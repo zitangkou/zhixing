@@ -54,8 +54,8 @@
             type="text"
             placeholder="搜索知识点…"
             :value="searchQuery"
-            @input="onSearchInput"
             confirm-type="search"
+            @input="onSearchInput"
           />
           <text class="kb-expand-btn" @tap="toggleExpandAll">
             {{ allExpanded ? '折叠全部' : '展开全部' }}
