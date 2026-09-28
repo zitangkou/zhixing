@@ -376,3 +376,64 @@ def test_public_tree_list_hides_hidden_and_unpublished(assets_root):
         assert d["code"] == 0 and d["data"]["title"] == key
     finally:
         db.close()
+
+
+def test_migrate_legacy_user_state_dry_run_apply_idempotent():
+    from datetime import datetime, timedelta
+
+    from app.models import AppUser
+    from app.scripts.migrate_user_knowledge_state import migrate
+
+    db = SessionLocal()
+    try:
+        user = AppUser(username="kp_migrate", password_hash="x")
+        db.add(user)
+        db.commit()
+        uid = user.id
+        t0 = datetime(2026, 1, 1)
+        a = KnowledgeNode(tree_key="mig_tree", title="甲", path="甲", depth=0, sort_order=0,
+                          my_note="旧备注甲", is_starred=True, mastery_level="familiar",
+                          review_count=3, last_reviewed_at=t0, next_review_at=t0 + timedelta(days=3))
+        b = KnowledgeNode(tree_key="mig_tree", title="乙", path="乙", depth=0, sort_order=1,
+                          my_note="旧备注乙", last_reviewed_at=t0)
+        c = KnowledgeNode(tree_key="mig_tree", title="丙", path="丙", depth=0, sort_order=2)  # 无旧状态
+        db.add_all([a, b, c])
+        db.commit()
+        # 乙：学员已在新表写过更新的备注 → 冲突时保留新表
+        db.add(UserKnowledgeState(user_id=uid, node_id=b.id, tree_key="mig_tree", path="乙",
+                                  my_note="新备注乙", updated_at=t0 + timedelta(days=10)))
+        db.commit()
+
+        dry = migrate(db, uid, tree_key="mig_tree")
+        assert (dry.with_legacy_state, dry.created, dry.updated) == (2, 1, 1)  # 乙补复习进度
+        assert dry.conflicts[0]["kept"] == "current"
+        assert db.query(UserKnowledgeState).filter_by(user_id=uid, node_id=a.id).first() is None
+
+        res = migrate(db, uid, tree_key="mig_tree", apply=True)
+        assert res.created == 1
+        st_a = db.query(UserKnowledgeState).filter_by(user_id=uid, node_id=a.id).one()
+        assert (st_a.my_note, st_a.is_starred, st_a.mastery_level, st_a.review_count) == (
+            "旧备注甲", True, "familiar", 3)
+        st_b = db.query(UserKnowledgeState).filter_by(user_id=uid, node_id=b.id).one()
+        assert st_b.my_note == "新备注乙"
+        assert st_b.last_reviewed_at == t0  # 复习进度补齐
+        assert db.get(KnowledgeNode, a.id).my_note == "旧备注甲"  # 不清空旧字段
+
+        again = migrate(db, uid, tree_key="mig_tree", apply=True)
+        assert (again.created, again.updated) == (0, 0)
+        assert db.query(UserKnowledgeState).filter_by(user_id=uid).count() == 2
+    finally:
+        db.close()
+
+
+def test_migrate_requires_existing_user():
+    import pytest
+
+    from app.scripts.migrate_user_knowledge_state import migrate
+
+    db = SessionLocal()
+    try:
+        with pytest.raises(ValueError):
+            migrate(db, "no-such-user")
+    finally:
+        db.close()
