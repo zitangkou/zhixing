@@ -1,0 +1,100 @@
+{
+  "sourceDb": "/Users/dnn/Projects/zhengkao-tong/server/data/zhengkao.db",
+  "trees": [
+    {
+      "treeKey": "判断推理",
+      "file": "判断推理.md",
+      "bytes": 9154,
+      "nodeCount": 245,
+      "leafCount": 141,
+      "maxDepth": 6,
+      "sha256": "7268a9aa2a0300d670cf6b763c273981107f1175a970e8f88a03370aacfa419a"
+    },
+    {
+      "treeKey": "数量关系",
+      "file": "数量关系.md",
+      "bytes": 9533,
+      "nodeCount": 206,
+      "leafCount": 129,
+      "maxDepth": 5,
+      "sha256": "fa8324ee150bbbd097608fcdcff03042a74a40efbbc9cb7ad0409019111c66a6"
+    },
+    {
+      "treeKey": "申论",
+      "file": "申论.md",
+      "bytes": 31359,
+      "nodeCount": 630,
+      "leafCount": 319,
+      "maxDepth": 7,
+      "sha256": "798581ad52ae7d598787dbc5a3b95fb27f23902e4c97c070a640b8648ae81ead"
+    },
+    {
+      "treeKey": "言语理解与表达",
+      "file": "言语理解与表达.md",
+      "bytes": 2580,
+      "nodeCount": 101,
+      "leafCount": 66,
+      "maxDepth": 4,
+      "sha256": "ca9430138b9dda343a73f0ad33add593bb61368a5c641a353d78d93210269325"
+    },
+    {
+      "treeKey": "资料分析",
+      "file": "资料分析.md",
+      "bytes": 6463,
+      "nodeCount": 159,
+      "leafCount": 76,
+      "maxDepth": 5,
+      "sha256": "3fb0e2df7f431ac9ccf2f8108451689632dda7404cd65bc505f6a617e6509ac9"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "DUPLICATE_SIBLING",
+      "treeKey": "申论",
+      "path": "审清题意/作答任务/直接问法/动宾结构：总结经验、谈谈理解、提出问题等等",
+      "message": "同级重复标题，已丢弃后出现的副本（保留 sort_order=477）"
+    },
+    {
+      "code": "EMPTY_BRANCH_REMOVED",
+      "treeKey": "言语理解与表达",
+      "path": "文章阅读",
+      "message": "已删除空分支「文章阅读」"
+    },
+    {
+      "code": "BAD_TITLE_REMOVED",
+      "treeKey": "申论题型",
+      "path": "综合分析题/解释分析/答题/做出结论或提出对策/-",
+      "message": "已删除空标题或占位「-」节点"
+    },
+    {
+      "code": "DUPLICATE_SIBLING",
+      "treeKey": "申论题型",
+      "path": "作答流程/审清题意/作答任务/直接问法/动宾结构：总结经验、谈谈理解、提出问题等等",
+      "message": "同级重复标题，已丢弃后出现的副本（保留 sort_order=479）"
+    },
+    {
+      "code": "MERGED_FROM_SHENLUN_TIXING",
+      "treeKey": "申论",
+      "path": "归纳概括题/类型/显性要素/问法",
+      "message": "从「申论题型」合并独有子树（+3 节点）"
+    },
+    {
+      "code": "MERGED_FROM_SHENLUN_TIXING",
+      "treeKey": "申论",
+      "path": "归纳概括题/类型/显性要素/答题",
+      "message": "从「申论题型」合并独有子树（+2 节点）"
+    },
+    {
+      "code": "MERGED_FROM_SHENLUN_TIXING",
+      "treeKey": "申论",
+      "path": "贯彻执行题/宣传演讲类/新闻稿/倡议书",
+      "message": "从「申论题型」合并独有子树（+17 节点）"
+    },
+    {
+      "code": "MERGED_FROM_SHENLUN_TIXING",
+      "treeKey": "申论",
+      "path": "作答流程",
+      "message": "从「申论题型」合并独有子树（+95 节点）"
+    }
+  ]
+}
