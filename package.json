@@ -34,6 +34,7 @@
     "@tarojs/shared": "4.0.9",
     "@tarojs/taro": "4.0.9",
     "katex": "^0.18.1",
+    "markmap-common": "^0.18.9",
     "markmap-view": "^0.18.12",
     "mockjs": "^1.1.0",
     "pinia": "^2.2.6",
