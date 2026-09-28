@@ -19,14 +19,12 @@ from app.models import (
     utcnow,
 )
 from app.services.knowledge_md import MapNode, parse_md
-from app.upload_paths import uploads_subdir
 
 _PNG_SIG = b"\x89PNG\r\n\x1a\n"
 _MAX_PNG_EDGE = 4096
 _MAX_FILE_BYTES = 3 * 1024 * 1024
 _MAX_TOTAL_BYTES = 30 * 1024 * 1024
 _KEEP_VERSIONS = 5
-_SVG_DANGER = re.compile(r"<script|on\w+\s*=|https?://", re.I)
 
 
 def _sha256_text(s: str) -> str:
@@ -194,14 +192,19 @@ def preview_md(md: str) -> dict[str, Any]:
 
 
 def _export_plan(tree: MapNode) -> dict[str, Any]:
-    segments = []
-    for child in tree.children or []:
-        def count(n: MapNode) -> int:
-            return 1 + sum(count(c) for c in (n.children or []))
+    """按一级分支给出分片计划；key 为 ASCII 序号（s01、s02…），标题/路径另存。
 
+    实际是否继续拆分由前端按渲染尺寸决定（子分片 key 形如 s01-02）。
+    """
+
+    def count(n: MapNode) -> int:
+        return 1 + sum(count(c) for c in (n.children or []))
+
+    segments = []
+    for idx, child in enumerate(tree.children or [], start=1):
         segments.append(
             {
-                "key": f"seg-{child.path.replace('/', '-')}" if child.path else f"seg-{child.title}",
+                "key": f"s{idx:02d}",
                 "title": child.title,
                 "rootPath": child.path or child.title,
                 "nodeCount": count(child),
@@ -236,6 +239,8 @@ def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: s
         old = by_path.get(path)
         parent_id = id_by_index.get(parent_index) if parent_index >= 0 else None
         if old:
+            if old.parent_id != parent_id:
+                moved += 1
             old.title = title
             old.content = content or ""
             old.depth = depth
@@ -247,8 +252,6 @@ def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: s
             old.updated_at = utcnow()
             id_by_index[i] = old.id
             kept += 1
-            if old.parent_id != parent_id:
-                moved += 1
         else:
             nid = gen_id("kn")
             db.add(
@@ -288,23 +291,43 @@ def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: s
     return {"added": added, "archived": archived, "kept": kept, "moved": moved}
 
 
-def _attach_real_ids(tree: MapNode, db: Session, tree_key: str) -> MapNode:
+def _attach_real_ids(tree: MapNode | dict, db: Session, tree_key: str) -> Any:
+    """把 live 节点的真实 id 按 path 写入树（MapNode 或 dict），读时附加，不修改版本快照。"""
     by_path = {
-        n.path: n.id
-        for n in db.query(KnowledgeNode)
+        p: i
+        for p, i in db.query(KnowledgeNode.path, KnowledgeNode.id)
         .filter(KnowledgeNode.tree_key == tree_key, KnowledgeNode.archived_at.is_(None))
         .all()
-        if n.path
+        if p
     }
 
-    def walk(n: MapNode) -> None:
-        if n.path and n.path in by_path:
-            n.id = by_path[n.path]
-        for c in n.children or []:
-            walk(c)
+    def walk(n: Any) -> None:
+        if isinstance(n, dict):
+            if n.get("path") and n["path"] in by_path:
+                n["id"] = by_path[n["path"]]
+            for c in n.get("children") or []:
+                walk(c)
+        else:
+            if n.path and n.path in by_path:
+                n.id = by_path[n.path]
+            for c in n.children or []:
+                walk(c)
 
     walk(tree)
     return tree
+
+
+def preview_node_diff(db: Session, tree_key: str, flat_nodes: list) -> dict[str, int]:
+    """只读：与当前 live 派生节点比较，预估激活后的变化。"""
+    live = {
+        p
+        for (p,) in db.query(KnowledgeNode.path)
+        .filter(KnowledgeNode.tree_key == tree_key, KnowledgeNode.archived_at.is_(None))
+        .all()
+        if p
+    }
+    new = {n.path for n in flat_nodes if n.path}
+    return {"added": len(new - live), "archived": len(live - new), "kept": len(new & live)}
 
 
 def publish_tree(
@@ -315,7 +338,12 @@ def publish_tree(
     note: str = "",
     admin_id: str = "",
 ) -> tuple[dict[str, Any] | None, str | None, list[dict] | None]:
-    """返回 (result, error_code, issues). error: not_found|conflict|invalid"""
+    """把草稿固化为不可变版本（不改 live、不派生节点）。
+
+    返回 (result, error_code, issues). error: not_found|conflict|invalid
+    """
+    from sqlalchemy.exc import IntegrityError
+
     t = get_or_none_tree(db, tree_key)
     if not t:
         return None, "not_found", None
@@ -326,10 +354,6 @@ def publish_tree(
         return None, "invalid", [i.to_dict() for i in parsed.issues]
 
     version = int(t.latest_version) + 1
-    node_diff = derive_nodes(db, tree_key, parsed.nodes, source_file=f"publish-v{version}")
-    if parsed.tree:
-        _attach_real_ids(parsed.tree, db, tree_key)
-
     ver = KnowledgeTreeVersion(
         tree_id=t.id,
         version=version,
@@ -346,28 +370,37 @@ def publish_tree(
     db.add(ver)
     t.latest_version = version
     t.updated_at = utcnow()
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # 并发发布撞 (tree_id, version) 唯一约束
+        db.rollback()
+        return None, "conflict", None
     db.refresh(ver)
 
     return {
         "version": version,
         "tree": parsed.tree.to_dict() if parsed.tree else None,
         "stats": parsed.stats,
-        "nodeDiff": node_diff,
+        "nodeDiffPreview": preview_node_diff(db, tree_key, parsed.nodes),
         "exportPlan": _export_plan(parsed.tree) if parsed.tree else {"segments": []},
         "issues": [i.to_dict() for i in parsed.issues],
     }, None, None
 
 
-def save_version_assets(
+def activate_version(
     db: Session,
     tree_key: str,
     version: int,
     *,
-    manifest: dict[str, Any],
-    files: dict[str, bytes],
-) -> tuple[dict[str, Any] | None, str]:
-    """files: filename -> bytes. 成功后 assets_ready=True 且 live_version=version。"""
+    admin_id: str = "",
+    allow_no_assets: bool = False,
+    expected_live: int | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """把某个版本切为 live：此刻才按 path upsert 派生 knowledge_nodes（保留 id，消失的归档）。
+
+    error: not_found | assets_not_ready | invalid | conflict
+    """
     t = get_or_none_tree(db, tree_key)
     if not t:
         return None, "not_found"
@@ -378,117 +411,330 @@ def save_version_assets(
     )
     if not ver:
         return None, "not_found"
+    if not ver.assets_ready and not allow_no_assets:
+        return None, "assets_not_ready"
+    if expected_live is not None and int(t.live_version or 0) != int(expected_live):
+        return None, "conflict"
+    parsed = parse_md(ver.md_content or "")
+    if parsed.has_errors:
+        return None, "invalid"
+    node_diff = derive_nodes(db, tree_key, parsed.nodes, source_file=f"v{version}")
+    prev = int(t.live_version or 0)
+    t.live_version = version
+    t.updated_at = utcnow()
+    db.commit()
+    return {"treeKey": tree_key, "liveVersion": version, "previousLive": prev, "nodeDiff": node_diff}, None
 
-    total = sum(len(b) for b in files.values())
-    if total > _MAX_TOTAL_BYTES:
-        return None, "too_large"
 
-    dest = uploads_subdir("knowledge", t.id, f"v{version}")
-    # clean previous files for this version dir
-    if dest.exists():
-        for p in dest.iterdir():
-            if p.is_file():
-                p.unlink()
+# ---------------------------------------------------------------------------
+# 导图资源上传：先全部校验（内存中），再写临时目录，最后原子替换版本目录
+# ---------------------------------------------------------------------------
 
-    written_manifest = dict(manifest)
-    written_manifest["version"] = version
+_ASSET_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,95}\.(png|svg|json)$")
+_SEGMENT_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
+_MAX_THUMB_EDGE = 1024
+_MAX_SEGMENTS = 80
+_SVG_ALLOWED_TAGS = {
+    "svg", "g", "path", "circle", "ellipse", "line", "polyline", "polygon", "rect",
+    "text", "tspan", "style", "title", "desc", "defs", "clipPath",
+}
+_SVG_NS = "http://www.w3.org/2000/svg"
+_XLINK_NS = "http://www.w3.org/1999/xlink"
+_CSS_DANGER = re.compile(r"@import|expression\s*\(|javascript:|behavior\s*:|url\s*\(\s*(?!['\"]?#)", re.I)
 
-    def store_asset(meta: dict[str, Any] | None, kind: str) -> dict[str, Any] | None:
-        if not meta:
-            return meta
-        url_name = Path(str(meta.get("url", ""))).name
-        if not url_name or url_name not in files:
-            # allow thumbUrl similarly
-            return meta
-        raw = files[url_name]
-        if len(raw) > _MAX_FILE_BYTES:
-            raise ValueError("file_too_large")
-        if url_name.endswith(".png"):
-            if raw[:8] != _PNG_SIG:
-                raise ValueError("bad_png")
-            size = _png_size(raw)
-            if not size:
-                raise ValueError("bad_png")
-            w, h = size
-            if max(w, h) > _MAX_PNG_EDGE:
-                raise ValueError("png_too_big")
-            meta["width"] = w
-            meta["height"] = h
-            meta["bytes"] = len(raw)
-            expect = meta.get("sha256")
-            got = _sha256_bytes(raw)
-            if expect and expect != got:
-                raise ValueError("sha_mismatch")
-            meta["sha256"] = got
-        elif url_name.endswith(".svg"):
-            text = raw.decode("utf-8", errors="ignore")
-            if _SVG_DANGER.search(text):
-                raise ValueError("bad_svg")
-            meta["bytes"] = len(raw)
-        elif url_name.endswith(".json"):
-            json.loads(raw.decode("utf-8"))
-            meta["bytes"] = len(raw)
-        else:
-            raise ValueError("bad_type")
-        (dest / url_name).write_bytes(raw)
-        meta["url"] = f"/uploads/knowledge/{t.id}/v{version}/{url_name}"
-        thumb = meta.get("thumbUrl")
-        if thumb:
-            thumb_name = Path(str(thumb)).name
-            if thumb_name in files:
-                tr = files[thumb_name]
-                if tr[:8] != _PNG_SIG or len(tr) > _MAX_FILE_BYTES:
-                    raise ValueError("bad_thumb")
-                (dest / thumb_name).write_bytes(tr)
-                meta["thumbUrl"] = f"/uploads/knowledge/{t.id}/v{version}/{thumb_name}"
-                ts = _png_size(tr)
-                if ts:
-                    meta["thumbWidth"], meta["thumbHeight"] = ts
-        return meta
+
+def _assets_root() -> Path:
+    """知识导图资源根目录；测试中可 monkeypatch。"""
+    from app.upload_paths import UPLOADS_DIR
+
+    return UPLOADS_DIR / "knowledge"
+
+
+def _asset_url(tree_id: str, version: int, name: str) -> str:
+    return f"/uploads/knowledge/{tree_id}/v{version}/{name}"
+
+
+def validate_svg(raw: bytes) -> str | None:
+    """返回错误码；None 表示安全。
+
+    允许 xmlns（svg / xlink 命名空间），禁止：DOCTYPE/ENTITY、脚本与 foreignObject 等非白名单元素、
+    on* 事件属性、非 #锚点 的 href、样式中的外链 url()/@import/javascript:。
+    """
+    import xml.etree.ElementTree as ET
 
     try:
-        if "overview" in written_manifest:
-            written_manifest["overview"] = store_asset(written_manifest.get("overview"), "overview")
-        segs = []
-        for seg in written_manifest.get("segments") or []:
-            segs.append(store_asset(seg, "segment"))
-        written_manifest["segments"] = segs
-        if written_manifest.get("svg"):
-            written_manifest["svg"] = store_asset(written_manifest.get("svg"), "svg")
-        # tree json file optional
-        tj = written_manifest.get("treeJsonUrl")
-        if tj:
-            name = Path(str(tj)).name
-            if name in files:
-                (dest / name).write_bytes(files[name])
-                written_manifest["treeJsonUrl"] = f"/uploads/knowledge/{t.id}/v{version}/{name}"
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return "bad_svg_encoding"
+    if re.search(r"<!DOCTYPE|<!ENTITY", text, re.I):
+        return "bad_svg_doctype"
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError:
+        return "bad_svg_xml"
+    for el in root.iter():
+        tag = el.tag
+        if not isinstance(tag, str):
+            continue
+        ns, _, local = tag[1:].partition("}") if tag.startswith("{") else ("", "", tag)
+        if ns not in ("", _SVG_NS) or local not in _SVG_ALLOWED_TAGS:
+            return f"bad_svg_tag:{local}"
+        for attr, val in el.attrib.items():
+            a_ns, _, a_local = attr[1:].partition("}") if attr.startswith("{") else ("", "", attr)
+            if a_ns not in ("", _XLINK_NS):
+                return "bad_svg_attr_ns"
+            low = a_local.lower()
+            v = (val or "").strip()
+            if low.startswith("on"):
+                return "bad_svg_event_attr"
+            if low == "href" and v and not v.startswith("#"):
+                return "bad_svg_href"
+            if re.search(r"javascript:|data:", v, re.I):
+                return "bad_svg_attr_value"
+            if low == "style" and _CSS_DANGER.search(v):
+                return "bad_svg_style"
+        if local == "style" and _CSS_DANGER.search(el.text or ""):
+            return "bad_svg_style"
+    root_local = root.tag.split("}", 1)[-1] if isinstance(root.tag, str) else ""
+    if root_local != "svg":
+        return "bad_svg_root"
+    return None
+
+
+def _check_png(raw: bytes, *, max_edge: int) -> tuple[int, int]:
+    if len(raw) > _MAX_FILE_BYTES:
+        raise ValueError("file_too_large")
+    size = _png_size(raw)
+    if not size:
+        raise ValueError("bad_png")
+    w, h = size
+    if w <= 0 or h <= 0 or max(w, h) > max_edge:
+        raise ValueError("png_too_big")
+    return w, h
+
+
+def _safe_asset_name(name: Any) -> str:
+    n = str(name or "")
+    if n != Path(n).name or "/" in n or "\\" in n or ".." in n:
+        raise ValueError("bad_name")
+    if not _ASSET_NAME_RE.match(n):
+        raise ValueError("bad_name")
+    return n
+
+
+def _clip(v: Any, n: int) -> str:
+    return str(v or "")[:n]
+
+
+def _plan_assets(
+    manifest: dict[str, Any], files: dict[str, bytes], tree_id: str, version: int
+) -> tuple[dict[str, Any], dict[str, bytes]]:
+    """纯校验：返回 (服务端重建的 manifest, 需写入的 name->bytes)。任何问题抛 ValueError。"""
+    for name in files:
+        _safe_asset_name(name)
+    to_write: dict[str, bytes] = {}
+
+    def need(name_val: Any, kind: str) -> tuple[str, bytes]:
+        name = _safe_asset_name(name_val)
+        if name not in files:
+            raise ValueError(f"missing_file:{name}")
+        ext = name.rsplit(".", 1)[-1]
+        if kind == "png" and ext != "png":
+            raise ValueError("bad_type")
+        if kind == "svg" and ext != "svg":
+            raise ValueError("bad_type")
+        if kind == "json" and ext != "json":
+            raise ValueError("bad_type")
+        return name, files[name]
+
+    def image_meta(meta: Any, *, key: str | None = None) -> dict[str, Any]:
+        if not isinstance(meta, dict):
+            raise ValueError("bad_manifest")
+        name, raw = need(meta.get("url"), "png")
+        w, h = _check_png(raw, max_edge=_MAX_PNG_EDGE)
+        sha = _sha256_bytes(raw)
+        if meta.get("sha256") and meta.get("sha256") != sha:
+            raise ValueError("sha_mismatch")
+        out: dict[str, Any] = {
+            "url": _asset_url(tree_id, version, name),
+            "width": w,
+            "height": h,
+            "bytes": len(raw),
+            "sha256": sha,
+        }
+        to_write[name] = raw
+        if meta.get("thumbUrl"):
+            tname, traw = need(meta.get("thumbUrl"), "png")
+            tw, th = _check_png(traw, max_edge=_MAX_THUMB_EDGE)
+            out.update(
+                {"thumbUrl": _asset_url(tree_id, version, tname), "thumbWidth": tw, "thumbHeight": th}
+            )
+            to_write[tname] = traw
+        if key is not None:
+            out["key"] = key
+        return out
+
+    written: dict[str, Any] = {
+        "version": version,
+        "generatedAt": _clip(manifest.get("generatedAt"), 40),
+        "theme": _clip(manifest.get("theme"), 32),
+        "scale": float(manifest.get("scale") or 0) if isinstance(manifest.get("scale"), (int, float)) else 0,
+    }
+    if manifest.get("overview"):
+        written["overview"] = image_meta(manifest["overview"])
+
+    segs_in = manifest.get("segments") or []
+    if not isinstance(segs_in, list) or len(segs_in) > _MAX_SEGMENTS:
+        raise ValueError("bad_segments")
+    segs: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    for seg in segs_in:
+        if not isinstance(seg, dict):
+            raise ValueError("bad_segments")
+        key = str(seg.get("key") or "")
+        if not _SEGMENT_KEY_RE.match(key) or key in seen_keys:
+            raise ValueError("bad_segment_key")
+        seen_keys.add(key)
+        m = image_meta(seg, key=key)
+        m["title"] = _clip(seg.get("title"), 200)
+        m["rootPath"] = _clip(seg.get("rootPath"), 1000)
+        m["nodeCount"] = int(seg.get("nodeCount") or 0)
+        segs.append(m)
+    written["segments"] = segs
+
+    svg_meta = manifest.get("svg")
+    if svg_meta:
+        if not isinstance(svg_meta, dict):
+            raise ValueError("bad_manifest")
+        name, raw = need(svg_meta.get("url"), "svg")
+        if len(raw) > _MAX_FILE_BYTES:
+            raise ValueError("file_too_large")
+        err = validate_svg(raw)
+        if err:
+            raise ValueError(err)
+        written["svg"] = {"url": _asset_url(tree_id, version, name), "bytes": len(raw)}
+        to_write[name] = raw
+
+    tj = manifest.get("treeJsonUrl")
+    if tj:
+        name, raw = need(tj, "json")
+        if len(raw) > _MAX_FILE_BYTES:
+            raise ValueError("file_too_large")
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise ValueError("bad_json") from None
+        if not isinstance(parsed, dict):
+            raise ValueError("bad_json")
+        written["treeJsonUrl"] = _asset_url(tree_id, version, name)
+        to_write[name] = raw
+
+    if not written.get("overview") and not segs:
+        raise ValueError("no_images")
+    return written, to_write
+
+
+def _write_version_dir(tree_id: str, version: int, to_write: dict[str, bytes]) -> None:
+    """写入临时目录后原子替换 v{n}/；失败时旧目录保持不变。"""
+    import uuid
+
+    base = _assets_root() / tree_id
+    base.mkdir(parents=True, exist_ok=True)
+    dest = base / f"v{version}"
+    tmp = base / f".v{version}.tmp-{uuid.uuid4().hex[:8]}"
+    old = base / f".v{version}.old-{uuid.uuid4().hex[:8]}"
+    tmp.mkdir()
+    try:
+        for name, raw in to_write.items():
+            target = (tmp / name).resolve()
+            if target.parent != tmp.resolve():
+                raise ValueError("bad_name")
+            target.write_bytes(raw)
+        if dest.exists():
+            dest.rename(old)
+        tmp.rename(dest)
+    except Exception:
+        shutil.rmtree(tmp, ignore_errors=True)
+        if old.exists() and not dest.exists():
+            old.rename(dest)
+        raise
+    shutil.rmtree(old, ignore_errors=True)
+
+
+def save_version_assets(
+    db: Session,
+    tree_key: str,
+    version: int,
+    *,
+    manifest: dict[str, Any],
+    files: dict[str, bytes],
+    activate: bool = True,
+    admin_id: str = "",
+) -> tuple[dict[str, Any] | None, str]:
+    """校验并保存某版本的导图资源；成功后 assets_ready=True，activate 时切为 live 并派生节点。"""
+    t = get_or_none_tree(db, tree_key)
+    if not t:
+        return None, "not_found"
+    ver = (
+        db.query(KnowledgeTreeVersion)
+        .filter(KnowledgeTreeVersion.tree_id == t.id, KnowledgeTreeVersion.version == version)
+        .first()
+    )
+    if not ver:
+        return None, "not_found"
+    if not isinstance(manifest, dict):
+        return None, "bad_manifest"
+    if sum(len(b) for b in files.values()) > _MAX_TOTAL_BYTES:
+        return None, "too_large"
+    try:
+        written_manifest, to_write = _plan_assets(manifest, files, t.id, version)
+        _write_version_dir(t.id, version, to_write)
     except ValueError as e:
         return None, str(e)
 
     ver.manifest_json = json.dumps(written_manifest, ensure_ascii=False)
     ver.assets_ready = True
-    t.live_version = version
     t.updated_at = utcnow()
     db.commit()
 
+    node_diff = None
+    if activate:
+        res, err = activate_version(db, tree_key, version, admin_id=admin_id)
+        if err:
+            return None, err
+        node_diff = (res or {}).get("nodeDiff")
+    db.refresh(t)
     _cleanup_old_versions(db, t)
     return {
         "version": version,
         "liveVersion": t.live_version,
         "manifest": written_manifest,
+        "nodeDiff": node_diff,
     }, ""
 
 
 def _cleanup_old_versions(db: Session, t: KnowledgeTree) -> None:
+    """只清理资源目录（版本行永不删除）。保留：live、latest、最近 _KEEP_VERSIONS 个版本。"""
     vers = (
-        db.query(KnowledgeTreeVersion)
+        db.query(KnowledgeTreeVersion.version)
         .filter(KnowledgeTreeVersion.tree_id == t.id)
         .order_by(KnowledgeTreeVersion.version.desc())
         .all()
     )
-    for old in vers[_KEEP_VERSIONS:]:
-        d = Path(__file__).resolve().parents[2] / "data" / "uploads" / "knowledge" / t.id / f"v{old.version}"
-        if d.is_dir():
+    all_versions = [v for (v,) in vers]
+    keep = set(all_versions[:_KEEP_VERSIONS]) | {int(t.live_version or 0), int(t.latest_version or 0)}
+    base = _assets_root() / t.id
+    if not base.is_dir():
+        return
+    for d in base.iterdir():
+        if not d.is_dir():
+            continue
+        m = re.fullmatch(r"v(\d+)", d.name)
+        if m:
+            if int(m.group(1)) not in keep:
+                shutil.rmtree(d, ignore_errors=True)
+        elif d.name.startswith((".v",)):
+            # 残留临时目录
             shutil.rmtree(d, ignore_errors=True)
 
 
@@ -510,6 +756,7 @@ def list_versions(db: Session, tree_key: str) -> list[dict[str, Any]]:
             "createdBy": v.created_by,
             "nodeCount": v.node_count,
             "assetsReady": bool(v.assets_ready),
+            "isLive": int(v.version) == int(t.live_version or 0),
         }
         for v in rows
     ]
@@ -590,19 +837,14 @@ def import_md_to_draft(
         db.refresh(t)
     result: dict[str, Any] = {"ok": True, "treeKey": tree_key, "draftRevision": t.draft_revision}
     if publish:
+        # 只固化版本；上线需在后台生成图片后激活（或显式 activate_version）
         pub, err, issues = publish_tree(db, tree_key, t.draft_revision, admin_id=admin_id, note="import")
         if err:
             result["publishError"] = err
             result["issues"] = issues
-        else:
-            # import without assets still sets latest; mark live so maps can show outline
-            t2 = get_or_none_tree(db, tree_key)
-            if t2 and pub:
-                t2.live_version = pub["version"]
-                t2.is_visible = True
-                db.commit()
-                result["version"] = pub["version"]
-                result["nodeDiff"] = pub.get("nodeDiff")
+        elif pub:
+            result["version"] = pub["version"]
+            result["nodeDiffPreview"] = pub.get("nodeDiffPreview")
     return result
 
 
@@ -659,12 +901,15 @@ def get_public_map(db: Session, tree_key: str) -> dict[str, Any] | None:
     detail = get_version(db, tree_key, t.live_version)
     if not detail:
         return None
+    tree = detail.get("tree") or {}
+    if tree:
+        _attach_real_ids(tree, db, tree_key)
     return {
         "treeKey": t.tree_key,
         "title": t.title,
         "version": t.live_version,
         "publishedAt": detail.get("createdAt"),
-        "tree": detail.get("tree") or {},
+        "tree": tree,
         "manifest": detail.get("manifest") or {},
     }
 

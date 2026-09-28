@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.admin._deps import *  # noqa: F401,F403
 from app.schemas import (
+    KnowledgeActivateBody,
     KnowledgeDocPutBody,
     KnowledgePreviewBody,
     KnowledgePublishBody,
@@ -125,33 +126,75 @@ def admin_knowledge_publish(
     return ApiResponse.ok(out)
 
 
+_MAX_UPLOAD_FILE = 3 * 1024 * 1024
+_MAX_UPLOAD_FILES = 200
+
+
 @router.post("/knowledge/trees/{tree_key}/versions/{version}/assets")
-async def admin_knowledge_upload_assets(
+def admin_knowledge_upload_assets(
     tree_key: str,
     version: int,
     manifest: str = Form(...),
     files: list[UploadFile] = File(default=[]),
-    _admin=Depends(require_permission("knowledge:write")),
+    activate: bool = True,
+    admin=Depends(require_permission("knowledge:write")),
     db: Session = Depends(get_db),
 ):
+    """同步函数：FastAPI 在线程池执行，避免阻塞事件循环。"""
     import json
 
     try:
         man = json.loads(manifest)
     except json.JSONDecodeError:
         return ApiResponse.fail("manifest 不是合法 JSON", code=400)
+    if len(files) > _MAX_UPLOAD_FILES:
+        return ApiResponse.fail("文件数量过多", code=400)
     blob: dict[str, bytes] = {}
     for f in files:
-        name = Path(f.filename or "").name
+        name = f.filename or ""
         if not name:
             continue
-        raw = await f.read()
+        raw = f.file.read(_MAX_UPLOAD_FILE + 1)
+        if len(raw) > _MAX_UPLOAD_FILE:
+            return ApiResponse.fail(f"文件过大: {Path(name).name}", code=400)
+        # 名称合法性（ASCII/后缀白名单/无路径）在 service 内统一校验
         blob[name] = raw
-    out, err = docs.save_version_assets(db, tree_key, version, manifest=man, files=blob)
+    out, err = docs.save_version_assets(
+        db, tree_key, version, manifest=man, files=blob, activate=activate, admin_id=_admin_id(admin)
+    )
     if err == "not_found":
         return ApiResponse.fail("版本不存在", code=404)
     if err:
         return ApiResponse.fail(f"资源校验失败: {err}", code=400)
+    return ApiResponse.ok(out)
+
+
+@router.post("/knowledge/trees/{tree_key}/versions/{version}/activate")
+def admin_knowledge_activate(
+    tree_key: str,
+    version: int,
+    body: KnowledgeActivateBody | None = None,
+    admin=Depends(require_permission("knowledge:write")),
+    db: Session = Depends(get_db),
+):
+    """把已生成图片的版本设为线上（回滚上线也用它，不新建版本）；此时才派生节点。"""
+    b = body or KnowledgeActivateBody()
+    out, err = docs.activate_version(
+        db,
+        tree_key,
+        version,
+        admin_id=_admin_id(admin),
+        allow_no_assets=bool(b.allowNoAssets),
+        expected_live=b.expectedLive,
+    )
+    if err == "not_found":
+        return ApiResponse.fail("版本不存在", code=404)
+    if err == "assets_not_ready":
+        return ApiResponse.fail("该版本图片未生成，不能上线", code=400)
+    if err == "conflict":
+        return ApiResponse.fail("线上版本已被他人切换，请刷新", code=409)
+    if err:
+        return ApiResponse.fail(f"激活失败: {err}", code=400)
     return ApiResponse.ok(out)
 
 

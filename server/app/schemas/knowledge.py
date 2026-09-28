@@ -139,6 +139,11 @@ class KnowledgePreviewBody(BaseModel):
     md: str = Field(max_length=_MD_MAX)
 
 
+class KnowledgeActivateBody(BaseModel):
+    expectedLive: int | None = None
+    allowNoAssets: bool = False
+
+
 class KnowledgePublishBody(BaseModel):
     baseRevision: int
     note: str = Field(default="", max_length=256)

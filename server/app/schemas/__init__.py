@@ -13,6 +13,7 @@ from app.schemas.study import ReviewCompleteBody, SectionReadBody, StudyRecordOu
 from app.schemas.admin import AdminLogin, AdminPasswordChange, AdminToken, AdminUserOut, AppUserOut, AppUserUpdate, RoleOut, SettingOut, SettingUpdate
 from app.schemas.plan import DailyReviewOut, DailyReviewUpsert, DayPlanOut, PlanTaskCreate, PlanTaskOut, PlanTaskUpdate, PlanTemplateCreate, PlanTemplateOut, PlanTemplateUpdate
 from app.schemas.knowledge import (
+    KnowledgeActivateBody,
     KnowledgeDocOut,
     KnowledgeDocPutBody,
     KnowledgeDocPutOut,
