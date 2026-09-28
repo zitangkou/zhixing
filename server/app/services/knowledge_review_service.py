@@ -4,7 +4,6 @@ from __future__ import annotations
 import random
 from datetime import timedelta
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models import KnowledgeNode, UserKnowledgeState, utcnow
@@ -14,7 +13,7 @@ from app.schemas import (
     KnowledgeReviewDueOut,
     KnowledgeReviewSessionOut,
 )
-from app.services.knowledge_doc_service import upsert_user_state
+from app.services.knowledge_doc_service import public_tree_keys, upsert_user_state
 from app.services.srs import SRS_INTERVALS, now_naive, schedule_after_fail, schedule_after_success
 
 NEW_INTRO_CAP = 5
@@ -57,6 +56,7 @@ def _scheduled_due(db: Session, user_id: str) -> list[tuple[KnowledgeNode, UserK
             UserKnowledgeState.next_review_at <= ts,
             UserKnowledgeState.mastery_level != "mastered",
             KnowledgeNode.archived_at.is_(None),
+            KnowledgeNode.tree_key.in_(public_tree_keys(db) or [""]),
         )
         .order_by(UserKnowledgeState.next_review_at.asc())
         .all()
@@ -77,11 +77,14 @@ def _new_unreviewed(
         .filter(UserKnowledgeState.user_id == user_id, UserKnowledgeState.next_review_at.isnot(None))
         .all()
     }
+    visible = public_tree_keys(db) or [""]
     rows = (
         db.query(KnowledgeNode)
         .filter(
             KnowledgeNode.archived_at.is_(None),
-            or_(KnowledgeNode.content != "", KnowledgeNode.content.isnot(None)),
+            KnowledgeNode.tree_key.in_(visible),
+            KnowledgeNode.content.isnot(None),
+            KnowledgeNode.content != "",
         )
         .order_by(KnowledgeNode.updated_at.desc())
         .limit(300)
@@ -97,7 +100,15 @@ def _new_unreviewed(
     }
     extra = []
     if note_ids:
-        extra = db.query(KnowledgeNode).filter(KnowledgeNode.id.in_(note_ids), KnowledgeNode.archived_at.is_(None)).all()
+        extra = (
+            db.query(KnowledgeNode)
+            .filter(
+                KnowledgeNode.id.in_(note_ids),
+                KnowledgeNode.archived_at.is_(None),
+                KnowledgeNode.tree_key.in_(visible),
+            )
+            .all()
+        )
     pool_nodes = {n.id: n for n in rows}
     for n in extra:
         pool_nodes[n.id] = n

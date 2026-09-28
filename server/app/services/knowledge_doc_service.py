@@ -848,6 +848,17 @@ def import_md_to_draft(
     return result
 
 
+def public_tree_keys(db: Session) -> list[str]:
+    """学员端可见的知识树：is_visible 且已有 live 版本（按排序）。"""
+    return [
+        k
+        for (k,) in db.query(KnowledgeTree.tree_key)
+        .filter(KnowledgeTree.is_visible.is_(True), KnowledgeTree.live_version > 0)
+        .order_by(KnowledgeTree.sort_order, KnowledgeTree.tree_key)
+        .all()
+    ]
+
+
 def list_public_maps(db: Session) -> list[dict[str, Any]]:
     trees = (
         db.query(KnowledgeTree)

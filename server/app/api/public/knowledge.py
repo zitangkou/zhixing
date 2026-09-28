@@ -22,14 +22,14 @@ def knowledge_map_detail(tree_key: str, db: Session = Depends(get_db)):
 
 @router.get("/knowledge/trees")
 def knowledge_trees(user: AppUser = Depends(get_app_user), db: Session = Depends(get_db)):
-    return ApiResponse.ok([t.model_dump() for t in list_knowledge_trees(db, user_id=user.id)])
+    return ApiResponse.ok([t.model_dump() for t in list_knowledge_trees(db, user_id=user.id, visible_only=True)])
 
 
 @router.get("/knowledge/tree/{tree_key}")
 def knowledge_tree_detail(
     tree_key: str, user: AppUser = Depends(get_app_user), db: Session = Depends(get_db)
 ):
-    t = get_knowledge_tree(db, tree_key, user_id=user.id)
+    t = get_knowledge_tree(db, tree_key, user_id=user.id, visible_only=True)
     if not t:
         return ApiResponse.fail("知识树不存在", code=404)
     return ApiResponse.ok(t.model_dump())

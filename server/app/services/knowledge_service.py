@@ -216,21 +216,39 @@ def _node_to_out(
     )
 
 
-def list_trees(db: Session, *, user_id: str | None = None) -> list[KnowledgeTreeOut]:
-    """列出所有知识树（按 tree_key 分组，组成树形结构）；用户状态按本人合并。"""
-    all_nodes = (
-        db.query(KnowledgeNode)
-        .filter(KnowledgeNode.archived_at.is_(None))
-        .order_by(KnowledgeNode.tree_key, KnowledgeNode.sort_order)
-        .all()
-    )
+def _tree_titles(db: Session) -> dict[str, str]:
+    from app.models import KnowledgeTree
+
+    return {k: t for k, t in db.query(KnowledgeTree.tree_key, KnowledgeTree.title).all()}
+
+
+def list_trees(
+    db: Session, *, user_id: str | None = None, visible_only: bool = False
+) -> list[KnowledgeTreeOut]:
+    """列出知识树（按 tree_key 分组，组成树形结构）；用户状态按本人合并。
+
+    visible_only=True（学员端）时只返回 is_visible 且已上线的树，避免泄露隐藏树/遗留 tree_key。
+    """
+    q = db.query(KnowledgeNode).filter(KnowledgeNode.archived_at.is_(None))
+    allowed: list[str] | None = None
+    if visible_only:
+        from app.services.knowledge_doc_service import public_tree_keys
+
+        allowed = public_tree_keys(db)
+        if not allowed:
+            return []
+        q = q.filter(KnowledgeNode.tree_key.in_(allowed))
+    all_nodes = q.order_by(KnowledgeNode.tree_key, KnowledgeNode.sort_order).all()
     by_tree: dict[str, list[KnowledgeNode]] = {}
     tree_keys_in_order: list[str] = []
     for n in all_nodes:
         if n.tree_key not in by_tree:
             tree_keys_in_order.append(n.tree_key)
         by_tree.setdefault(n.tree_key, []).append(n)
+    if allowed is not None:
+        tree_keys_in_order = [k for k in allowed if k in by_tree]
 
+    titles = _tree_titles(db)
     states = _user_state_map(db, user_id)
     out: list[KnowledgeTreeOut] = []
     for tree_key in tree_keys_in_order:
@@ -244,14 +262,21 @@ def list_trees(db: Session, *, user_id: str | None = None) -> list[KnowledgeTree
         out.append(
             KnowledgeTreeOut(
                 treeKey=tree_key,
-                title=TREE_TITLES.get(tree_key, tree_key),
+                title=titles.get(tree_key) or TREE_TITLES.get(tree_key, tree_key),
                 nodes=[_node_to_out(r, children_map, states) for r in roots],
             )
         )
     return out
 
 
-def get_tree(db: Session, tree_key: str, *, user_id: str | None = None) -> KnowledgeTreeOut | None:
+def get_tree(
+    db: Session, tree_key: str, *, user_id: str | None = None, visible_only: bool = False
+) -> KnowledgeTreeOut | None:
+    if visible_only:
+        from app.services.knowledge_doc_service import public_tree_keys
+
+        if tree_key not in public_tree_keys(db):
+            return None
     nodes = (
         db.query(KnowledgeNode)
         .filter(KnowledgeNode.tree_key == tree_key, KnowledgeNode.archived_at.is_(None))
@@ -267,7 +292,7 @@ def get_tree(db: Session, tree_key: str, *, user_id: str | None = None) -> Knowl
     states = _user_state_map(db, user_id, tree_key)
     return KnowledgeTreeOut(
         treeKey=tree_key,
-        title=TREE_TITLES.get(tree_key, tree_key),
+        title=_tree_titles(db).get(tree_key) or TREE_TITLES.get(tree_key, tree_key),
         nodes=[_node_to_out(r, children_map, states) for r in roots],
     )
 

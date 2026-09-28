@@ -334,3 +334,45 @@ def test_public_map_hidden_until_visible_and_ids_attached(assets_root):
         assert first["id"] in node_ids
     finally:
         db.close()
+
+
+def test_public_tree_list_hides_hidden_and_unpublished(assets_root):
+    """P1-5：学员端 /knowledge/trees 与 /knowledge/tree/{key} 只暴露可见且已上线的树。"""
+    from app.models import KnowledgeNode as KN
+
+    from app.core.security import create_access_token
+    from app.models import AppUser
+
+    db = SessionLocal()
+    client = TestClient(app)
+    user = db.query(AppUser).filter(AppUser.username == "kp_visibility").first()
+    if not user:
+        user = AppUser(username="kp_visibility", password_hash="x")
+        db.add(user)
+        db.commit()
+    headers = {"Authorization": f"Bearer {create_access_token(user.id)}"}
+    try:
+        # 遗留节点：没有 knowledge_trees 行（如生产的「申论题型」）
+        db.add(KN(tree_key="遗留题型", title="旧节点", path="旧节点", depth=0, sort_order=0))
+        db.commit()
+        key = "可见性科"
+        tree, v = _published_tree(db, key)
+        manifest, files = _good_manifest()
+        assert save_version_assets(db, key, v, manifest=manifest, files=files)[1] == ""
+
+        def listed():
+            r = client.get("/api/knowledge/trees", headers=headers)
+            assert r.status_code == 200, r.text
+            return {t["treeKey"] for t in r.json()["data"]}
+
+        assert "遗留题型" not in listed()
+        assert key not in listed()  # 已上线但未设可见
+        assert client.get(f"/api/knowledge/tree/{key}", headers=headers).json()["code"] != 0
+        assert client.get("/api/knowledge/tree/遗留题型", headers=headers).json()["code"] != 0
+
+        docs.patch_tree(db, key, {"isVisible": True})
+        assert key in listed()
+        d = client.get(f"/api/knowledge/tree/{key}", headers=headers).json()
+        assert d["code"] == 0 and d["data"]["title"] == key
+    finally:
+        db.close()
