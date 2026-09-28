@@ -21,7 +21,7 @@ import {
 import MdEditor from './MdEditor.vue'
 import MarkmapPreview from './MarkmapPreview.vue'
 import VersionDrawer from './VersionDrawer.vue'
-import { makeThumb, overviewTree, rasterizeSvg, sliceTree } from './exportMap'
+import { makeThumb, overviewTree, planSegment, rasterizeSvg } from './exportMap'
 
 const trees = ref<KnowledgeTreeMeta[]>([])
 const activeKey = ref('')
@@ -188,6 +188,96 @@ async function onSave() {
   }
 }
 
+async function sha8(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, '0')).join('').slice(0, 8)
+}
+
+/**
+ * 为指定版本生成导图资源并上传：概览图 + 按实测尺寸递归拆分的分片 + 全树纯 SVG + tree.json。
+ * 文件名全部为 ASCII（overview-xxxx.png / s01-02-xxxx.png），由服务端校验后重建 URL。
+ */
+async function generateAndUpload(version: number, tree: MapNode, activate: boolean) {
+  const mmRef = markmapRef.value
+  if (!mmRef) throw new Error('预览组件未就绪')
+  const files: File[] = []
+  const segmentsMeta: KnowledgeManifest['segments'] = []
+
+  publishProgress.value = '生成概览图…'
+  const ovPure = await mmRef.renderToPureSvg(overviewTree(tree), -1, tree)
+  const ovRaster = await rasterizeSvg(ovPure, 'overview.png')
+  const ovBase = `overview-${ovRaster.sha256.slice(0, 8)}`
+  const ovThumb = await makeThumb(ovRaster.blob, `${ovBase}.thumb.png`)
+  files.push(new File([ovRaster.blob], `${ovBase}.png`, { type: 'image/png' }))
+  files.push(new File([ovThumb.blob], ovThumb.filename, { type: 'image/png' }))
+  const overview = {
+    url: `${ovBase}.png`,
+    width: ovRaster.width,
+    height: ovRaster.height,
+    bytes: ovRaster.blob.size,
+    thumbUrl: ovThumb.filename,
+    thumbWidth: ovThumb.width,
+    thumbHeight: ovThumb.height,
+    sha256: ovRaster.sha256,
+  }
+
+  const branches = tree.children || []
+  let bi = 0
+  for (const branch of branches) {
+    bi += 1
+    publishProgress.value = `生成分片 ${bi}/${branches.length} · ${branch.title}`
+    const key = `s${String(bi).padStart(2, '0')}`
+    const jobs = await planSegment(branch, key, [tree.title], (t) => mmRef.renderToPureSvg(t, -1, tree))
+    for (const job of jobs) {
+      const raster = await rasterizeSvg(job.pure, `${job.key}.png`, job.scale)
+      const base = `${job.key}-${raster.sha256.slice(0, 8)}`
+      const thumb = await makeThumb(raster.blob, `${base}.thumb.png`)
+      files.push(new File([raster.blob], `${base}.png`, { type: 'image/png' }))
+      files.push(new File([thumb.blob], thumb.filename, { type: 'image/png' }))
+      segmentsMeta.push({
+        key: job.key,
+        title: job.title,
+        rootPath: job.rootPath,
+        nodeCount: job.nodeCount,
+        url: `${base}.png`,
+        width: raster.width,
+        height: raster.height,
+        bytes: raster.blob.size,
+        thumbUrl: thumb.filename,
+        thumbWidth: thumb.width,
+        thumbHeight: thumb.height,
+        sha256: raster.sha256,
+      })
+    }
+  }
+
+  publishProgress.value = '生成全树 SVG…'
+  const full = await mmRef.renderToPureSvg(tree, -1, tree)
+  const svgName = `full-${await sha8(full.svg)}.svg`
+  const svgBlob = new Blob([full.svg], { type: 'image/svg+xml' })
+  files.push(new File([svgBlob], svgName, { type: 'image/svg+xml' }))
+  const treeJson = JSON.stringify(tree)
+  const treeJsonName = `tree-${await sha8(treeJson)}.json`
+  files.push(new File([treeJson], treeJsonName, { type: 'application/json' }))
+
+  publishProgress.value = '上传资源…'
+  return uploadKnowledgeAssets(
+    activeKey.value,
+    version,
+    {
+      generatedAt: new Date().toISOString(),
+      theme: 'brand-red',
+      scale: 2,
+      overview,
+      segments: segmentsMeta,
+      svg: { url: svgName, bytes: svgBlob.size },
+      treeJsonUrl: treeJsonName,
+    },
+    files,
+    activate,
+  )
+}
+
 async function onPublish() {
   if (!activeKey.value || hasErrors.value) return
   if (dirty.value) {
@@ -196,124 +286,53 @@ async function onPublish() {
   }
   publishing.value = true
   publishProgress.value = '发布中…'
+  let publishedVersion = 0
   try {
     const pub = await publishKnowledgeTree(activeKey.value, draftRevision.value)
-    const tree = pub.tree
-    if (!tree) throw new Error('发布返回空树')
-    const version = pub.version
-    const files: File[] = []
-    const segmentsMeta: KnowledgeManifest['segments'] = []
-
-    publishProgress.value = '生成概览图…'
-    const ovTree = overviewTree(tree)
-    const ovSvg = await markmapRef.value!.renderToPureSvg(ovTree, -1)
-    const ovSha8prefix = 'overview'
-    const ovRaster = await rasterizeSvg(ovSvg, `${ovSha8prefix}.png`)
-    const ovName = `overview-${ovRaster.sha256.slice(0, 8)}.png`
-    const ovThumb = await makeThumb(ovRaster.blob, `overview-${ovRaster.sha256.slice(0, 8)}.thumb.png`)
-    files.push(new File([ovRaster.blob], ovName, { type: 'image/png' }))
-    files.push(new File([ovThumb.blob], ovThumb.filename, { type: 'image/png' }))
-    const overview = {
-      url: ovName,
-      width: ovRaster.width,
-      height: ovRaster.height,
-      bytes: ovRaster.blob.size,
-      thumbUrl: ovThumb.filename,
-      thumbWidth: ovThumb.width,
-      thumbHeight: ovThumb.height,
-      sha256: ovRaster.sha256,
-    }
-
-    const planSegs = pub.exportPlan?.segments || []
-    let i = 0
-    for (const seg of planSegs) {
-      i += 1
-      publishProgress.value = `生成分片 ${i}/${planSegs.length} · ${seg.title}`
-      const sliced = sliceTree(tree, seg.rootPath, `${tree.title} › ${seg.title}`)
-      if (!sliced) continue
-      // 大分支：若节点过多，按 depth1 再拆
-      const kids = sliced.children || []
-      const jobs: { key: string; title: string; rootPath: string; nodeCount: number; node: MapNode }[] = []
-      if (seg.nodeCount > 80 && kids.length > 1) {
-        for (const k of kids) {
-          const cnt = countNodes(k)
-          jobs.push({
-            key: `${seg.key}--${k.path.replace(/\//g, '-')}`,
-            title: `${seg.title} › ${k.title}`,
-            rootPath: k.path,
-            nodeCount: cnt,
-            node: {
-              ...sliced,
-              title: `${tree.title} › ${seg.title} › ${k.title}`,
-              children: [k],
-            },
-          })
-        }
-      } else {
-        jobs.push({ key: seg.key, title: seg.title, rootPath: seg.rootPath, nodeCount: seg.nodeCount, node: sliced })
-      }
-      for (const job of jobs) {
-        const svg = await markmapRef.value!.renderToPureSvg(job.node, -1)
-        const raster = await rasterizeSvg(svg, `${job.key}.png`)
-        // 若 scale 过低说明图太大，在前端已按 4096 压；仍过大则跳过二次拆（后端会校验）
-        const name = `${job.key}-${raster.sha256.slice(0, 8)}.png`
-        const thumb = await makeThumb(raster.blob, `${job.key}-${raster.sha256.slice(0, 8)}.thumb.png`)
-        files.push(new File([raster.blob], name, { type: 'image/png' }))
-        files.push(new File([thumb.blob], thumb.filename, { type: 'image/png' }))
-        segmentsMeta.push({
-          key: job.key,
-          title: job.title,
-          rootPath: job.rootPath,
-          nodeCount: job.nodeCount,
-          url: name,
-          width: raster.width,
-          height: raster.height,
-          bytes: raster.blob.size,
-          thumbUrl: thumb.filename,
-          thumbWidth: thumb.width,
-          thumbHeight: thumb.height,
-          sha256: raster.sha256,
-        })
-      }
-    }
-
-    publishProgress.value = '生成全树 SVG…'
-    const fullSvg = await markmapRef.value!.renderToPureSvg(tree, 2)
-    const svgName = `full-${(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fullSvg)).then((b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join(''))).slice(0, 8)}.svg`
-    const svgBlob = new Blob([fullSvg], { type: 'image/svg+xml' })
-    files.push(new File([svgBlob], svgName, { type: 'image/svg+xml' }))
-
-    const treeJsonName = `tree.json`
-    const treeJsonBlob = new Blob([JSON.stringify(tree)], { type: 'application/json' })
-    files.push(new File([treeJsonBlob], treeJsonName, { type: 'application/json' }))
-
-    const manifest: KnowledgeManifest = {
-      version,
-      generatedAt: new Date().toISOString(),
-      theme: 'brand-red',
-      scale: 2,
-      overview,
-      segments: segmentsMeta,
-      svg: { url: svgName, bytes: svgBlob.size },
-      treeJsonUrl: treeJsonName,
-    }
-
-    publishProgress.value = '上传资源…'
-    const up = await uploadKnowledgeAssets(activeKey.value, version, manifest, files)
+    if (!pub.tree) throw new Error('发布返回空树')
+    publishedVersion = pub.version
+    const up = await generateAndUpload(pub.version, pub.tree, true)
     liveManifest.value = up.manifest
-    ElMessage.success(`v${up.liveVersion} 已上线`)
+    const d = up.nodeDiff
+    ElMessage.success(
+      d ? `v${up.liveVersion} 已上线（新增 ${d.added} · 归档 ${d.archived} · 移动 ${d.moved}）` : `v${up.liveVersion} 已上线`,
+    )
     await loadTrees(activeKey.value)
     rightTab.value = 'live'
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '发布失败')
+    const msg = e instanceof Error ? e.message : '发布失败'
+    ElMessage.error(
+      publishedVersion ? `v${publishedVersion} 已发布但图片生成/上传失败：${msg}（可在「历史版本」中重新生成）` : msg,
+    )
+    await loadTrees(activeKey.value)
   } finally {
     publishing.value = false
     publishProgress.value = ''
   }
 }
 
-function countNodes(n: MapNode): number {
-  return 1 + (n.children || []).reduce((s, c) => s + countNodes(c), 0)
+/** 历史版本抽屉：为已有版本重新生成图片（不新建版本；是否上线由 activate 决定）。 */
+async function onRegenerate(payload: { version: number; activate: boolean }) {
+  if (!activeKey.value || publishing.value) return
+  publishing.value = true
+  try {
+    const ver = await fetchKnowledgeVersion(activeKey.value, payload.version)
+    if (!ver.tree) throw new Error('版本数据为空')
+    const up = await generateAndUpload(payload.version, ver.tree, payload.activate)
+    ElMessage.success(payload.activate ? `v${payload.version} 图片已生成并上线` : `v${payload.version} 图片已生成`)
+    if (up.liveVersion === payload.version) liveManifest.value = up.manifest
+    await loadTrees(activeKey.value)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '生成失败')
+  } finally {
+    publishing.value = false
+    publishProgress.value = ''
+  }
+}
+
+async function onActivated() {
+  await loadTrees(activeKey.value)
+  await loadDoc(activeKey.value)
 }
 
 function onOutlineClick(data: { line: number }) {
@@ -524,7 +543,15 @@ function mediaUrl(u?: string) {
       </template>
     </el-dialog>
 
-    <VersionDrawer v-model="versionDrawer" :tree-key="activeKey" @rolled-back="loadDoc(activeKey)" />
+    <VersionDrawer
+      v-model="versionDrawer"
+      :tree-key="activeKey"
+      :live-version="activeMeta?.liveVersion || 0"
+      :busy="publishing"
+      @rolled-back="loadDoc(activeKey)"
+      @activated="onActivated"
+      @regenerate="onRegenerate"
+    />
   </div>
 </template>
 

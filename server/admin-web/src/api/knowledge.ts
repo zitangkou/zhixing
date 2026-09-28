@@ -61,7 +61,8 @@ export interface KnowledgePublishResult {
   version: number
   tree: MapNode | null
   stats: { nodeCount: number; leafCount: number; maxDepth: number }
-  nodeDiff: { added: number; archived: number; kept: number; moved: number }
+  /** 激活后预计的节点变化（发布本身不改动节点） */
+  nodeDiffPreview: { added: number; archived: number; kept: number }
   exportPlan: { segments: ExportPlanSegment[] }
   issues: KnowledgeIssue[]
 }
@@ -95,6 +96,14 @@ export interface KnowledgeVersionMeta {
   createdBy: string
   nodeCount: number
   assetsReady: boolean
+  isLive: boolean
+}
+
+export interface KnowledgeNodeDiff {
+  added: number
+  archived: number
+  kept: number
+  moved: number
 }
 
 export function fetchKnowledgeTrees() {
@@ -138,14 +147,26 @@ export function publishKnowledgeTree(treeKey: string, baseRevision: number, note
   )
 }
 
-export function uploadKnowledgeAssets(treeKey: string, version: number, manifest: KnowledgeManifest, files: File[]) {
+export function uploadKnowledgeAssets(
+  treeKey: string,
+  version: number,
+  manifest: Omit<KnowledgeManifest, 'version'>,
+  files: File[],
+  activate = true,
+) {
   const form = new FormData()
   form.append('manifest', JSON.stringify(manifest))
   for (const f of files) {
     form.append('files', f, f.name)
   }
-  return getData<{ version: number; liveVersion: number; manifest: KnowledgeManifest }>(
-    http.post(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/versions/${version}/assets`, form, {
+  const q = activate ? '' : '?activate=false'
+  return getData<{
+    version: number
+    liveVersion: number
+    manifest: KnowledgeManifest
+    nodeDiff: KnowledgeNodeDiff | null
+  }>(
+    http.post(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/versions/${version}/assets${q}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
     }),
@@ -168,6 +189,14 @@ export function fetchKnowledgeVersion(treeKey: string, version: number) {
     note: string
     createdAt: string
   }>(http.get(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/versions/${version}`))
+}
+
+export function activateKnowledgeVersion(treeKey: string, version: number, expectedLive?: number) {
+  return getData<{ treeKey: string; liveVersion: number; previousLive: number; nodeDiff: KnowledgeNodeDiff }>(
+    http.post(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/versions/${version}/activate`, {
+      expectedLive,
+    }),
+  )
 }
 
 export function rollbackKnowledgeVersion(treeKey: string, version: number) {
