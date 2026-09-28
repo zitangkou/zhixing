@@ -100,3 +100,65 @@ def test_archive_files_parse_clean():
         errors = [i for i in r.issues if i.level == "error"]
         assert not errors, f"{path.name}: {errors}"
         assert r.stats["nodeCount"] > 0
+
+
+def test_heading_jump_is_error_and_depth_normalized():
+    md = "# 科\n\n## A\n\n#### B\n\n- c\n"
+    r = parse_md(md)
+    assert any(i.code == "HEADING_JUMP" and i.level == "error" for i in r.issues)
+    by_path = {n.path: n for n in r.nodes}
+    # 深度始终为 parent.depth + 1，与标题级别无关
+    assert by_path["A/B"].depth == 1
+    assert by_path["A/B/c"].depth == 2
+
+
+def test_first_list_item_indented_is_error():
+    md = "# 科\n\n## A\n\n### B\n\n    - c\n"
+    r = parse_md(md)
+    assert any(i.code == "LEVEL_JUMP" and i.level == "error" for i in r.issues)
+    assert {n.path: n for n in r.nodes}["A/B/c"].depth == 2
+
+
+def test_roundtrip_preserves_depths():
+    r = parse_md(SAMPLE)
+    r2 = parse_md(serialize_md(r.tree))
+    assert [(n.path, n.depth, n.parent_index) for n in r.nodes] == [
+        (n.path, n.depth, n.parent_index) for n in r2.nodes
+    ]
+
+
+def test_archive_roundtrip_preserves_structure():
+    for path in sorted(ARCHIVE.glob("*.md")):
+        if path.name == "README.md":
+            continue
+        r = parse_md(path.read_text(encoding="utf-8"))
+        r2 = parse_md(serialize_md(r.tree))
+        assert [(n.path, n.depth) for n in r.nodes] == [(n.path, n.depth) for n in r2.nodes], path.name
+
+
+def test_md_too_large_rejected():
+    from app.services.knowledge_md import MAX_MD_CHARS
+
+    r = parse_md("# 科\n" + "x" * (MAX_MD_CHARS + 1))
+    assert any(i.code == "MD_TOO_LARGE" for i in r.issues)
+    assert r.nodes == []
+
+
+def test_parse_is_linear_time():
+    """2000 节点应在远低于 1 秒内完成（旧实现为 O(n³)，630 节点需十余秒）。"""
+    import time
+
+    lines = ["# 科", ""]
+    for a in range(20):
+        lines += [f"## 分支{a}", ""]
+        for b in range(10):
+            lines.append(f"- 子{b}")
+            for c in range(9):
+                lines.append(f"  - 叶{c}")
+    md = "\n".join(lines) + "\n"
+    t0 = time.perf_counter()
+    r = parse_md(md)
+    elapsed = time.perf_counter() - t0
+    assert r.stats["nodeCount"] == 20 + 20 * 10 * 10
+    assert r.stats["leafCount"] == 20 * 10 * 9
+    assert elapsed < 1.0, elapsed

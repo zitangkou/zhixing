@@ -101,7 +101,7 @@ def admin_knowledge_put_doc(
 @router.post("/knowledge/preview")
 def admin_knowledge_preview(
     body: KnowledgePreviewBody,
-    _admin=Depends(require_permission("knowledge:read")),
+    _admin=Depends(require_permission("knowledge:write")),
 ):
     return ApiResponse.ok(docs.preview_md(body.md))
 

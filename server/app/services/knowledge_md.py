@@ -17,6 +17,9 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _LIST_RE = re.compile(r"^([-*+]|\d+\.)\s+")
 _FRONTMATTER_RE = re.compile(r"^---\s*$")
 
+# md 最大字符数（约 1MB）；超出直接报错，不进入逐行解析
+MAX_MD_CHARS = 1_000_000
+
 
 @dataclass
 class Issue:
@@ -125,6 +128,17 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
     last_heading_depth = -1
     last_list_indent: int | None = None
     doc_title = ""
+    if len(md) > MAX_MD_CHARS:
+        issues.append(
+            Issue("error", "MD_TOO_LARGE", 1, f"Markdown 超过 {MAX_MD_CHARS} 字符上限")
+        )
+        return ParseResult(
+            title="",
+            nodes=[],
+            tree=None,
+            issues=issues,
+            stats={"nodeCount": 0, "leafCount": 0, "maxDepth": -1},
+        )
     lines = md.splitlines()
 
     if lines and _FRONTMATTER_RE.match(lines[0].strip()):
@@ -134,25 +148,30 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
                 Issue("error", "FRONTMATTER", 1, "禁止使用 frontmatter；导图样式由系统统一配置")
             )
 
-    def add_node(title: str, depth: int, line_no: int) -> int:
-        while stack and stack[-1][0] >= depth:
+    # O(n) 辅助结构：同级标题集合、子节点计数
+    sibling_titles: dict[int, set[str]] = {}
+    child_count: list[int] = []
+
+    def add_node(title: str, raw_depth: int, line_no: int) -> int:
+        """raw_depth 用于判断层级关系；节点 depth 统一规范为 parent.depth + 1。"""
+        while stack and stack[-1][0] >= raw_depth:
             stack.pop()
         parent_index = stack[-1][1] if stack else -1
         parent_path = nodes[parent_index].path if parent_index >= 0 else ""
+        depth = nodes[parent_index].depth + 1 if parent_index >= 0 else 0
         path = _build_path(parent_path, title)
-        # duplicate sibling check
-        for i, n in enumerate(nodes):
-            if n.parent_index == parent_index and n.title == title:
-                issues.append(
-                    Issue(
-                        "error",
-                        "DUPLICATE_SIBLING",
-                        line_no,
-                        f"同级重复标题「{title}」",
-                        path=path,
-                    )
+        titles = sibling_titles.setdefault(parent_index, set())
+        if title in titles:
+            issues.append(
+                Issue(
+                    "error",
+                    "DUPLICATE_SIBLING",
+                    line_no,
+                    f"同级重复标题「{title}」",
+                    path=path,
                 )
-                break
+            )
+        titles.add(title)
         node = FlatNode(
             title=title,
             depth=depth,
@@ -164,7 +183,10 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
         )
         idx = len(nodes)
         nodes.append(node)
-        stack.append((depth, idx))
+        child_count.append(0)
+        if parent_index >= 0:
+            child_count[parent_index] += 1
+        stack.append((raw_depth, idx))
         return idx
 
     for line_no, raw in enumerate(lines, start=1):
@@ -216,13 +238,15 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
                 )
             depth = level - 2
             # heading level jump warning (## then ####)
-            if stack and depth > stack[-1][0] + 1 and last_heading_depth >= 0:
+            prev_heading = last_heading_depth if last_heading_depth >= 0 else -1
+            if depth > prev_heading + 1:
                 issues.append(
                     Issue(
-                        "warning",
+                        "error",
                         "HEADING_JUMP",
                         line_no,
-                        f"标题跳级（上一层 depth={last_heading_depth} → {depth}）",
+                        f"标题跳级（上一级标题 {'#' * (prev_heading + 2) if prev_heading >= 0 else '#'} → {'#' * level}），"
+                        "请逐级使用标题",
                         path=title,
                     )
                 )
@@ -249,7 +273,17 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
                 issues.append(
                     Issue("warning", "LONG_TITLE", line_no, "标题超过 60 字，导图将换行", path=title)
                 )
-            if last_list_indent is not None and indent - last_list_indent > 2:
+            if last_list_indent is None and indent > 0:
+                issues.append(
+                    Issue(
+                        "error",
+                        "LEVEL_JUMP",
+                        line_no,
+                        "标题下第一条列表项不应缩进",
+                        path=title,
+                    )
+                )
+            elif last_list_indent is not None and indent - last_list_indent > 2:
                 issues.append(
                     Issue(
                         "error",
@@ -280,21 +314,17 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
         issues.append(Issue("error", "MISSING_H1", 1, "缺少一级标题 `# 科目名`"))
 
     # empty depth0 branches
-    for n in nodes:
-        if n.depth == 0:
-            has_child = any(c.parent_index == n.sort_order for c in nodes)
-            # parent_index points to index, sort_order == index at creation
-            has_child = any(c.parent_index == nodes.index(n) for c in nodes)
-            if not has_child:
-                issues.append(
-                    Issue(
-                        "warning",
-                        "EMPTY_BRANCH",
-                        n.line,
-                        f"题型「{n.title}」下没有子节点",
-                        path=n.path,
-                    )
+    for i, n in enumerate(nodes):
+        if n.depth == 0 and child_count[i] == 0:
+            issues.append(
+                Issue(
+                    "warning",
+                    "EMPTY_BRANCH",
+                    n.line,
+                    f"题型「{n.title}」下没有子节点",
+                    path=n.path,
                 )
+            )
 
     if len(nodes) > 2000:
         issues.append(
@@ -305,7 +335,7 @@ def parse_md(md: str, *, temp_id_prefix: str = "tmp") -> ParseResult:
         issues.append(Issue("error", "TOO_DEEP", 1, f"最大深度 {max_d} 超过上限 10"))
 
     tree = build_map_tree(doc_title or "未命名", nodes)
-    leaf_count = sum(1 for n in nodes if not any(c.parent_index == nodes.index(n) for c in nodes))
+    leaf_count = sum(1 for c in child_count if c == 0)
     stats = {
         "nodeCount": len(nodes),
         "leafCount": leaf_count,

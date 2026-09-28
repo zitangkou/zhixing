@@ -98,10 +98,13 @@ class KnowledgeTreeMetaOut(BaseModel):
     livePublishedAt: datetime | None = None
 
 
+_MD_MAX = 1_000_000  # 与 knowledge_md.MAX_MD_CHARS 一致
+
+
 class KnowledgeTreeCreateBody(BaseModel):
-    treeKey: str
-    title: str
-    md: str = ""
+    treeKey: str = Field(min_length=1, max_length=32, pattern=r"^[0-9A-Za-z_\-\u4e00-\u9fff]+$")
+    title: str = Field(default="", max_length=64)
+    md: str = Field(default="", max_length=_MD_MAX)
 
 
 class KnowledgeTreePatchBody(BaseModel):
@@ -122,7 +125,7 @@ class KnowledgeDocOut(BaseModel):
 
 
 class KnowledgeDocPutBody(BaseModel):
-    md: str
+    md: str = Field(max_length=_MD_MAX)
     baseRevision: int
 
 
@@ -133,12 +136,12 @@ class KnowledgeDocPutOut(BaseModel):
 
 
 class KnowledgePreviewBody(BaseModel):
-    md: str
+    md: str = Field(max_length=_MD_MAX)
 
 
 class KnowledgePublishBody(BaseModel):
     baseRevision: int
-    note: str = ""
+    note: str = Field(default="", max_length=256)
 
 
 class KnowledgeUserStateUpdate(BaseModel):
