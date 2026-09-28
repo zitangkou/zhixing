@@ -463,3 +463,23 @@ def test_import_keeps_unpublished_draft_unless_forced():
         assert forced["ok"]
     finally:
         db.close()
+
+
+def test_list_tree_metas_counts_and_live_state():
+    db = SessionLocal()
+    try:
+        md = "# 元信息\n## 一\n- 甲\n- 乙\n"
+        r = import_md_to_draft(db, "meta_tree", "元信息", md, admin_id="t")
+        pub, err, _ = publish_tree(db, "meta_tree", r["draftRevision"], admin_id="t")
+        assert pub and not err
+        activate_version(db, "meta_tree", pub["version"], admin_id="t", allow_no_assets=True)
+        metas = {m["treeKey"]: m for m in docs.list_tree_metas(db)}
+        m = metas["meta_tree"]
+        assert m["liveVersion"] == pub["version"]
+        assert m["liveNodeCount"] == db.query(KnowledgeNode).filter(
+            KnowledgeNode.tree_key == "meta_tree", KnowledgeNode.archived_at.is_(None)).count() > 0
+        assert m["hasUnpublishedChanges"] is False and m["livePublishedAt"] is not None
+        save_draft(db, "meta_tree", md + "- 丙\n", m["draftRevision"], admin_id="t")
+        assert {x["treeKey"]: x for x in docs.list_tree_metas(db)}["meta_tree"]["hasUnpublishedChanges"] is True
+    finally:
+        db.close()

@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -49,23 +50,33 @@ def get_or_none_tree(db: Session, tree_key: str) -> KnowledgeTree | None:
 
 def list_tree_metas(db: Session) -> list[dict[str, Any]]:
     trees = db.query(KnowledgeTree).order_by(KnowledgeTree.sort_order, KnowledgeTree.tree_key).all()
+    # 两次聚合查询代替每棵树 2 次查询（N+1）；版本只取需要的列，不加载 md_content/tree_json
+    node_counts = dict(
+        db.query(KnowledgeNode.tree_key, func.count(KnowledgeNode.id))
+        .filter(KnowledgeNode.archived_at.is_(None))
+        .group_by(KnowledgeNode.tree_key)
+        .all()
+    )
+    live_pairs = [(t.id, t.live_version) for t in trees if t.live_version]
+    live_rows: dict[str, Any] = {}
+    if live_pairs:
+        rows = (
+            db.query(
+                KnowledgeTreeVersion.tree_id,
+                KnowledgeTreeVersion.version,
+                KnowledgeTreeVersion.md_sha256,
+                KnowledgeTreeVersion.created_at,
+            )
+            .filter(KnowledgeTreeVersion.tree_id.in_([tid for tid, _ in live_pairs]))
+            .filter(KnowledgeTreeVersion.version.in_({v for _, v in live_pairs}))
+            .all()
+        )
+        wanted = set(live_pairs)
+        live_rows = {r.tree_id: r for r in rows if (r.tree_id, r.version) in wanted}
     out: list[dict[str, Any]] = []
     for t in trees:
-        live_n = (
-            db.query(KnowledgeNode)
-            .filter(KnowledgeNode.tree_key == t.tree_key, KnowledgeNode.archived_at.is_(None))
-            .count()
-        )
-        live_ver = (
-            db.query(KnowledgeTreeVersion)
-            .filter(
-                KnowledgeTreeVersion.tree_id == t.id,
-                KnowledgeTreeVersion.version == t.live_version,
-            )
-            .first()
-            if t.live_version
-            else None
-        )
+        live_n = int(node_counts.get(t.tree_key, 0))
+        live_ver = live_rows.get(t.id) if t.live_version else None
         has_unpublished = False
         if t.latest_version == 0:
             has_unpublished = bool(t.md_draft.strip())
