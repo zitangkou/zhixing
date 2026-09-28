@@ -67,9 +67,81 @@ export const mockKnowledge = {
       ? m.ok(t)
       : { code: 404, data: null as unknown as import('@/types').KnowledgeTree, message: '不存在' }
   },
-  async syncKnowledge(): Promise<import('@/types').ApiRes<Record<string, number>>> {
-    await m.delay(200)
-    return m.ok({ 申论: 514, 判断推理: 350 })
+  async getKnowledgeMap(
+    treeKey: string,
+  ): Promise<import('@/types').ApiRes<import('@/types').KnowledgeMapDetail>> {
+    const trees = await this.getKnowledgeTrees()
+    const t = trees.data?.find((x) => x.treeKey === treeKey)
+    if (!t) {
+      return {
+        code: 404,
+        data: null as unknown as import('@/types').KnowledgeMapDetail,
+        message: '不存在',
+      }
+    }
+    const toMap = (n: import('@/types').KnowledgeNode, depth = 0): import('@/types').KnowledgeMapNode => ({
+      id: n.id,
+      title: n.title,
+      content: n.content,
+      depth,
+      line: 0,
+      path: n.path,
+      children: (n.children || []).map((c) => toMap(c, depth + 1)),
+    })
+    return m.ok({
+      treeKey: t.treeKey,
+      title: t.title,
+      version: 1,
+      publishedAt: new Date().toISOString(),
+      tree: {
+        id: 'root',
+        title: t.title,
+        depth: -1,
+        line: 1,
+        path: '',
+        children: t.nodes.map((n) => toMap(n)),
+      },
+      manifest: {
+        version: 1,
+        overview: {
+          url: '/uploads/knowledge/demo/overview.png',
+          thumbUrl: '/uploads/knowledge/demo/overview.png',
+          width: 800,
+          height: 600,
+        },
+        segments: [
+          {
+            key: 'seg-1',
+            title: '提出对策题',
+            rootPath: '提出对策题',
+            nodeCount: 3,
+            url: '/uploads/knowledge/demo/seg1.png',
+            thumbUrl: '/uploads/knowledge/demo/seg1.png',
+            width: 800,
+            height: 600,
+          },
+        ],
+      },
+    })
+  },
+
+  async getKnowledgeMaps(): Promise<import('@/types').ApiRes<import('@/types').KnowledgeMapListItem[]>> {
+    await m.delay(150)
+    const trees = await this.getKnowledgeTrees()
+    return m.ok(
+      (trees.data || []).map((t) => ({
+        treeKey: t.treeKey,
+        title: t.title,
+        version: 1,
+        publishedAt: new Date().toISOString(),
+        nodeCount: 5,
+        cover: {
+          url: '/uploads/knowledge/demo/overview.png',
+          width: 400,
+          height: 300,
+        },
+      })),
+    )
   },
   async updateKnowledgeNode(
     id: string,

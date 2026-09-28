@@ -1,14 +1,41 @@
 import { defineStore } from 'pinia'
 import { api } from '@/api'
-import type { KnowledgeNode, KnowledgeReviewResult, KnowledgeTree } from '@/types'
+import type {
+  KnowledgeMapDetail,
+  KnowledgeMapListItem,
+  KnowledgeNode,
+  KnowledgeReviewResult,
+  KnowledgeTree,
+} from '@/types'
 
 export const useKnowledgeStore = defineStore('knowledge', {
   state: () => ({
+    maps: [] as KnowledgeMapListItem[],
+    mapDetail: null as KnowledgeMapDetail | null,
     trees: [] as KnowledgeTree[],
     current: null as KnowledgeTree | null,
     loading: false,
   }),
   actions: {
+    async fetchMaps() {
+      this.loading = true
+      try {
+        const res = await api.getKnowledgeMaps()
+        if (res.code === 0 && res.data) this.maps = res.data
+      } finally {
+        this.loading = false
+      }
+    },
+    async fetchMap(treeKey: string) {
+      this.loading = true
+      try {
+        const res = await api.getKnowledgeMap(treeKey)
+        if (res.code === 0 && res.data) this.mapDetail = res.data
+        else this.mapDetail = null
+      } finally {
+        this.loading = false
+      }
+    },
     async fetchTrees() {
       this.loading = true
       try {
@@ -27,32 +54,21 @@ export const useKnowledgeStore = defineStore('knowledge', {
         this.loading = false
       }
     },
-    async sync() {
-      const res = await api.syncKnowledge()
-      if (res.code === 0) {
-        await this.fetchTrees()
-      }
-      return res
-    },
-    async updateNode(id: string, data: { myNote?: string; isStarred?: boolean; content?: string }) {
+    async updateNode(id: string, data: { myNote?: string; isStarred?: boolean }) {
       const res = await api.updateKnowledgeNode(id, data)
-      if (res.code === 0) {
-        // 局部更新 current 树里的节点
-        if (this.current) {
-          const updateInChildren = (nodes: KnowledgeNode[]): boolean => {
-            for (const n of nodes) {
-              if (n.id === id) {
-                if (data.myNote !== undefined) n.myNote = data.myNote
-                if (data.isStarred !== undefined) n.isStarred = data.isStarred
-                if (data.content !== undefined) n.content = data.content
-                return true
-              }
-              if (n.children && updateInChildren(n.children)) return true
+      if (res.code === 0 && this.current) {
+        const updateInChildren = (nodes: KnowledgeNode[]): boolean => {
+          for (const n of nodes) {
+            if (n.id === id) {
+              if (data.myNote !== undefined) n.myNote = data.myNote
+              if (data.isStarred !== undefined) n.isStarred = data.isStarred
+              return true
             }
-            return false
+            if (n.children && updateInChildren(n.children)) return true
           }
-          updateInChildren(this.current.nodes)
+          return false
         }
+        updateInChildren(this.current.nodes)
       }
       return res
     },

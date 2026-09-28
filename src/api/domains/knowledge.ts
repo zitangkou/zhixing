@@ -3,6 +3,16 @@ import * as d from '../_shared'
 export const apiKnowledge = {
   // ===== 知识框架 =====
 
+  getKnowledgeMaps(): Promise<d.ApiRes<d.KnowledgeMapListItem[]>> {
+    return d.isMock ? d.mockService.getKnowledgeMaps() : d.request('/api/knowledge/maps')
+  },
+
+  getKnowledgeMap(treeKey: string): Promise<d.ApiRes<d.KnowledgeMapDetail>> {
+    return d.isMock
+      ? d.mockService.getKnowledgeMap(treeKey)
+      : d.request(`/api/knowledge/maps/${encodeURIComponent(treeKey)}`)
+  },
+
   getKnowledgeTrees(): Promise<d.ApiRes<d.KnowledgeTree[]>> {
     return d.isMock ? d.mockService.getKnowledgeTrees() : d.request('/api/knowledge/trees')
   },
@@ -10,18 +20,12 @@ export const apiKnowledge = {
   getKnowledgeTree(treeKey: string): Promise<d.ApiRes<d.KnowledgeTree>> {
     return d.isMock
       ? d.mockService.getKnowledgeTree(treeKey)
-      : d.request(`/api/knowledge/tree/${treeKey}`)
-  },
-
-  syncKnowledge(treeKey?: string): Promise<d.ApiRes<Record<string, number>>> {
-    return d.isMock
-      ? d.mockService.syncKnowledge()
-      : d.request(`/api/knowledge/sync${treeKey ? `?tree_key=${treeKey}` : ''}`, { method: 'POST' })
+      : d.request(`/api/knowledge/tree/${encodeURIComponent(treeKey)}`)
   },
 
   updateKnowledgeNode(
     id: string,
-    data: { myNote?: string; isStarred?: boolean; content?: string },
+    data: { myNote?: string; isStarred?: boolean },
   ): Promise<d.ApiRes<d.KnowledgeNode>> {
     return d.isMock
       ? d.mockService.updateKnowledgeNode(id, data)

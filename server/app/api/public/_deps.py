@@ -76,9 +76,7 @@ from app.services.knowledge_service import (
     get_tree as get_knowledge_tree,
     list_trees as list_knowledge_trees,
     save_uploaded_md,
-    sync_knowledge,
     sync_status as knowledge_sync_status,
-    update_node as update_knowledge_node,
 )
 from app.services.knowledge_review_service import (
     answer_review as answer_knowledge_review,

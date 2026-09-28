@@ -12,6 +12,9 @@ server/**/__pycache__/
 server/tests/_smoke.db
 server/tests/_smoke.db-shm
 server/tests/_smoke.db-wal
+server/tests/_knowledge_publish.db
+server/tests/_knowledge_publish.db-shm
+server/tests/_knowledge_publish.db-wal
 server/tests/_ops_alignment.db
 server/tests/_ops_alignment.db-shm
 server/tests/_ops_alignment.db-wal
@@ -36,3 +39,6 @@ __pycache__/
 
 # 密钥（DeepSeek key 等，仅本地使用，严禁提交/外传）
 /secret/
+server/tests/_knowledge_guard.db
+server/tests/_knowledge_guard.db-shm
+server/tests/_knowledge_guard.db-wal
