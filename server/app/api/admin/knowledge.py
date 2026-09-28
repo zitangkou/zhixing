@@ -299,40 +299,23 @@ async def admin_knowledge_upload_md(
     return ApiResponse.ok({"savedPath": saved_path, "treeKey": tree_key, "import": imp, "sync": sync})
 
 
+_NODE_CRUD_GONE = "节点已由 Markdown 草稿统一管理：请在「知识框架」编辑器中修改并发布（旧接口已停用，避免绕过版本/断开关联）"
+
+
 @router.post("/knowledge/node")
-def admin_knowledge_create_node(
-    body: KnowledgeNodeCreate,
-    _admin=Depends(require_permission("knowledge:write")),
-    db: Session = Depends(get_db),
-):
-    out = create_knowledge_node(db, body)
-    if not out:
-        return ApiResponse.fail("创建失败，父节点不存在或不匹配", code=400)
-    return ApiResponse.ok(out.model_dump())
+def admin_knowledge_create_node(_admin=Depends(require_permission("knowledge:write"))):
+    return ApiResponse.fail(_NODE_CRUD_GONE, code=410)
 
 
 @router.put("/knowledge/node/{node_id}")
-def admin_knowledge_update_node(
-    node_id: str,
-    body: KnowledgeNodeUpdate,
-    _admin=Depends(require_permission("knowledge:write")),
-    db: Session = Depends(get_db),
-):
-    out = update_knowledge_node(db, node_id, body)
-    if not out:
-        return ApiResponse.fail("节点不存在", code=404)
-    return ApiResponse.ok(out.model_dump())
+def admin_knowledge_update_node(node_id: str, _admin=Depends(require_permission("knowledge:write"))):
+    return ApiResponse.fail(_NODE_CRUD_GONE, code=410)
 
 
 @router.delete("/knowledge/node/{node_id}")
-def admin_knowledge_delete_node(
-    node_id: str,
-    _admin=Depends(require_permission("knowledge:write")),
-    db: Session = Depends(get_db),
-):
-    if not delete_knowledge_node(db, node_id):
-        return ApiResponse.fail("节点不存在", code=404)
-    return ApiResponse.ok({"ok": True})
+def admin_knowledge_delete_node(node_id: str, _admin=Depends(require_permission("knowledge:write"))):
+    """旧的物理删除会断开题目/错题/语料关联，已停用；删除节点请改 md 后发布（节点归档，id 保留）。"""
+    return ApiResponse.fail(_NODE_CRUD_GONE, code=410)
 
 
 @router.delete("/knowledge/tree/{tree_key}")

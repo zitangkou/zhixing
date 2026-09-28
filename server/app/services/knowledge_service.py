@@ -1,4 +1,8 @@
-"""知识框架 service：解析 md -> KnowledgeNode 树，支持节点 CRUD 与备注保留
+"""知识框架 service：读取派生节点树（学员/管理端）、知识关联解析。
+
+写入统一走 knowledge_doc_service（md 草稿 → 版本 → 激活时派生节点）。
+旧的 sync_knowledge（整表删除重建）与节点 CRUD（含物理删除）已移除，避免断开关联。
+以下为历史说明：
 
 md 结构支持：
 - `#` 文档标题（跳过，不进树；可用文件名作 tree_key）
@@ -20,18 +24,8 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import KnowledgeNode, UserKnowledgeState, gen_id
-from app.schemas import KnowledgeNodeCreate, KnowledgeNodeOut, KnowledgeNodeUpdate, KnowledgeTreeOut
-
-# 同步时按 path 保留的 App 侧字段
-_PRESERVE_FIELDS = (
-    "my_note",
-    "is_starred",
-    "mastery_level",
-    "next_review_at",
-    "review_count",
-    "last_reviewed_at",
-)
+from app.models import KnowledgeNode, UserKnowledgeState
+from app.schemas import KnowledgeNodeOut, KnowledgeTreeOut
 
 # 后端本地 fallback 目录（上传 md 落地处、部署时也可挂载这里）
 LOCAL_KB = Path(__file__).resolve().parents[2] / "data" / "knowledge"
@@ -71,113 +65,6 @@ def _build_path(parent_path: str | None, title: str) -> str:
     if not parent_path:
         return title
     return f"{parent_path}/{title}"
-
-
-def _preserved_from_node(n: KnowledgeNode) -> dict:
-    return {
-        "my_note": n.my_note or "",
-        "is_starred": bool(n.is_starred),
-        "mastery_level": n.mastery_level or "new",
-        "next_review_at": n.next_review_at,
-        "review_count": int(n.review_count or 0),
-        "last_reviewed_at": n.last_reviewed_at,
-    }
-
-
-def sync_knowledge(db: Session, force: bool = False, only_tree_key: str | None = None) -> dict:
-    """从知识库目录同步 md 到数据库（merge 模式，保留 App 侧字段）
-
-    force 参数预留，目前 merge 总是会执行。
-    only_tree_key 只同步某一棵树（上传单个 md 时用）。
-    """
-    kb_dir = _resolve_kb_dir()
-    if not kb_dir:
-        return {"error": "知识库目录不存在，请设置 KNOWLEDGE_KB_DIR 或上传 md"}
-
-    result: dict[str, int] = {}
-    md_files = sorted(kb_dir.glob("*.md"))
-    if only_tree_key:
-        md_files = [f for f in md_files if f.stem == only_tree_key]
-
-    # 私人健康笔记勿进知识框架（文件名含关键词则跳过）
-    _HEALTH_SKIP = ("心理和身体", "恢复计划", "健康日记", "湿气", "湿疹")
-
-    for md_file in md_files:
-        tree_key = md_file.stem  # 用文件名 stem 作为 tree_key，允许任意主题
-        if any(k in tree_key for k in _HEALTH_SKIP):
-            continue
-        # 注册标题（若未在 TREE_TITLES 里，用 stem 作标题）
-        TREE_TITLES.setdefault(tree_key, tree_key)
-
-        # 读旧节点：按 path 索引保留 App 侧字段
-        old_nodes = (
-            db.query(KnowledgeNode)
-            .filter(KnowledgeNode.tree_key == tree_key)
-            .all()
-        )
-        old_by_path: dict[str, dict] = {}
-        for n in old_nodes:
-            if n.path:
-                old_by_path[n.path] = _preserved_from_node(n)
-
-        # 解析新 md
-        content = md_file.read_text(encoding="utf-8")
-        parsed = _parse_md_to_tree(content, tree_key, md_file.name)
-
-        # 先建 id，再补 parent_id / path
-        id_to_node: dict[str, dict] = {}
-        for n in parsed:
-            n["id"] = gen_id("kn")
-            id_to_node[n["id"]] = n
-
-        # 删除旧节点：用原生 SQL 整批删除，规避 ORM 外键级联检查
-        from sqlalchemy import text as _text
-
-        db.execute(_text("UPDATE knowledge_nodes SET parent_id = NULL WHERE tree_key = :tk"), {"tk": tree_key})
-        db.execute(_text("DELETE FROM knowledge_nodes WHERE tree_key = :tk"), {"tk": tree_key})
-        db.commit()
-
-        # 插入新节点，按 path 保留 App 侧字段
-        # 需要先建父节点再建子节点，按 sort_order 顺序即可（解析时父在前）
-        path_by_id: dict[str, str] = {}
-        for n in parsed:
-            parent_id = None
-            parent_path = None
-            if n["parent_index"] >= 0:
-                parent_id = parsed[n["parent_index"]]["id"]
-                parent_path = path_by_id.get(parent_id)
-            title = n["title"]
-            path = _build_path(parent_path, title)
-            path_by_id[n["id"]] = path
-            n["parent_id"] = parent_id
-            n["path"] = path
-
-            old = old_by_path.get(path) or {}
-            kwargs = {k: old.get(k) for k in _PRESERVE_FIELDS}
-            kwargs.setdefault("my_note", "")
-            kwargs.setdefault("is_starred", False)
-            kwargs.setdefault("mastery_level", "new")
-            kwargs.setdefault("review_count", 0)
-
-            db.add(
-                KnowledgeNode(
-                    id=n["id"],
-                    tree_key=tree_key,
-                    parent_id=parent_id,
-                    title=title,
-                    content=n["content"],
-                    depth=n["depth"],
-                    sort_order=n["sort_order"],
-                    path=path,
-                    source_file=md_file.name,
-                    source_line=n["line"],
-                    **kwargs,
-                )
-            )
-        db.commit()
-        result[tree_key] = len(parsed)
-
-    return result
 
 
 def _user_state_map(db: Session, user_id: str | None, tree_key: str | None = None) -> dict[str, UserKnowledgeState]:
@@ -295,115 +182,6 @@ def get_tree(
         title=_tree_titles(db).get(tree_key) or TREE_TITLES.get(tree_key, tree_key),
         nodes=[_node_to_out(r, children_map, states) for r in roots],
     )
-
-
-def update_node(db: Session, node_id: str, body: KnowledgeNodeUpdate) -> KnowledgeNodeOut | None:
-    n = db.get(KnowledgeNode, node_id)
-    if not n:
-        return None
-    data = body.model_dump(exclude_unset=True)
-    for k, v in data.items():
-        key = {"myNote": "my_note", "isStarred": "is_starred"}.get(k, k)
-        setattr(n, key, v)
-    db.commit()
-    db.refresh(n)
-    return KnowledgeNodeOut(
-        id=n.id,
-        treeKey=n.tree_key,
-        parentId=n.parent_id,
-        title=n.title,
-        content=n.content or "",
-        myNote=n.my_note or "",
-        isStarred=bool(n.is_starred),
-        masteryLevel=n.mastery_level or "new",
-        nextReviewAt=n.next_review_at,
-        reviewCount=int(n.review_count or 0),
-        lastReviewedAt=n.last_reviewed_at,
-        depth=n.depth,
-        sortOrder=n.sort_order,
-        path=n.path or "",
-        sourceFile=n.source_file or "",
-    )
-
-
-def create_node(db: Session, body: KnowledgeNodeCreate) -> KnowledgeNodeOut | None:
-    """手动新增一个节点（不来自 md）"""
-    tree_key = body.treeKey
-    TREE_TITLES.setdefault(tree_key, tree_key)
-    # 父节点
-    parent_path = None
-    depth = 0
-    if body.parentId:
-        parent = db.get(KnowledgeNode, body.parentId)
-        if not parent or parent.tree_key != tree_key:
-            return None
-        parent_path = parent.path or parent.title
-        depth = parent.depth + 1
-    # 排序取末尾
-    max_order = (
-        db.query(KnowledgeNode)
-        .filter(KnowledgeNode.tree_key == tree_key)
-        .count()
-    )
-    path = _build_path(parent_path, body.title)
-    n = KnowledgeNode(
-        id=gen_id("kn"),
-        tree_key=tree_key,
-        parent_id=body.parentId,
-        title=body.title,
-        content=body.content,
-        my_note="",
-        is_starred=False,
-        depth=depth,
-        sort_order=max_order,
-        path=path,
-        source_file="",
-        source_line=0,
-    )
-    db.add(n)
-    db.commit()
-    db.refresh(n)
-    return KnowledgeNodeOut(
-        id=n.id,
-        treeKey=n.tree_key,
-        parentId=n.parent_id,
-        title=n.title,
-        content=n.content or "",
-        myNote=n.my_note or "",
-        isStarred=bool(n.is_starred),
-        masteryLevel=n.mastery_level or "new",
-        nextReviewAt=n.next_review_at,
-        reviewCount=int(n.review_count or 0),
-        lastReviewedAt=n.last_reviewed_at,
-        depth=n.depth,
-        sortOrder=n.sort_order,
-        path=n.path or "",
-        sourceFile=n.source_file or "",
-    )
-
-
-def delete_node(db: Session, node_id: str) -> bool:
-    """删除节点及其所有子孙"""
-    n = db.get(KnowledgeNode, node_id)
-    if not n:
-        return False
-    # 收集所有子孙 id（BFS）
-    to_delete: list[str] = [node_id]
-    pending = [node_id]
-    while pending:
-        pid = pending.pop()
-        children = db.query(KnowledgeNode).filter(KnowledgeNode.parent_id == pid).all()
-        for c in children:
-            to_delete.append(c.id)
-            pending.append(c.id)
-    # 用 SQL 逐条删除，规避外键
-    from sqlalchemy import text as _text
-
-    db.execute(_text("UPDATE knowledge_nodes SET parent_id = NULL WHERE tree_key = :tk"), {"tk": n.tree_key})
-    for cid in to_delete:
-        db.execute(_text("DELETE FROM knowledge_nodes WHERE id = :id"), {"id": cid})
-    db.commit()
-    return True
 
 
 def save_uploaded_md(filename: str, content: bytes) -> tuple[str | None, str | None]:

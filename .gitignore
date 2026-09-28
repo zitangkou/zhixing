@@ -39,3 +39,6 @@ __pycache__/
 
 # 密钥（DeepSeek key 等，仅本地使用，严禁提交/外传）
 /secret/
+server/tests/_knowledge_guard.db
+server/tests/_knowledge_guard.db-shm
+server/tests/_knowledge_guard.db-wal

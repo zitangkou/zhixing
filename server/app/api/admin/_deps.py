@@ -83,14 +83,10 @@ from app.services.section_parser import build_sections_from_content, sections_to
 from app.services.serializers import article_to_out, build_mind_map, question_to_out
 from app.services.serializers import parse_json
 from app.services.knowledge_service import (
-    create_node as create_knowledge_node,
-    delete_node as delete_knowledge_node,
     get_tree as get_knowledge_tree,
     list_trees as list_knowledge_trees,
     save_uploaded_md,
-    sync_knowledge,
     sync_status as knowledge_sync_status,
-    update_node as update_knowledge_node,
 )
 from app.services.plan_service import (
     copy_day_templates as copy_plan_day_templates,
