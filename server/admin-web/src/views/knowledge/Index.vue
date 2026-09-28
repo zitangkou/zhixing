@@ -395,8 +395,24 @@ async function onDeleteTree() {
 
 async function onUploadMd(opt: { file: File }) {
   try {
-    const r = await uploadKnowledgeMd(opt.file)
-    ElMessage.success(`已导入草稿：${r.treeKey}`)
+    let r = await uploadKnowledgeMd(opt.file)
+    if (r.import?.error === 'draft_dirty') {
+      try {
+        await ElMessageBox.confirm(
+          `「${r.treeKey}」的草稿有未发布的修改，导入会覆盖草稿（已发布版本不受影响）。确定覆盖？`,
+          '覆盖草稿',
+          { type: 'warning', confirmButtonText: '覆盖', cancelButtonText: '取消' },
+        )
+      } catch {
+        return
+      }
+      r = await uploadKnowledgeMd(opt.file, true)
+    }
+    if (r.import?.ok === false) {
+      ElMessage.error(`导入失败：${String(r.import.error || '未知错误')}`)
+      return
+    }
+    ElMessage.success(r.import?.unchanged ? `内容未变化：${r.treeKey}` : `已导入草稿：${r.treeKey}`)
     await loadTrees(r.treeKey)
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '上传失败')

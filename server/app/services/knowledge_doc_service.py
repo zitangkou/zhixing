@@ -810,6 +810,19 @@ def rollback_version_to_draft(db: Session, tree_key: str, version: int, *, admin
     return get_doc(db, tree_key)
 
 
+def draft_has_unpublished_changes(db: Session, t: KnowledgeTree) -> bool:
+    """草稿非空且与最新已发布版本的 md 不一致（或从未发布）。"""
+    if not (t.md_draft or "").strip():
+        return False
+    latest = (
+        db.query(KnowledgeTreeVersion)
+        .filter(KnowledgeTreeVersion.tree_id == t.id)
+        .order_by(KnowledgeTreeVersion.version.desc())
+        .first()
+    )
+    return latest is None or latest.md_content != t.md_draft
+
+
 def import_md_to_draft(
     db: Session,
     tree_key: str,
@@ -819,10 +832,22 @@ def import_md_to_draft(
     admin_id: str = "",
     publish: bool = False,
     force: bool = False,
+    keep_unpublished: bool = False,
 ) -> dict[str, Any]:
+    """导入 md 为草稿。
+
+    - force=False：已有非空草稿则拒绝（error=exists），用于 CLI 初次导入。
+    - force=True, keep_unpublished=True：草稿有未发布修改时拒绝（error=draft_dirty），
+      供后台上传/目录同步使用，需二次确认后再以 keep_unpublished=False 覆盖。
+    - 内容与现有草稿一致时不改动（不升 revision）。
+    """
     t = get_or_none_tree(db, tree_key)
     if t and not force and t.md_draft.strip():
         return {"ok": False, "error": "exists", "treeKey": tree_key}
+    if t and t.md_draft == md:
+        return {"ok": True, "treeKey": tree_key, "draftRevision": t.draft_revision, "unchanged": True}
+    if t and keep_unpublished and draft_has_unpublished_changes(db, t):
+        return {"ok": False, "error": "draft_dirty", "treeKey": tree_key, "draftRevision": t.draft_revision}
     if not t:
         t = create_tree(db, tree_key, title, md=md, admin_id=admin_id)
         if not t:

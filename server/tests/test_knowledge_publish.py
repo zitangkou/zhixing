@@ -437,3 +437,29 @@ def test_migrate_requires_existing_user():
             migrate(db, "no-such-user")
     finally:
         db.close()
+
+
+def test_import_keeps_unpublished_draft_unless_forced():
+    db = SessionLocal()
+    try:
+        md1 = "# 草稿保护\n## 一\n- 点\n"
+        r = import_md_to_draft(db, "draft_guard", "草稿保护", md1, admin_id="t")
+        assert r["ok"]
+        rev = r["draftRevision"]
+        # 同内容：不升 revision
+        same = import_md_to_draft(db, "draft_guard", "草稿保护", md1, force=True, keep_unpublished=True)
+        assert same["ok"] and same.get("unchanged") and same["draftRevision"] == rev
+        # 从未发布 → 视为未发布修改，默认拒绝
+        md2 = md1 + "- 新点\n"
+        dirty = import_md_to_draft(db, "draft_guard", "草稿保护", md2, force=True, keep_unpublished=True)
+        assert dirty == {"ok": False, "error": "draft_dirty", "treeKey": "draft_guard", "draftRevision": rev}
+        # 发布后草稿 == 最新版本 → 允许覆盖
+        pub, err, _ = publish_tree(db, "draft_guard", rev, admin_id="t")
+        assert pub and not err
+        ok = import_md_to_draft(db, "draft_guard", "草稿保护", md2, force=True, keep_unpublished=True)
+        assert ok["ok"] and ok["draftRevision"] == rev + 1
+        # 再改一版未发布，显式 force 覆盖
+        forced = import_md_to_draft(db, "draft_guard", "草稿保护", md2 + "- 再加\n", force=True)
+        assert forced["ok"]
+    finally:
+        db.close()

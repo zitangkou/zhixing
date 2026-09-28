@@ -205,11 +205,15 @@ export function rollbackKnowledgeVersion(treeKey: string, version: number) {
   )
 }
 
-export function uploadKnowledgeMd(file: File) {
+export function uploadKnowledgeMd(file: File, force = false) {
   const form = new FormData()
   form.append('file', file)
-  return getData<{ savedPath: string; treeKey: string; import: Record<string, unknown> }>(
-    http.post('/admin/knowledge/upload-md?sync=false', form, {
+  return getData<{
+    savedPath: string
+    treeKey: string
+    import: { ok?: boolean; error?: string; unchanged?: boolean } & Record<string, unknown>
+  }>(
+    http.post(`/admin/knowledge/upload-md?sync=false${force ? '&force=true' : ''}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   )

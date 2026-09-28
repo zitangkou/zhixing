@@ -253,6 +253,7 @@ def admin_knowledge_status(_admin=Depends(require_permission("knowledge:read")),
 @router.post("/knowledge/sync")
 def admin_knowledge_sync_as_import(
     tree_key: str | None = None,
+    force: bool = False,
     admin=Depends(require_permission("knowledge:write")),
     db: Session = Depends(get_db),
 ):
@@ -269,7 +270,8 @@ def admin_knowledge_sync_as_import(
         md = f.read_text(encoding="utf-8")
         results.append(
             docs.import_md_to_draft(
-                db, f.stem, f.stem, md, admin_id=_admin_id(admin), publish=False, force=True
+                db, f.stem, f.stem, md, admin_id=_admin_id(admin), publish=False, force=True,
+                keep_unpublished=not force,
             )
         )
     return ApiResponse.ok({"imports": results})
@@ -279,6 +281,7 @@ def admin_knowledge_sync_as_import(
 async def admin_knowledge_upload_md(
     file: UploadFile = File(...),
     sync: bool = True,
+    force: bool = False,
     admin=Depends(require_permission("knowledge:write")),
     db: Session = Depends(get_db),
 ):
@@ -288,13 +291,29 @@ async def admin_knowledge_upload_md(
     if len(raw) > 1 * 1024 * 1024:
         return ApiResponse.fail("md 文件不能超过 1MB", code=400)
     name = file.filename or ""
+    tree_key = Path(name).stem
+    md = raw.decode("utf-8", errors="ignore")
+    existing = docs.get_or_none_tree(db, tree_key)
+    if (
+        not force
+        and existing is not None
+        and existing.md_draft != md
+        and docs.draft_has_unpublished_changes(db, existing)
+    ):
+        # 先检查再落盘，避免覆盖知识库目录里的源 md
+        return ApiResponse.ok({
+            "savedPath": "",
+            "treeKey": tree_key,
+            "import": {"ok": False, "error": "draft_dirty", "treeKey": tree_key},
+            "sync": sync,
+        })
     saved_path, err = save_uploaded_md(name, raw)
     if err:
         return ApiResponse.fail(err, code=400)
-    tree_key = Path(name).stem
-    md = raw.decode("utf-8", errors="ignore")
+    # 默认不覆盖有未发布修改的草稿（import.error=draft_dirty），前端确认后带 force=true 重试
     imp = docs.import_md_to_draft(
-        db, tree_key, tree_key, md, admin_id=_admin_id(admin), publish=False, force=True
+        db, tree_key, tree_key, md, admin_id=_admin_id(admin), publish=False, force=True,
+        keep_unpublished=not force,
     )
     return ApiResponse.ok({"savedPath": saved_path, "treeKey": tree_key, "import": imp, "sync": sync})
 
