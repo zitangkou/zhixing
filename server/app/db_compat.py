@@ -357,6 +357,18 @@ def _ensure_vocab_inbox_table():
             conn.execute(text("ALTER TABLE vocab_inbox ADD COLUMN last_seen DATETIME"))
 
 
+def _ensure_knowledge_tree_draft_column() -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("knowledge_trees"):
+        return
+    cols = {c["name"] for c in insp.get_columns("knowledge_trees")}
+    if "draft_tree_json" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE knowledge_trees ADD COLUMN draft_tree_json TEXT DEFAULT ''"))
+
+
 def run_compat_migrations() -> None:
     """执行全部旧库兼容补列（幂等，可重复调用）。"""
     _ensure_vocab_inbox_table()
@@ -366,6 +378,7 @@ def run_compat_migrations() -> None:
     _ensure_wrong_answer_columns()
     _ensure_manual_wrong_images_column()
     _ensure_knowledge_node_columns()
+    _ensure_knowledge_tree_draft_column()
     _ensure_exam_question_knowledge_columns()
     _ensure_corpus_knowledge_columns()
     _ensure_plan_task_priority_column()

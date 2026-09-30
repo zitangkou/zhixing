@@ -17,6 +17,16 @@ from app.services import knowledge_doc_service as docs
 router = APIRouter()
 
 
+class StructuredDraftBody(BaseModel):
+    tree: dict
+    baseRevision: int
+
+
+class StructuredPreviewBody(BaseModel):
+    tree: dict
+    treeKey: str = ""
+
+
 def _admin_id(admin) -> str:
     return getattr(admin, "id", "") or ""
 
@@ -82,6 +92,58 @@ def admin_knowledge_get_doc(
     if not doc:
         return ApiResponse.fail("知识树不存在", code=404)
     return ApiResponse.ok(doc)
+
+
+@router.get("/knowledge/trees/{tree_key}/structured")
+def admin_knowledge_structured_draft(
+    tree_key: str,
+    _admin=Depends(require_permission("knowledge:read")),
+    db: Session = Depends(get_db),
+):
+    from app.services.knowledge_structured import get_draft, validate_tree
+
+    tree = docs.get_or_none_tree(db, tree_key)
+    if not tree:
+        return ApiResponse.fail("知识树不存在", code=404)
+    draft = get_draft(db, tree)
+    _, issues = validate_tree(draft)
+    return ApiResponse.ok({"tree": draft, "draftRevision": tree.draft_revision, "issues": issues})
+
+
+@router.put("/knowledge/trees/{tree_key}/structured")
+def admin_knowledge_save_structured(
+    tree_key: str,
+    body: StructuredDraftBody,
+    admin=Depends(require_permission("knowledge:write")),
+    db: Session = Depends(get_db),
+):
+    from app.services.knowledge_structured import save_draft
+
+    tree = docs.get_or_none_tree(db, tree_key)
+    if not tree:
+        return ApiResponse.fail("知识树不存在", code=404)
+    out, err = save_draft(db, tree, body.tree, body.baseRevision, admin_id=_admin_id(admin))
+    if err == "conflict":
+        return ApiResponse.fail("草稿已被他人更新，请重新加载", code=409)
+    if err == "invalid":
+        return ApiResponse.fail("草稿存在错误", code=400, data=out)
+    return ApiResponse.ok(out)
+
+
+@router.post("/knowledge/structured-preview")
+def admin_knowledge_structured_preview(
+    body: StructuredPreviewBody,
+    _admin=Depends(require_permission("knowledge:write")),
+    db: Session = Depends(get_db),
+):
+    from app.services.knowledge_structured import validate_tree, with_paths
+
+    cleaned, issues = validate_tree(body.tree)
+    if cleaned is None:
+        return ApiResponse.ok({"tree": None, "issues": issues, "stats": {}})
+    snapshot, flat, stats = with_paths(cleaned)
+    diff = docs.preview_node_diff(db, body.treeKey, flat) if body.treeKey else None
+    return ApiResponse.ok({"tree": snapshot, "issues": issues, "stats": stats, "nodeDiffPreview": diff})
 
 
 @router.put("/knowledge/trees/{tree_key}/doc")
@@ -344,3 +406,24 @@ def admin_knowledge_delete_tree_legacy(
     db: Session = Depends(get_db),
 ):
     return admin_knowledge_delete_tree_doc(tree_key, _admin=_admin, db=db)
+
+
+@router.post("/knowledge/upload-image")
+async def admin_knowledge_upload_image(
+    file: UploadFile = File(...),
+    _admin=Depends(require_permission("knowledge:write")),
+):
+    from uuid import uuid4
+    from app.upload_paths import UPLOADS_DIR
+
+    raw = await file.read(3 * 1024 * 1024 + 1)
+    if len(raw) > 3 * 1024 * 1024:
+        return ApiResponse.fail("图片不能超过 3MB", code=400)
+    ext = ".png" if raw.startswith(b"\x89PNG\r\n\x1a\n") else ".jpg" if raw.startswith(b"\xff\xd8\xff") else ""
+    if not ext:
+        return ApiResponse.fail("请上传 PNG 或 JPEG 图片", code=400)
+    folder = UPLOADS_DIR / "knowledge-media"
+    folder.mkdir(parents=True, exist_ok=True)
+    filename = uuid4().hex + ext
+    (folder / filename).write_bytes(raw)
+    return ApiResponse.ok({"url": f"/uploads/knowledge-media/{filename}"})

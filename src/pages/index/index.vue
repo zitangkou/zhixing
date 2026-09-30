@@ -96,12 +96,7 @@
 import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { Skeleton as NutSkeleton } from '@nutui/nutui-taro'
-import {
-  CheckChecked,
-  Date,
-  Edit,
-  Order,
-} from '@nutui/icons-vue-taro'
+import { CheckChecked, Date, Edit, Order } from '@nutui/icons-vue-taro'
 import AppTabBar from '@/components/AppTabBar.vue'
 import ArticleCard from '@/components/ArticleCard.vue'
 import PointsBadge from '@/components/PointsBadge.vue'
@@ -148,9 +143,7 @@ const todayArticles = computed(() => {
 })
 
 const usingDailyPicks = computed(() => todayArticles.value.some((item) => item.article.isDaily))
-const usingFallbackFeed = computed(
-  () => todayArticles.value.length > 0 && !usingDailyPicks.value,
-)
+const usingFallbackFeed = computed(() => todayArticles.value.length > 0 && !usingDailyPicks.value)
 
 type DomainItem = {
   name: string
@@ -162,13 +155,41 @@ type DomainItem = {
 }
 
 const examDomains: DomainItem[] = [
-      { name: '时政阅读', desc: '读完再练', url: '/pages/question/article-pick', icon: Order, tone: 'tone-red' },
+  {
+    name: '时政阅读',
+    desc: '读完再练',
+    url: '/pages/question/article-pick',
+    icon: Order,
+    tone: 'tone-red',
+  },
   ...(SHOW_EVENTS
-    ? [{ name: '时事印象', desc: '事件挂框架', url: '/pages/events/index', icon: Date, tone: 'tone-amber' } as DomainItem]
+    ? [
+        {
+          name: '时事印象',
+          desc: '事件挂框架',
+          url: '/pages/events/index',
+          icon: Date,
+          tone: 'tone-amber',
+        } as DomainItem,
+      ]
     : []),
-  { name: '时评精拆', desc: '先读原文', url: '/pages/rmrb/article-list', icon: Edit, tone: 'tone-amber' },
+  {
+    name: '时评精拆',
+    desc: '先读原文',
+    url: '/pages/rmrb/article-list',
+    icon: Edit,
+    tone: 'tone-amber',
+  },
   ...(SHOW_CORPUS_MENU
-    ? [{ name: '语料本', desc: '专名成语金句', url: '/pages/corpus/index', icon: Edit, tone: 'tone-blue' } as DomainItem]
+    ? [
+        {
+          name: '语料本',
+          desc: '专名成语金句',
+          url: '/pages/corpus/index',
+          icon: Edit,
+          tone: 'tone-blue',
+        } as DomainItem,
+      ]
     : []),
 ]
 
@@ -183,10 +204,7 @@ async function fetchTodayRmrb() {
 }
 
 async function fetchPageData() {
-  await Promise.all([
-    articleStore.fetchDailyArticles(),
-    fetchTodayRmrb(),
-  ])
+  await Promise.all([articleStore.fetchDailyArticles(), fetchTodayRmrb()])
 }
 
 async function loadInitial() {
@@ -343,7 +361,9 @@ function onExamDomain(item: DomainItem) {
     border-radius: $radius-lg;
     padding: 14px 4px;
     /* 比全局 $shadow-float 更轻 */
-    box-shadow: 0 1px 4px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
+    box-shadow:
+      0 1px 4px rgba(16, 24, 40, 0.04),
+      0 2px 8px rgba(16, 24, 40, 0.04);
     border: 1px solid $border-color;
     position: relative;
     z-index: 1;
@@ -389,8 +409,13 @@ function onExamDomain(item: DomainItem) {
         font-size: 12px;
         font-weight: 400;
         color: $text-muted;
-        &.warn { color: $primary-color; font-weight: 600; }
-        &.is-link { color: $primary-color; }
+        &.warn {
+          color: $primary-color;
+          font-weight: 600;
+        }
+        &.is-link {
+          color: $primary-color;
+        }
       }
     }
     .home-block-note {
@@ -404,8 +429,18 @@ function onExamDomain(item: DomainItem) {
       @include card;
       padding: 20px 16px;
       text-align: center;
-      .empty-title { display: block; font-size: 14px; color: $text-secondary; margin-bottom: 6px; }
-      .empty-desc { display: block; font-size: 12px; color: $text-muted; line-height: 1.5; }
+      .empty-title {
+        display: block;
+        font-size: 14px;
+        color: $text-secondary;
+        margin-bottom: 6px;
+      }
+      .empty-desc {
+        display: block;
+        font-size: 12px;
+        color: $text-muted;
+        line-height: 1.5;
+      }
     }
   }
   .review-hub-row {
@@ -457,10 +492,18 @@ function onExamDomain(item: DomainItem) {
       .domain-icon {
         @include icon-tile;
         margin-bottom: 8px;
-        &.tone-amber { background: rgba($accent-amber, 0.12); }
-        &.tone-blue { background: rgba($accent-blue, 0.1); }
-        &.tone-green { background: rgba($accent-green, 0.1); }
-        &.tone-red { background: $primary-light; }
+        &.tone-amber {
+          background: rgba($accent-amber, 0.12);
+        }
+        &.tone-blue {
+          background: rgba($accent-blue, 0.1);
+        }
+        &.tone-green {
+          background: rgba($accent-green, 0.1);
+        }
+        &.tone-red {
+          background: $primary-light;
+        }
       }
       .domain-name {
         display: block;
@@ -496,15 +539,27 @@ function onExamDomain(item: DomainItem) {
       white-space: nowrap;
       color: $text-primary;
     }
-    .review-arrow { color: $text-muted; }
+    .review-arrow {
+      color: $text-muted;
+    }
   }
   .home-block-rmrb {
     .empty-rmrb {
       @include card;
       padding: 20px 16px;
       text-align: center;
-      .empty-title { display: block; font-size: 14px; color: $text-secondary; margin-bottom: 6px; }
-      .empty-desc { display: block; font-size: 12px; color: $text-muted; line-height: 1.5; }
+      .empty-title {
+        display: block;
+        font-size: 14px;
+        color: $text-secondary;
+        margin-bottom: 6px;
+      }
+      .empty-desc {
+        display: block;
+        font-size: 12px;
+        color: $text-muted;
+        line-height: 1.5;
+      }
     }
   }
   .home-block-recommended {
@@ -513,7 +568,9 @@ function onExamDomain(item: DomainItem) {
       padding: 12px 0 4px;
       font-size: 13px;
       color: $primary-color;
-      &.muted { color: $text-muted; }
+      &.muted {
+        color: $text-muted;
+      }
     }
     .empty-recommended {
       @include card;

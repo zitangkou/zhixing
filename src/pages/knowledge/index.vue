@@ -1,112 +1,167 @@
 <template>
-  <view class="page-knowledge" :class="themeClass">
-    <!-- 科目列表 -->
-    <view v-if="!currentKey" class="map-list">
-      <view v-if="loading" class="empty">加载中...</view>
-      <view v-else-if="!maps.length" class="empty">暂无已发布的知识导图</view>
-      <view
-        v-for="m in maps"
-        :key="m.treeKey"
-        class="map-card"
-        @tap="onSelect(m.treeKey)"
-      >
-        <image
-          v-if="m.cover?.url"
-          class="map-cover"
-          :src="resolveMediaUrl(m.cover.url)"
-          mode="aspectFill"
-        />
-        <view class="map-meta">
-          <text class="map-title">{{ m.title }}</text>
-          <text class="map-sub">{{ m.nodeCount }} 个节点 · v{{ m.version }}</text>
-        </view>
+  <view class="knowledge-page" :class="themeClass">
+    <view class="hero">
+      <text class="hero-kicker">杜衡阁 · 知识框架</text>
+      <text class="hero-title">{{ currentKey ? currentTitle : '看清知识结构' }}</text>
+      <text class="hero-desc">
+        {{
+          root?.description || '按分类逐层浏览，找到知识点所在的位置。'
+        }}
+      </text>
+      <view v-if="root" class="hero-stats">
+        <text>{{ root.children?.length || 0 }} 个一级分类</text>
+        <text>{{ mapDetail?.version ? `已发布 v${mapDetail.version}` : '' }}</text>
       </view>
     </view>
 
-    <!-- 科目详情 -->
-    <view v-else>
-      <view class="kb-header">
-        <view class="kb-header-row">
-          <text class="kb-back" @tap="backToList">← 科目</text>
-          <text class="kb-tip">{{ currentTitle }}</text>
-          <text class="kb-quiz" @tap="goQuiz">抽查</text>
+    <view v-if="!currentKey" class="body">
+      <view v-if="loading && !maps.length" class="state">加载中…</view>
+      <view v-else-if="loadError" class="state" @tap="refresh">{{ loadError }}，点击重试</view>
+      <view v-else-if="!maps.length" class="state">暂无已发布的知识框架</view>
+      <view v-for="item in maps" :key="item.treeKey" class="row" @tap="selectTree(item.treeKey)">
+        <view class="row-main">
+          <text class="row-title">{{ item.title }}</text>
+          <text class="row-meta">{{ item.nodeCount }} 个知识节点</text>
         </view>
-        <view v-if="current" class="kb-stats">
-          <text class="kb-stat known">已掌握 {{ progress.known }}</text>
-          <text class="kb-stat fuzzy">待复习 {{ progress.fuzzy }}</text>
-          <text class="kb-stat fresh">未学 {{ progress.fresh }}</text>
-        </view>
-      </view>
-
-      <view class="seg-tabs">
-        <text class="seg-tab" :class="{ active: viewMode === 'outline' }" @tap="viewMode = 'outline'">
-          大纲
-        </text>
-        <text class="seg-tab" :class="{ active: viewMode === 'map' }" @tap="viewMode = 'map'">
-          导图
-        </text>
-      </view>
-
-      <view v-if="viewMode === 'outline'">
-        <view class="kb-toolbar">
-          <input
-            class="kb-search"
-            type="text"
-            placeholder="搜索知识点…"
-            :value="searchQuery"
-            confirm-type="search"
-            @input="onSearchInput"
-          />
-          <text class="kb-expand-btn" @tap="toggleExpandAll">
-            {{ allExpanded ? '折叠全部' : '展开全部' }}
-          </text>
-        </view>
-
-        <view v-if="loading" class="empty">加载中...</view>
-        <view v-else-if="current" class="tree-body">
-          <KnowledgeTree
-            :nodes="displayNodes"
-            :expand-all="effectiveExpandAll"
-            @node-tap="onNodeTap"
-          />
-        </view>
-        <view v-else class="empty">暂无大纲数据</view>
-      </view>
-
-      <view v-else class="map-pane">
-        <MarkmapView v-if="isH5 && mapDetail?.tree" :tree="mapDetail.tree" />
-        <view v-if="isH5" class="map-pic-label">图片版（可双指缩放）</view>
-        <MapSegmentList :manifest="mapDetail?.manifest" />
+        <text class="arrow">›</text>
       </view>
     </view>
 
-    <nut-popup v-model:visible="popupVisible" position="bottom" round :closeable="true">
-      <view v-if="activeNode" class="node-popup">
-        <text class="np-title">{{ activeNode.title }}</text>
-        <text class="np-path">{{ formatPath(activeNode.path) }}</text>
+    <view v-else class="body">
+      <view class="crumbs">
+        <text class="crumb-link" @tap="backToTrees">科目</text>
+        <text class="crumb-sep">›</text>
+        <text
+          v-for="(item, index) in breadcrumbs"
+          :key="item.id"
+          class="crumb-link"
+          @tap="index === 0 ? goHome() : enterNode(item)"
+        >
+          {{ item.title
+          }}<text v-if="index < breadcrumbs.length - 1" class="crumb-sep"> › </text>
+        </text>
+      </view>
 
-        <view v-if="activeNode.content" class="np-content">
-          <text class="np-content-text">{{ activeNode.content }}</text>
-        </view>
-        <view v-else class="np-content np-empty">
-          <text class="np-content-text">暂无知识要点，可添加备注</text>
-        </view>
-
-        <view v-if="activeNode.myNote" class="np-note">
-          <text class="np-note-label">我的备注</text>
-          <text class="np-note-text">{{ activeNode.myNote }}</text>
+      <view v-if="loading && !root" class="state">加载中…</view>
+      <view v-else-if="!root" class="state" @tap="selectTree(currentKey)">
+        {{ loadError || '暂无知识结构' }}，点击重试
+      </view>
+      <template v-else>
+        <view class="mode-tabs">
+          <text :class="{ active: mode === 'directory' }" @tap="mode = 'directory'">逐层浏览</text>
+          <text :class="{ active: mode === 'overview' }" @tap="mode = 'overview'">结构总览</text>
         </view>
 
-        <text class="np-edit-note" @tap="editNote">编辑备注</text>
+        <template v-if="mode === 'directory'">
+          <view class="search-box">
+            <text class="search-symbol">⌕</text>
+            <input :value="query" placeholder="搜索当前科目的知识节点" @input="onSearch" />
+          </view>
+          <template v-if="query.trim()">
+            <text class="section-title">搜索结果 · {{ searchResults.length }}</text>
+            <view v-if="!searchResults.length" class="state">没有找到相关知识点</view>
+            <view v-for="node in searchResults" :key="node.id" class="row" @tap="enterNode(node)">
+              <view class="row-main">
+                <text class="row-title">{{ node.title }}</text>
+                <text class="row-meta">{{ node.path.replace(/\//g, ' / ') }}</text>
+              </view>
+              <text class="arrow">›</text>
+            </view>
+          </template>
+          <template v-else-if="isHome">
+            <view class="notice">先看分类之间的关系，再进入具体知识点。</view>
+            <view v-for="group in rootGroups" :key="group.title" class="group">
+              <text v-if="rootGroups.length > 1" class="section-title">{{ group.title }}</text>
+              <view v-for="node in group.nodes" :key="node.id" class="row" @tap="enterNode(node)">
+                <view class="row-main">
+                  <text class="row-title">{{ node.title }}</text>
+                  <text class="row-meta">
+                    {{ descendantCount(node) }} 个下级节点 · {{ childPreview(node) }}
+                  </text>
+                </view>
+                <text class="arrow">›</text>
+              </view>
+            </view>
+          </template>
+          <template v-else>
+            <text class="branch-title">{{ selected?.title }}</text>
+            <text class="branch-meta">
+              {{ selected?.children?.length || 0 }} 个直接分支 ·
+              {{ selected ? descendantCount(selected) : 0 }} 个下级节点
+            </text>
+            <view
+              v-if="selected && hasDetails(selected)"
+              class="detail-link"
+              @tap="openDetails(selected)"
+            >
+              查看这个知识点的内容 ›
+            </view>
+            <view
+              v-for="(node, index) in selected?.children || []"
+              :key="node.id"
+              class="row"
+              @tap="enterNode(node)"
+            >
+              <text class="index">{{ String(index + 1).padStart(2, '0') }}</text>
+              <view class="row-main">
+                <text class="row-title">{{ node.title }}</text>
+                <text class="row-meta">
+                  {{
+                    node.children?.length
+                      ? `${node.children.length} 个直接分支 · ${descendantCount(node)} 个下级节点`
+                      : '查看知识节点'
+                  }}
+                </text>
+              </view>
+              <text class="arrow">›</text>
+            </view>
+          </template>
+        </template>
 
-        <view class="np-actions">
-          <nut-button plain type="warning" :loading="answering" @click="onAnswer('again')">
-            模糊
-          </nut-button>
-          <nut-button type="primary" :loading="answering" @click="onAnswer('good')">
-            记住了
-          </nut-button>
-        </view>
+        <template v-else>
+          <text class="section-title">{{ currentTitle }}结构总览</text>
+          <text class="overview-tip">只展示前两层。点击分类可继续逐层浏览。</text>
+          <view v-for="node in root.children || []" :key="node.id" class="overview-card">
+            <view class="overview-title" @tap="enterNode(node)">
+              <text>{{ node.title }}</text><text class="overview-count">{{ descendantCount(node) }} 个下级节点 ›</text>
+            </view>
+            <view class="chips">
+              <text
+                v-for="child in node.children || []"
+                :key="child.id"
+                class="chip"
+                @tap="enterNode(child)"
+              >
+                {{ child.title }}
+              </text>
+            </view>
+          </view>
+        </template>
+      </template>
+    </view>
+
+    <nut-popup v-model:visible="detailsVisible" position="bottom" round :closeable="true">
+      <view class="detail-sheet">
+        <text class="detail-kicker">知识节点</text>
+        <text class="detail-title">{{ detailNode?.title }}</text>
+        <text class="detail-path">{{ detailNode?.path.replace(/\//g, ' / ') }}</text>
+        <template v-if="detailBlocks.length">
+          <view v-for="(block, index) in detailBlocks" :key="index" class="content-block">
+            <text v-if="block.type === 'text'" class="block-text">{{ block.text }}</text>
+            <view v-else-if="block.type === 'formula'" class="formula-box">
+              <LatexBlock :latex="block.latex" :plain="block.plain" :show-plain="true" />
+            </view>
+            <view v-else-if="block.type === 'image'" @tap="previewImage(block.url)">
+              <image class="block-image" :src="resolveMediaUrl(block.url)" mode="widthFix" />
+              <text v-if="block.alt" class="block-caption">{{ block.alt }}</text>
+            </view>
+            <view v-else-if="block.type === 'example'">
+              <text class="block-label">例题</text><text class="block-text">{{ block.question }}</text>
+              <text v-if="block.answer" class="block-label answer-label">解析</text><text v-if="block.answer" class="block-text">{{ block.answer }}</text>
+            </view>
+          </view>
+        </template>
+        <text v-else class="empty-detail">当前只有知识结构，讲解和例题待补充。</text>
       </view>
     </nut-popup>
   </view>
@@ -114,396 +169,484 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import Taro, { useRouter } from '@tarojs/taro'
-import { Button as NutButton, Popup as NutPopup } from '@nutui/nutui-taro'
-import KnowledgeTree from '@/components/KnowledgeTree.vue'
-import MapSegmentList from '@/components/knowledge/MapSegmentList.vue'
-import MarkmapView from '@/components/knowledge/MarkmapView'
+import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
+import { Popup as NutPopup } from '@nutui/nutui-taro'
+import LatexBlock from '@/components/LatexBlock.vue'
 import { useKnowledgeStore } from '@/store/knowledge'
-import { promptText, showToast } from '@/utils/platform'
 import { resolveMediaUrl } from '@/utils/media'
-import type { KnowledgeNode, KnowledgeReviewResult } from '@/types'
+import { showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
+import type { KnowledgeContentBlock, KnowledgeMapNode } from '@/types'
 
-definePageConfig({ navigationBarTitleText: '知识框架' })
+definePageConfig({ navigationBarTitleText: '知识框架', enablePullDownRefresh: true })
 
 const { themeClass } = useThemeClass()
 const router = useRouter()
-const kbStore = useKnowledgeStore()
+const store = useKnowledgeStore()
+const maps = computed(() => store.maps)
+const mapDetail = computed(() => store.mapDetail)
+const root = computed(() => mapDetail.value?.tree || null)
+const loading = computed(() => store.loading)
 const currentKey = ref('')
-const searchQuery = ref('')
-const allExpanded = ref(false)
-const viewMode = ref<'outline' | 'map'>('outline')
-const isH5 = process.env.TARO_ENV === 'h5'
-
-const popupVisible = ref(false)
-const activeNode = ref<KnowledgeNode | null>(null)
-const answering = ref(false)
-
-const maps = computed(() => kbStore.maps)
-const mapDetail = computed(() => kbStore.mapDetail)
-const current = computed(() => kbStore.current)
-const loading = computed(() => kbStore.loading)
+const nodeId = ref('')
+const mode = ref<'directory' | 'overview'>('directory')
+const query = ref('')
+const detailsVisible = ref(false)
+const detailNode = ref<KnowledgeMapNode | null>(null)
+const pageReady = ref(false)
+const loadError = ref('')
 const currentTitle = computed(
-  () => maps.value.find((m) => m.treeKey === currentKey.value)?.title || currentKey.value,
+  () =>
+    maps.value.find((m) => m.treeKey === currentKey.value)?.title ||
+    mapDetail.value?.title ||
+    currentKey.value,
 )
 
-const effectiveExpandAll = computed<boolean>(() => {
-  if (searchQuery.value.trim()) return true
-  return allExpanded.value
+const nodeMap = computed(() => {
+  const found = new Map<string, KnowledgeMapNode>()
+  const walk = (node: KnowledgeMapNode) => {
+    found.set(node.id, node)
+    ;(node.children || []).forEach(walk)
+  }
+  if (root.value) walk(root.value)
+  return found
 })
-
-const displayNodes = computed(() => {
-  if (!current.value) return []
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return current.value.nodes
-  return filterTree(current.value.nodes, q)
-})
-
-function filterTree(nodes: KnowledgeNode[], q: string): KnowledgeNode[] {
-  const result: KnowledgeNode[] = []
-  for (const node of nodes) {
-    const selfMatch = node.title.toLowerCase().includes(q)
-    const kids = node.children || []
-    const filteredKids = filterTree(kids, q)
-    if (selfMatch || filteredKids.length) {
-      result.push({ ...node, children: selfMatch ? node.children : filteredKids })
+const selected = computed(() => nodeMap.value.get(nodeId.value) || root.value)
+const isHome = computed(() => !root.value || selected.value?.id === root.value.id)
+const breadcrumbs = computed(() => {
+  if (!root.value) return []
+  const parts = [root.value]
+  if (!isHome.value && selected.value) {
+    const find = (node: KnowledgeMapNode, trail: KnowledgeMapNode[]): KnowledgeMapNode[] | null => {
+      if (node.id === selected.value?.id) return trail
+      for (const child of node.children || []) {
+        const found = find(child, [...trail, child])
+        if (found) return found
+      }
+      return null
     }
+    parts.push(...(find(root.value, []) || []))
   }
-  return result
-}
-
-const progress = computed(() => {
-  if (!current.value) return { known: 0, fuzzy: 0, fresh: 0 }
-  let known = 0
-  let fuzzy = 0
-  let fresh = 0
-  const walk = (nodes: KnowledgeNode[]) => {
-    for (const n of nodes) {
-      if (!n.lastReviewedAt) fresh++
-      else if (n.masteryLevel === 'again') fuzzy++
-      else known++
-      if (n.children) walk(n.children)
-    }
-  }
-  walk(current.value.nodes)
-  return { known, fuzzy, fresh }
+  return parts
+})
+const allNodes = computed(() => [...nodeMap.value.values()].filter((n) => n.id !== root.value?.id))
+const searchResults = computed(() =>
+  allNodes.value
+    .filter((n) => n.title.toLowerCase().includes(query.value.trim().toLowerCase()))
+    .slice(0, 80),
+)
+const rootGroups = computed(() => {
+  const children = root.value?.children || []
+  const groups = root.value?.groups || []
+  if (!groups.length) return [{ title: '全部分类', nodes: children }]
+  const used = new Set<string>()
+  const out = groups
+    .map((group) => ({
+      title: group.title,
+      nodes: group.nodeIds
+        .map((id) => children.find((n) => n.id === id))
+        .filter((n): n is KnowledgeMapNode => !!n)
+        .filter((n) => {
+          used.add(n.id)
+          return true
+        }),
+    }))
+    .filter((group) => group.nodes.length)
+  const rest = children.filter((n) => !used.has(n.id))
+  if (rest.length) out.push({ title: '其他分类', nodes: rest })
+  return out
+})
+const detailBlocks = computed<KnowledgeContentBlock[]>(() => {
+  if (!detailNode.value) return []
+  if (detailNode.value.blocks?.length) return detailNode.value.blocks
+  return detailNode.value.content?.trim() ? [{ type: 'text', text: detailNode.value.content }] : []
 })
 
-function formatPath(path: string): string {
-  if (!path) return ''
-  return path.replace(/\//g, ' / ')
+function descendantCount(node: KnowledgeMapNode): number {
+  return (node.children || []).reduce((sum, child) => 1 + sum + descendantCount(child), 0)
 }
-
-async function load() {
-  await kbStore.fetchMaps()
-  const fromQuery = router.params?.treeKey ? decodeURIComponent(router.params.treeKey) : ''
-  if (fromQuery) {
-    await onSelect(fromQuery)
-  }
+function childPreview(node: KnowledgeMapNode): string {
+  return (
+    (node.children || [])
+      .slice(0, 3)
+      .map((n) => n.title)
+      .join(' / ') || '查看知识节点'
+  )
 }
-
-async function onSelect(key: string) {
-  currentKey.value = key
-  searchQuery.value = ''
-  allExpanded.value = false
-  viewMode.value = 'outline'
-  await Promise.all([kbStore.fetchTree(key), kbStore.fetchMap(key)])
+function hasDetails(node: KnowledgeMapNode): boolean {
+  return !!node.blocks?.length || !!node.content?.trim()
 }
-
-function backToList() {
+function onSearch(event: { detail: { value: string } }) {
+  query.value = event.detail.value
+}
+function goHome() {
+  nodeId.value = root.value?.id || ''
+  mode.value = 'directory'
+  query.value = ''
+}
+function backToTrees() {
   currentKey.value = ''
-  kbStore.mapDetail = null
-  kbStore.current = null
+  nodeId.value = ''
+  query.value = ''
+  store.mapDetail = null
 }
-
-function onSearchInput(e: { detail: { value: string } }) {
-  searchQuery.value = e.detail.value
+function enterNode(node: KnowledgeMapNode) {
+  if (node.children?.length) {
+    nodeId.value = node.id
+    mode.value = 'directory'
+    query.value = ''
+  } else openDetails(node)
 }
-
-function toggleExpandAll() {
-  allExpanded.value = !allExpanded.value
+function openDetails(node: KnowledgeMapNode) {
+  detailNode.value = node
+  detailsVisible.value = true
 }
-
-function onNodeTap(node: KnowledgeNode) {
-  activeNode.value = node
-  popupVisible.value = true
+function previewImage(url: string) {
+  const resolved = resolveMediaUrl(url)
+  Taro.previewImage({ urls: [resolved], current: resolved })
 }
-
-async function onAnswer(result: KnowledgeReviewResult) {
-  if (!activeNode.value || answering.value) return
-  answering.value = true
+async function selectTree(key: string) {
+  loadError.value = ''
+  store.mapDetail = null
+  currentKey.value = key
+  query.value = ''
+  mode.value = 'directory'
+  nodeId.value = ''
   try {
-    const r = await kbStore.answerNode(activeNode.value.id, result)
-    if (r.code === 0) {
-      showToast(result === 'good' ? '已标记掌握' : '已加入复习', 'success')
-      popupVisible.value = false
-      activeNode.value = null
-    } else {
-      showToast(r.message || '提交失败', 'error')
+    await store.fetchMap(key)
+    nodeId.value = store.mapDetail?.tree.id || ''
+  } catch {
+    loadError.value = '知识框架加载失败'
+    showToast(loadError.value, 'error')
+  }
+}
+async function refresh() {
+  loadError.value = ''
+  try {
+    await store.fetchMaps()
+    if (currentKey.value) {
+      if (!store.maps.some((m) => m.treeKey === currentKey.value)) {
+        backToTrees()
+        return
+      }
+      const priorId = selected.value?.id
+      await store.fetchMap(currentKey.value)
+      const same = priorId ? nodeMap.value.get(priorId) : null
+      nodeId.value = same?.id || root.value?.id || ''
     }
+  } catch {
+    loadError.value = '知识框架加载失败'
+    showToast(loadError.value, 'error')
+  }
+}
+onMounted(async () => {
+  await refresh()
+  pageReady.value = true
+  const key = router.params?.treeKey
+  if (key && maps.value.some((m) => m.treeKey === key)) await selectTree(key)
+})
+useDidShow(() => {
+  if (pageReady.value) void refresh()
+})
+usePullDownRefresh(async () => {
+  try {
+    await refresh()
   } finally {
-    answering.value = false
+    Taro.stopPullDownRefresh()
   }
-}
-
-async function editNote() {
-  if (!activeNode.value) return
-  const content = await promptText('节点备注', {
-    placeholder: '给这个知识点加一句自己的笔记...',
-    defaultValue: activeNode.value.myNote || '',
-  })
-  if (content === null) return
-  const r = await kbStore.updateNode(activeNode.value.id, { myNote: content })
-  if (r.code === 0) {
-    showToast('已保存', 'success')
-    if (activeNode.value) activeNode.value.myNote = content
-  } else {
-    showToast(r.message || '保存失败', 'error')
-  }
-}
-
-function goQuiz() {
-  Taro.navigateTo({ url: '/pages/review/quiz' })
-}
-
-onMounted(load)
+})
 </script>
 
 <style lang="scss" scoped>
 @import '@/styles/variables.scss';
-
-.page-knowledge {
-  @include page-padding;
-  padding-bottom: 40px;
-}
-
-.map-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.map-card {
-  @include card;
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border-radius: $radius-lg;
-}
-.map-cover {
-  width: 88px;
-  height: 66px;
-  border-radius: 8px;
+.knowledge-page {
+  min-height: 100vh;
   background: $page-bg;
-  flex-shrink: 0;
-}
-.map-meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-}
-.map-title {
-  font-size: 16px;
-  font-weight: 700;
   color: $text-primary;
+  padding-bottom: 28px;
 }
-.map-sub {
-  font-size: 12px;
-  color: $text-muted;
-}
-
-.kb-header {
-  margin-bottom: 12px;
-  .kb-header-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .kb-back {
-    flex-shrink: 0;
-    font-size: 13px;
-    color: $accent-blue;
-  }
-  .kb-tip {
-    flex: 1;
-    font-size: 15px;
-    font-weight: 600;
-    color: $text-primary;
-  }
-  .kb-quiz {
-    flex-shrink: 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: $primary-color;
-    padding: 4px 10px;
-    border-radius: 8px;
-    background: $primary-light;
-  }
-}
-
-.kb-stats {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-  .kb-stat {
-    font-size: 12px;
-    font-weight: 500;
-    &.known {
-      color: $success;
-    }
-    &.fuzzy {
-      color: $accent-amber;
-    }
-    &.fresh {
-      color: $text-muted;
-    }
-  }
-}
-
-.seg-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.seg-tab {
-  padding: 6px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  background: $card-bg;
-  color: $text-secondary;
-  box-shadow: $shadow-card;
-  &.active {
-    background: $primary-color;
-    color: #fff;
-    font-weight: 600;
-  }
-}
-
-.kb-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.kb-search {
-  flex: 1;
-  height: 34px;
-  padding: 0 12px;
-  font-size: 13px;
-  background: $card-bg;
-  border-radius: $radius-md;
-  box-shadow: $shadow-card;
-}
-
-.kb-expand-btn {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: $accent-blue;
-  padding: 4px 0;
-}
-
-.tree-body {
-  @include card;
-  padding: 14px 16px;
-  border-radius: $radius-lg;
-}
-
-.map-pane {
+.hero {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
+  background: linear-gradient(155deg, $primary-color, $primary-dark);
+  color: var(--zk-on-primary);
+  padding: 26px 20px 24px;
+  border-radius: 0 0 22px 22px;
 }
-.map-pic-label {
+.hero-kicker {
   font-size: 12px;
-  color: $text-muted;
-  margin-top: 4px;
+  opacity: 0.85;
 }
-
-.empty {
+.hero-title {
+  font-size: 25px;
+  font-weight: 750;
+}
+.hero-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.92;
+}
+.hero-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.body {
+  padding: 18px 16px;
+}
+.state {
+  padding: 34px 12px;
   text-align: center;
   color: $text-muted;
-  padding: 40px 0;
-  font-size: 14px;
+  font-size: 13px;
 }
-
-.node-popup {
-  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
-  max-height: 70vh;
-  overflow-y: auto;
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: $card-bg;
+  border: 1px solid $border-color;
+  border-radius: 14px;
+  padding: 15px 13px;
+  margin-bottom: 9px;
+  box-shadow: $shadow-card;
 }
-
-.np-title {
+.row-main {
+  flex: 1;
+  min-width: 0;
+}
+.row-title {
   display: block;
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.row-meta {
+  display: block;
+  color: $text-muted;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arrow {
+  color: $text-muted;
+  font-size: 21px;
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  white-space: nowrap;
+  margin: 0 0 14px;
+  font-size: 12px;
+}
+.crumb-link {
+  color: $primary-color;
+}
+.crumb-sep {
+  color: $text-muted;
+  margin: 0 3px;
+}
+.mode-tabs {
+  display: flex;
+  background: $card-bg;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+.mode-tabs text {
+  flex: 1;
+  text-align: center;
+  color: $text-muted;
+  padding: 9px 0;
+  font-size: 13px;
+}
+.mode-tabs .active {
+  color: $primary-color;
+  background: $primary-light;
+  border-radius: 9px;
   font-weight: 700;
+}
+.search-box {
+  height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: $card-bg;
+  border: 1px solid $border-color;
+  border-radius: 11px;
+  padding: 0 12px;
+  margin-bottom: 16px;
+}
+.search-box input {
+  flex: 1;
+  font-size: 13px;
   color: $text-primary;
+}
+.search-symbol {
+  font-size: 19px;
+  color: $text-muted;
+}
+.notice {
+  padding: 12px;
+  border-left: 3px solid $primary-color;
+  background: $card-bg;
+  color: $text-secondary;
+  font-size: 12px;
+  line-height: 1.6;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+.section-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 18px 2px 11px;
+}
+.group:first-child .section-title {
+  margin-top: 0;
+}
+.branch-title {
+  display: block;
+  font-size: 22px;
+  font-weight: 750;
   line-height: 1.4;
 }
-
-.np-path {
+.branch-meta {
   display: block;
+  color: $text-secondary;
+  font-size: 13px;
+  margin: 7px 0 18px;
+}
+.detail-link {
+  color: $primary-color;
+  background: $primary-light;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 13px;
+}
+.index {
+  background: $elevated;
+  color: $text-secondary;
   font-size: 12px;
-  color: $text-muted;
-  margin-top: 4px;
-  margin-bottom: 14px;
+  border-radius: 7px;
+  padding: 5px;
 }
-
-.np-content {
-  background: $page-bg;
-  border-radius: $radius-md;
-  padding: 12px 14px;
-  margin-bottom: 12px;
+.overview-tip {
+  display: block;
+  color: $text-secondary;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 15px;
 }
-
-.np-content-text {
+.overview-card {
+  background: $card-bg;
+  border: 1px solid $border-color;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 11px;
+}
+.overview-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 9px;
   font-size: 14px;
+  font-weight: 700;
+}
+.overview-count {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+.chip {
+  background: $elevated;
+  color: $text-secondary;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 7px 9px;
+  border-radius: 7px;
+}
+.detail-sheet {
+  padding: 24px 20px 34px;
+  max-height: 76vh;
+  overflow-y: auto;
+}
+.detail-kicker {
+  display: block;
+  color: $primary-color;
+  font-size: 12px;
+}
+.detail-title {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 9px 0;
+}
+.detail-path {
+  display: block;
+  color: $text-muted;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.content-block {
+  padding: 13px 0;
+  border-bottom: 1px solid $border-color;
+}
+.block-text {
+  display: block;
   color: $text-primary;
+  font-size: 14px;
   line-height: 1.7;
   white-space: pre-wrap;
 }
-
-.np-empty .np-content-text {
+.formula-box {
+  background: $elevated;
+  border-radius: 10px;
+  padding: 12px;
+}
+.block-image {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+}
+.block-caption {
+  display: block;
+  margin-top: 6px;
+  color: $text-muted;
+  font-size: 12px;
+}
+.block-label {
+  display: block;
+  color: $primary-color;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+.answer-label {
+  margin-top: 14px;
+}
+.empty-detail {
+  display: block;
   color: $text-muted;
   font-size: 13px;
-}
-
-.np-note {
-  background: rgba($accent-blue, 0.06);
-  border-radius: $radius-md;
-  padding: 10px 14px;
-  margin-bottom: 8px;
-}
-
-.np-note-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: $accent-blue;
-  margin-bottom: 4px;
-}
-
-.np-note-text {
-  font-size: 13px;
-  color: $text-secondary;
+  margin-top: 22px;
   line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.np-edit-note {
-  display: inline-block;
-  font-size: 12px;
-  color: $accent-blue;
-  margin-bottom: 16px;
-}
-
-.np-actions {
-  display: flex;
-  gap: 12px;
-  :deep(.nut-button) {
-    flex: 1;
-  }
 }
 </style>

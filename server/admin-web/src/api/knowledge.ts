@@ -8,6 +8,8 @@ export interface KnowledgeIssue {
   path?: string
 }
 
+export interface StructuredIssue { level: 'error' | 'warning'; message: string }
+
 export interface MapNode {
   id: string
   title: string
@@ -16,6 +18,30 @@ export interface MapNode {
   line: number
   path: string
   children?: MapNode[] | null
+  blocks?: KnowledgeBlock[]
+  description?: string
+  groups?: Array<{ title: string; nodeIds: string[] }>
+}
+
+export type KnowledgeBlock =
+  | { type: 'text'; text: string }
+  | { type: 'formula'; latex: string; plain: string }
+  | { type: 'image'; url: string; alt?: string }
+  | { type: 'example'; question: string; answer?: string }
+
+export interface StructuredNode {
+  id: string
+  title: string
+  blocks: KnowledgeBlock[]
+  children: StructuredNode[]
+}
+
+export interface StructuredTree {
+  schemaVersion: 2
+  title: string
+  description: string
+  groups: Array<{ title: string; nodeIds: string[] }>
+  children: StructuredNode[]
 }
 
 export interface KnowledgeTreeMeta {
@@ -131,6 +157,24 @@ export function fetchKnowledgeDoc(treeKey: string) {
   return getData<KnowledgeDoc>(http.get(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/doc`))
 }
 
+export function fetchStructuredKnowledge(treeKey: string) {
+  return getData<{ tree: StructuredTree; draftRevision: number; issues: StructuredIssue[] }>(
+    http.get(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/structured`),
+  )
+}
+
+export function saveStructuredKnowledge(treeKey: string, tree: StructuredTree, baseRevision: number) {
+  return getData<{ tree: StructuredTree; draftRevision: number; issues: StructuredIssue[] }>(
+    http.put(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/structured`, { tree, baseRevision }),
+  )
+}
+
+export function previewStructuredKnowledge(tree: StructuredTree, treeKey = '') {
+  return getData<{ tree: MapNode; nodeDiffPreview: { added: number; archived: number; kept: number } | null; issues: StructuredIssue[]; stats: { nodeCount: number; leafCount: number; maxDepth: number } }>(
+    http.post('/admin/knowledge/structured-preview', { tree, treeKey }),
+  )
+}
+
 export function saveKnowledgeDoc(treeKey: string, md: string, baseRevision: number) {
   return getData<{ draftRevision: number; draftUpdatedAt: string | null; issues: KnowledgeIssue[] }>(
     http.put(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/doc`, { md, baseRevision }),
@@ -191,10 +235,11 @@ export function fetchKnowledgeVersion(treeKey: string, version: number) {
   }>(http.get(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/versions/${version}`))
 }
 
-export function activateKnowledgeVersion(treeKey: string, version: number, expectedLive?: number) {
+export function activateKnowledgeVersion(treeKey: string, version: number, expectedLive?: number, allowNoAssets = false) {
   return getData<{ treeKey: string; liveVersion: number; previousLive: number; nodeDiff: KnowledgeNodeDiff }>(
     http.post(`/admin/knowledge/trees/${encodeURIComponent(treeKey)}/versions/${version}/activate`, {
       expectedLive,
+      allowNoAssets,
     }),
   )
 }
@@ -217,4 +262,10 @@ export function uploadKnowledgeMd(file: File, force = false) {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   )
+}
+
+export function uploadKnowledgeImage(file: File) {
+  const data = new FormData()
+  data.append('file', file)
+  return getData<{ url: string }>(http.post('/admin/knowledge/upload-image', data))
 }

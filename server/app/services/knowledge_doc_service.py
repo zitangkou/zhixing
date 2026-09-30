@@ -78,7 +78,28 @@ def list_tree_metas(db: Session) -> list[dict[str, Any]]:
         live_n = int(node_counts.get(t.tree_key, 0))
         live_ver = live_rows.get(t.id) if t.live_version else None
         has_unpublished = False
-        if t.latest_version == 0:
+        if t.draft_tree_json:
+            live_tree = ""
+            if t.live_version:
+                live_row = (
+                    db.query(KnowledgeTreeVersion.tree_json)
+                    .filter(KnowledgeTreeVersion.tree_id == t.id,
+                            KnowledgeTreeVersion.version == t.live_version)
+                    .first()
+                )
+                live_tree = live_row[0] if live_row else ""
+            if live_tree:
+                try:
+                    live_value = json.loads(live_tree)
+                    from app.services.knowledge_structured import validate_tree
+                    live_clean, _ = validate_tree(live_value)
+                    draft_clean, _ = validate_tree(json.loads(t.draft_tree_json))
+                    has_unpublished = draft_clean != live_clean
+                except (ValueError, TypeError):
+                    has_unpublished = True
+            else:
+                has_unpublished = True
+        elif t.latest_version == 0:
             has_unpublished = bool(t.md_draft.strip())
         elif live_ver is not None:
             has_unpublished = _sha256_text(t.md_draft) != (live_ver.md_sha256 or "")
@@ -179,6 +200,7 @@ def save_draft(
         return None, "conflict"
     parsed = parse_md(md)
     t.md_draft = md
+    t.draft_tree_json = ""
     t.draft_revision = int(t.draft_revision) + 1
     t.draft_updated_at = utcnow()
     t.draft_updated_by = admin_id
@@ -225,14 +247,15 @@ def _export_plan(tree: MapNode) -> dict[str, Any]:
 
 
 def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: str = "") -> dict[str, int]:
-    """按 (tree_key, path) upsert；消失的 path 置 archived_at。"""
+    """结构化节点按稳定 ID 更新，旧 Markdown 按路径兼容；消失的节点归档。"""
     existing = (
         db.query(KnowledgeNode)
         .filter(KnowledgeNode.tree_key == tree_key)
         .all()
     )
     by_path = {n.path: n for n in existing if n.path}
-    seen_paths: set[str] = set()
+    by_id = {n.id: n for n in existing}
+    seen_ids: set[str] = set()
     id_by_index: dict[int, str] = {}
     added = kept = moved = 0
 
@@ -246,11 +269,11 @@ def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: s
         parent_index = fn.parent_index if hasattr(fn, "parent_index") else fn["parent_index"]
         sort_order = fn.sort_order if hasattr(fn, "sort_order") else fn.get("sort_order", i)
 
-        seen_paths.add(path)
-        old = by_path.get(path)
+        stable_id = fn.id if hasattr(fn, "id") else fn.get("id", "")
+        old = by_id.get(stable_id) if stable_id and not stable_id.startswith("tmp-") else by_path.get(path)
         parent_id = id_by_index.get(parent_index) if parent_index >= 0 else None
         if old:
-            if old.parent_id != parent_id:
+            if old.parent_id != parent_id or old.path != path:
                 moved += 1
             old.title = title
             old.content = content or ""
@@ -259,12 +282,14 @@ def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: s
             old.source_line = line
             old.source_file = source_file
             old.parent_id = parent_id
+            old.path = path
             old.archived_at = None
             old.updated_at = utcnow()
             id_by_index[i] = old.id
+            seen_ids.add(old.id)
             kept += 1
         else:
-            nid = gen_id("kn")
+            nid = stable_id if stable_id and not stable_id.startswith("tmp-") else gen_id("kn")
             db.add(
                 KnowledgeNode(
                     id=nid,
@@ -280,12 +305,13 @@ def derive_nodes(db: Session, tree_key: str, flat_nodes: list, *, source_file: s
                 )
             )
             id_by_index[i] = nid
+            seen_ids.add(nid)
             added += 1
 
     archived = 0
     now = utcnow()
-    for path, n in by_path.items():
-        if path not in seen_paths and n.archived_at is None:
+    for n in existing:
+        if n.id not in seen_ids and n.archived_at is None:
             n.archived_at = now
             archived += 1
 
@@ -324,21 +350,29 @@ def _attach_real_ids(tree: MapNode | dict, db: Session, tree_key: str) -> Any:
             for c in n.children or []:
                 walk(c)
 
-    walk(tree)
+    if not isinstance(tree, dict) or tree.get("schemaVersion") != 2:
+        walk(tree)
     return tree
 
 
 def preview_node_diff(db: Session, tree_key: str, flat_nodes: list) -> dict[str, int]:
     """只读：与当前 live 派生节点比较，预估激活后的变化。"""
     live = {
-        p
-        for (p,) in db.query(KnowledgeNode.path)
+        node_id: path
+        for node_id, path in db.query(KnowledgeNode.id, KnowledgeNode.path)
         .filter(KnowledgeNode.tree_key == tree_key, KnowledgeNode.archived_at.is_(None))
         .all()
-        if p
+        if path
     }
-    new = {n.path for n in flat_nodes if n.path}
-    return {"added": len(new - live), "archived": len(live - new), "kept": len(new & live)}
+    matched: set[str] = set()
+    by_path = {path: node_id for node_id, path in live.items()}
+    for node in flat_nodes:
+        nid = getattr(node, "id", "")
+        found = nid if nid in live else (by_path.get(node.path) if not nid or nid.startswith("tmp-") else None)
+        if found:
+            matched.add(found)
+    kept = len(matched)
+    return {"added": len(flat_nodes) - kept, "archived": len(live) - kept, "kept": kept}
 
 
 def publish_tree(
@@ -360,9 +394,22 @@ def publish_tree(
         return None, "not_found", None
     if int(base_revision) != int(t.draft_revision):
         return None, "conflict", None
-    parsed = parse_md(t.md_draft or "")
-    if parsed.has_errors:
-        return None, "invalid", [i.to_dict() for i in parsed.issues]
+    structured = bool(t.draft_tree_json)
+    if structured:
+        from app.services.knowledge_structured import validate_tree, with_paths
+
+        cleaned, issues = validate_tree(json.loads(t.draft_tree_json))
+        if cleaned is None or any(i["level"] == "error" for i in issues):
+            return None, "invalid", issues
+        tree_snapshot, flat_nodes, stats = with_paths(cleaned)
+    else:
+        parsed = parse_md(t.md_draft or "")
+        if parsed.has_errors:
+            return None, "invalid", [i.to_dict() for i in parsed.issues]
+        tree_snapshot = parsed.tree.to_dict() if parsed.tree else {}
+        flat_nodes = parsed.nodes
+        stats = parsed.stats
+        issues = [i.to_dict() for i in parsed.issues]
 
     version = int(t.latest_version) + 1
     ver = KnowledgeTreeVersion(
@@ -370,10 +417,10 @@ def publish_tree(
         version=version,
         md_content=t.md_draft or "",
         md_sha256=_sha256_text(t.md_draft or ""),
-        tree_json=json.dumps(parsed.tree.to_dict() if parsed.tree else {}, ensure_ascii=False),
-        node_count=parsed.stats.get("nodeCount", 0),
-        leaf_count=parsed.stats.get("leafCount", 0),
-        max_depth=parsed.stats.get("maxDepth", 0),
+        tree_json=json.dumps(tree_snapshot, ensure_ascii=False),
+        node_count=stats.get("nodeCount", 0),
+        leaf_count=stats.get("leafCount", 0),
+        max_depth=stats.get("maxDepth", 0),
         note=note or "",
         created_by=admin_id,
         assets_ready=False,
@@ -391,11 +438,11 @@ def publish_tree(
 
     return {
         "version": version,
-        "tree": parsed.tree.to_dict() if parsed.tree else None,
-        "stats": parsed.stats,
-        "nodeDiffPreview": preview_node_diff(db, tree_key, parsed.nodes),
-        "exportPlan": _export_plan(parsed.tree) if parsed.tree else {"segments": []},
-        "issues": [i.to_dict() for i in parsed.issues],
+        "tree": tree_snapshot,
+        "stats": stats,
+        "nodeDiffPreview": preview_node_diff(db, tree_key, flat_nodes),
+        "exportPlan": {"segments": []} if structured else _export_plan(parsed.tree) if parsed.tree else {"segments": []},
+        "issues": issues,
     }, None, None
 
 
@@ -426,10 +473,20 @@ def activate_version(
         return None, "assets_not_ready"
     if expected_live is not None and int(t.live_version or 0) != int(expected_live):
         return None, "conflict"
-    parsed = parse_md(ver.md_content or "")
-    if parsed.has_errors:
-        return None, "invalid"
-    node_diff = derive_nodes(db, tree_key, parsed.nodes, source_file=f"v{version}")
+    snapshot = json.loads(ver.tree_json or "{}")
+    if snapshot.get("schemaVersion") == 2:
+        from app.services.knowledge_structured import validate_tree, with_paths
+
+        cleaned, issues = validate_tree(snapshot)
+        if cleaned is None or any(i["level"] == "error" for i in issues):
+            return None, "invalid"
+        _, flat_nodes, _ = with_paths(cleaned)
+    else:
+        parsed = parse_md(ver.md_content or "")
+        if parsed.has_errors:
+            return None, "invalid"
+        flat_nodes = parsed.nodes
+    node_diff = derive_nodes(db, tree_key, flat_nodes, source_file=f"v{version}")
     prev = int(t.live_version or 0)
     t.live_version = version
     t.updated_at = utcnow()
@@ -814,6 +871,14 @@ def rollback_version_to_draft(db: Session, tree_key: str, version: int, *, admin
     t = get_or_none_tree(db, tree_key)
     assert t
     t.md_draft = detail["md"]
+    tree_snapshot = detail.get("tree") or {}
+    if tree_snapshot.get("schemaVersion") == 2:
+        from app.services.knowledge_structured import validate_tree
+
+        cleaned, _ = validate_tree(tree_snapshot)
+        t.draft_tree_json = json.dumps(cleaned, ensure_ascii=False) if cleaned else ""
+    else:
+        t.draft_tree_json = ""
     t.draft_revision = int(t.draft_revision) + 1
     t.draft_updated_at = utcnow()
     t.draft_updated_by = admin_id
@@ -823,7 +888,7 @@ def rollback_version_to_draft(db: Session, tree_key: str, version: int, *, admin
 
 def draft_has_unpublished_changes(db: Session, t: KnowledgeTree) -> bool:
     """草稿非空且与最新已发布版本的 md 不一致（或从未发布）。"""
-    if not (t.md_draft or "").strip():
+    if not (t.md_draft or "").strip() and not t.draft_tree_json:
         return False
     latest = (
         db.query(KnowledgeTreeVersion)
@@ -831,6 +896,13 @@ def draft_has_unpublished_changes(db: Session, t: KnowledgeTree) -> bool:
         .order_by(KnowledgeTreeVersion.version.desc())
         .first()
     )
+    if t.draft_tree_json:
+        from app.services.knowledge_structured import validate_tree
+        if latest is None:
+            return True
+        draft, _ = validate_tree(json.loads(t.draft_tree_json), strict=False)
+        live, _ = validate_tree(json.loads(latest.tree_json or "{}"), strict=False)
+        return draft != live
     return latest is None or latest.md_content != t.md_draft
 
 
@@ -855,7 +927,7 @@ def import_md_to_draft(
     t = get_or_none_tree(db, tree_key)
     if t and not force and t.md_draft.strip():
         return {"ok": False, "error": "exists", "treeKey": tree_key}
-    if t and t.md_draft == md:
+    if t and t.md_draft == md and not t.draft_tree_json:
         return {"ok": True, "treeKey": tree_key, "draftRevision": t.draft_revision, "unchanged": True}
     if t and keep_unpublished and draft_has_unpublished_changes(db, t):
         return {"ok": False, "error": "draft_dirty", "treeKey": tree_key, "draftRevision": t.draft_revision}
@@ -865,6 +937,7 @@ def import_md_to_draft(
             return {"ok": False, "error": "create_failed"}
     else:
         t.md_draft = md
+        t.draft_tree_json = ""
         t.title = title or t.title
         t.draft_revision = int(t.draft_revision) + 1
         t.draft_updated_at = utcnow()
@@ -931,7 +1004,7 @@ def list_public_maps(db: Session) -> list[dict[str, Any]]:
         out.append(
             {
                 "treeKey": t.tree_key,
-                "title": t.title,
+                "title": (json.loads(v.tree_json or "{}").get("title") or t.title),
                 "version": t.live_version,
                 "publishedAt": v.created_at,
                 "nodeCount": v.node_count,
@@ -953,7 +1026,7 @@ def get_public_map(db: Session, tree_key: str) -> dict[str, Any] | None:
         _attach_real_ids(tree, db, tree_key)
     return {
         "treeKey": t.tree_key,
-        "title": t.title,
+        "title": tree.get("title") or t.title,
         "version": t.live_version,
         "publishedAt": detail.get("createdAt"),
         "tree": tree,

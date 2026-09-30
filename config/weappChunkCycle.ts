@@ -11,14 +11,14 @@ import type { Plugin } from 'vite'
  * 与上游 https://github.com/NervJS/taro/pull/17541 相同：把 @babel 拆到独立的
  * babelHelpers chunk，让 taro chunk 不再依赖 vendors。
  *
- * 额外：KaTeX 仅资料（ziliao）公式页使用。默认会进主包 vendors（JS + 三套字体
- * base64 约 1.4MB）。这里把 katex / latex 工具 / LatexBlock 打进
+ * 额外：KaTeX 浏览器排版默认会进主包 vendors（JS + 三套字体
+ * base64 约 1.4MB）。这里把 katex / latex 工具打进
  * pages/ziliao/katex，并在 CSS 里只保留 woff2，避免主包/分包超限。
+ * LatexBlock 是跨分包共享组件；微信端显示可读式，必须留在公共 chunk。
  */
 const BABEL_DEP = /node_modules[\\/]@babel[\\/]/
 const KATEX_DEP = /node_modules[\\/]katex[\\/]/
 const LATEX_UTIL = /[\\/]utils[\\/]latex\.ts$/
-const LATEX_BLOCK = /[\\/]components[\\/]LatexBlock\.vue$/
 
 /** 去掉同包的 woff/ttf（含 Vite 已 base64 内联的 data: URL），只留 woff2。 */
 export function stripKatexExtraFonts(css: string): string {
@@ -43,7 +43,7 @@ export function stripKatexExtraFonts(css: string): string {
 
 function isKatexRelatedModule(id: string): boolean {
   const bare = id.split('?')[0] || id
-  return KATEX_DEP.test(bare) || LATEX_UTIL.test(bare) || LATEX_BLOCK.test(bare)
+  return KATEX_DEP.test(bare) || LATEX_UTIL.test(bare)
 }
 
 function walkStripWxss(dir: string) {

@@ -85,6 +85,18 @@
           </view>
         </template>
       </nut-cell>
+      <nut-cell
+        v-if="SHOW_KNOWLEDGE"
+        title="知识框架"
+        is-link
+        @click="go('/pages/knowledge/index')"
+      >
+        <template #icon>
+          <view class="cell-icon">
+            <Category :color="brandIcon" size="18" />
+          </view>
+        </template>
+      </nut-cell>
     </view>
 
     <!-- 专项：进各模块首页，子功能在模块内再进 -->
@@ -101,13 +113,6 @@
         <template #icon>
           <view class="cell-icon">
             <Date :color="brandIcon" size="18" />
-          </view>
-        </template>
-      </nut-cell>
-      <nut-cell v-if="SHOW_KNOWLEDGE" title="知识框架" is-link @click="go('/pages/knowledge/index')">
-        <template #icon>
-          <view class="cell-icon">
-            <Category :color="brandIcon" size="18" />
           </view>
         </template>
       </nut-cell>

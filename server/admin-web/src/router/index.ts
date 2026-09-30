@@ -71,6 +71,12 @@ const router = createRouter({
           meta: { title: '知识框架', permissions: ['knowledge:read'] },
         },
         {
+          path: 'knowledge/legacy',
+          name: 'knowledge-legacy',
+          component: () => import('@/views/knowledge/LegacyIndex.vue'),
+          meta: { title: '知识框架高级工具', permissions: ['knowledge:read'] },
+        },
+        {
           path: 'plan',
           name: 'plan',
           component: () => import('@/views/plan/Templates.vue'),

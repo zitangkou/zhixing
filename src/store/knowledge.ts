@@ -22,6 +22,7 @@ export const useKnowledgeStore = defineStore('knowledge', {
       try {
         const res = await api.getKnowledgeMaps()
         if (res.code === 0 && res.data) this.maps = res.data
+        else throw new Error(res.message || '加载失败')
       } finally {
         this.loading = false
       }
@@ -31,7 +32,7 @@ export const useKnowledgeStore = defineStore('knowledge', {
       try {
         const res = await api.getKnowledgeMap(treeKey)
         if (res.code === 0 && res.data) this.mapDetail = res.data
-        else this.mapDetail = null
+        else { this.mapDetail = null; throw new Error(res.message || '加载失败') }
       } finally {
         this.loading = false
       }

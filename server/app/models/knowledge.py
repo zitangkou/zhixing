@@ -62,6 +62,8 @@ class KnowledgeTree(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=False)
     md_draft: Mapped[str] = mapped_column(Text, default="")
+    # 可视化编辑器的草稿。为空时继续使用旧版 Markdown 草稿。
+    draft_tree_json: Mapped[str] = mapped_column(Text, default="")
     draft_revision: Mapped[int] = mapped_column(Integer, default=0)
     draft_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     draft_updated_by: Mapped[str] = mapped_column(String(32), default="")

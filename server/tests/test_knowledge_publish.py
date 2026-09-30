@@ -28,6 +28,7 @@ from app.services.knowledge_doc_service import (  # noqa: E402
     save_draft,
     upsert_user_state,
 )
+from app.services.knowledge_structured import get_draft, save_draft as save_structured_draft  # noqa: E402
 
 Base.metadata.create_all(bind=engine)
 run_compat_migrations()
@@ -125,6 +126,45 @@ def test_public_sync_removed_and_maps_ok():
     body = r2.json()
     assert body.get("code") == 0
     assert isinstance(body.get("data"), list)
+
+
+def test_structured_edit_preserves_node_id_and_formula_on_move():
+    db = SessionLocal()
+    try:
+        tree = docs.create_tree(db, "结构化测试", "结构化测试", "# 结构化测试\n\n## 增长\n\n### 增长率\n")
+        assert tree
+        draft = get_draft(db, tree)
+        branch = draft["children"][0]
+        formula_node = branch["children"][0]
+        original_id = formula_node["id"]
+        formula_node["blocks"] = [{"type": "formula", "latex": r"\frac{B-A}{A}", "plain": "（现期－基期）÷基期"}]
+        out, err = save_structured_draft(db, tree, draft, tree.draft_revision)
+        assert err is None, out
+        pub, err, _ = publish_tree(db, tree.tree_key, out["draftRevision"])
+        assert err is None, err
+        _, err = activate_version(db, tree.tree_key, pub["version"], allow_no_assets=True)
+        assert err is None
+        upsert_user_state(db, "u-structured", original_id, my_note="已学习")
+
+        moved = get_draft(db, tree)
+        moved["children"][0]["title"] = "增长问题"
+        moved["children"][0]["children"][0]["title"] = "增长率公式"
+        out, err = save_structured_draft(db, tree, moved, tree.draft_revision)
+        assert err is None, out
+        pub, err, _ = publish_tree(db, tree.tree_key, out["draftRevision"])
+        assert err is None, err
+        result, err = activate_version(db, tree.tree_key, pub["version"], allow_no_assets=True)
+        assert err is None
+        assert result["nodeDiff"]["added"] == 0
+        node = db.get(KnowledgeNode, original_id)
+        assert node and node.path == "增长问题/增长率公式" and node.archived_at is None
+        assert db.query(UserKnowledgeState).filter_by(user_id="u-structured", node_id=original_id).one().my_note == "已学习"
+        tree.is_visible = True
+        db.commit()
+        public = docs.get_public_map(db, tree.tree_key)
+        assert public and public["tree"]["children"][0]["children"][0]["blocks"][0]["plain"] == "（现期－基期）÷基期"
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -445,5 +485,73 @@ def test_legacy_node_user_fields_are_ignored_not_migrated():
         n = out.nodes[0]
         assert (n.myNote, n.isStarred, n.masteryLevel) == ("", False, "new")
         assert db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user.id).count() == 0
+    finally:
+        db.close()
+
+
+def test_all_archived_subjects_support_structured_publish():
+    from app.services.knowledge_structured import validate_tree
+    directory = Path(__file__).resolve().parents[2] / 'docs/content/knowledge-framework'
+    expected = {'判断推理': 245, '数量关系': 206, '申论': 535, '言语理解与表达': 101, '资料分析': 159}
+    db = SessionLocal()
+    try:
+        for title, count in expected.items():
+            files = list(directory.glob(f'*{title}*.md'))
+            assert len(files) == 1, files
+            key = f'archive_{title}'
+            out = import_md_to_draft(db, key, title, files[0].read_text(), force=True)
+            tree = docs.get_or_none_tree(db, key)
+            draft = get_draft(db, tree)
+            _, issues = validate_tree(draft)
+            assert not [i for i in issues if i['level'] == 'error'], issues
+            saved, err = save_structured_draft(db, tree, draft, out['draftRevision'])
+            assert not err
+            pub, err, _ = publish_tree(db, key, saved['draftRevision'])
+            assert not err and pub['stats']['nodeCount'] == count
+            _, err = activate_version(db, key, pub['version'], allow_no_assets=True)
+            assert not err
+    finally:
+        db.close()
+
+
+def test_incomplete_formula_draft_is_saved_but_publish_blocked():
+    db = SessionLocal()
+    try:
+        docs.create_tree(db, 'formula_draft', '公式草稿', '# 公式草稿\n## 增长率\n')
+        tree = docs.get_or_none_tree(db, 'formula_draft')
+        draft = get_draft(db, tree)
+        draft['children'][0]['blocks'] = [{'type': 'formula', 'latex': '', 'plain': '增长率 = 增长量 ÷ 基期量'}]
+        saved, err = save_structured_draft(db, tree, draft, tree.draft_revision)
+        assert not err and saved['issues'][0]['level'] == 'warning'
+        _, err, issues = publish_tree(db, tree.tree_key, saved['draftRevision'])
+        assert err == 'invalid' and issues
+        protected = import_md_to_draft(db, tree.tree_key, tree.title, tree.md_draft, force=True, keep_unpublished=True)
+        assert protected['error'] == 'draft_dirty'
+    finally:
+        db.close()
+
+
+def test_structured_title_stays_private_until_activation_and_rejects_foreign_ids():
+    db = SessionLocal()
+    try:
+        out = import_md_to_draft(db, 'private_title', '已发布科目', '# 已发布科目\n## 节点\n', force=True)
+        tree = docs.get_or_none_tree(db, 'private_title')
+        draft = get_draft(db, tree)
+        saved, err = save_structured_draft(db, tree, draft, out['draftRevision'])
+        assert not err
+        pub, err, _ = publish_tree(db, tree.tree_key, saved['draftRevision'])
+        assert not err
+        activate_version(db, tree.tree_key, pub['version'], allow_no_assets=True)
+        docs.patch_tree(db, tree.tree_key, {'isVisible': True})
+        draft['title'] = '尚未发布的新名称'
+        _, err = save_structured_draft(db, tree, draft, tree.draft_revision)
+        assert not err
+        assert docs.get_public_map(db, tree.tree_key)['title'] == '已发布科目'
+        assert next(m for m in docs.list_public_maps(db) if m['treeKey'] == tree.tree_key)['title'] == '已发布科目'
+        other = docs.create_tree(db, 'foreign_ids', '另一科', '# 另一科\n## 一\n')
+        _, err = save_structured_draft(db, other, draft, other.draft_revision)
+        assert err == 'invalid'
+        _, err = save_structured_draft(db, tree, draft, tree.draft_revision - 1)
+        assert err == 'conflict'
     finally:
         db.close()

@@ -14,6 +14,7 @@ export default defineConfig({
     proxy: {
       '/admin': 'http://127.0.0.1:8001',
       '/api': 'http://127.0.0.1:8001',
+      '/uploads': 'http://127.0.0.1:8001',
     },
   },
   build: {

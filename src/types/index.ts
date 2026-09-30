@@ -277,10 +277,19 @@ export interface KnowledgeMapListItem {
   cover?: KnowledgeMapCover | null
 }
 
+export type KnowledgeContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'formula'; latex: string; plain: string }
+  | { type: 'image'; url: string; alt?: string }
+  | { type: 'example'; question: string; answer?: string }
+
 export interface KnowledgeMapNode {
   id: string
   title: string
   content?: string
+  blocks?: KnowledgeContentBlock[]
+  description?: string
+  groups?: Array<{ title: string; nodeIds: string[] }>
   depth: number
   line: number
   path: string

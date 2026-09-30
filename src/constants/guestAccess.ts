@@ -7,6 +7,7 @@ const GUEST_PREFIXES = [
   '/pages/auth/',
   '/pages/rmrb/article-list',
   '/pages/rmrb/article-detail',
+  '/pages/knowledge/',
 ]
 
 const GUEST_EXACT = new Set([

@@ -4,13 +4,13 @@ export const apiKnowledge = {
   // ===== 知识框架 =====
 
   getKnowledgeMaps(): Promise<d.ApiRes<d.KnowledgeMapListItem[]>> {
-    return d.isMock ? d.mockService.getKnowledgeMaps() : d.request('/api/knowledge/maps')
+    return d.isMock ? d.mockService.getKnowledgeMaps() : d.request('/api/knowledge/maps', { auth: false })
   },
 
   getKnowledgeMap(treeKey: string): Promise<d.ApiRes<d.KnowledgeMapDetail>> {
     return d.isMock
       ? d.mockService.getKnowledgeMap(treeKey)
-      : d.request(`/api/knowledge/maps/${encodeURIComponent(treeKey)}`)
+      : d.request(`/api/knowledge/maps/${encodeURIComponent(treeKey)}`, { auth: false })
   },
 
   getKnowledgeTrees(): Promise<d.ApiRes<d.KnowledgeTree[]>> {

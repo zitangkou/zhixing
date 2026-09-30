@@ -14,8 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { renderLatex } from '@/utils/latex'
+import { computed, ref, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -34,7 +33,22 @@ const props = withDefaults(
   },
 )
 
-const html = computed(() => renderLatex(props.latex || '', { displayMode: props.displayMode }))
+const html = ref('')
+let renderToken = 0
+watch(
+  () => [props.latex, props.displayMode],
+  async () => {
+    const token = ++renderToken
+    html.value = ''
+    // 微信原生组件无法可靠还原 KaTeX 的 HTML/CSS，优先显示后台维护的可读式。
+    if (process.env.TARO_ENV === 'h5') {
+      const { renderLatex } = await import('@/utils/latex')
+      if (token === renderToken)
+        html.value = renderLatex(props.latex || '', { displayMode: props.displayMode })
+    }
+  },
+  { immediate: true },
+)
 const fallbackText = computed(() => props.plain || props.latex || '')
 </script>
 
@@ -52,14 +66,14 @@ const fallbackText = computed(() => props.plain || props.latex || '')
 }
 .latex-fallback {
   display: block;
-  font-size: 28rpx;
+  font-size: 14px;
   color: $text-secondary;
   line-height: 1.5;
 }
 .latex-plain {
   display: block;
-  margin-top: 12rpx;
-  font-size: 24rpx;
+  margin-top: 6px;
+  font-size: 12px;
   color: $text-muted;
   line-height: 1.45;
 }

@@ -9,7 +9,7 @@ export const SHOW_HOME_DOMAINS = false
 
 export const SHOW_ZILIAO = false
 export const SHOW_EXAM = false
-export const SHOW_KNOWLEDGE = false
+export const SHOW_KNOWLEDGE = true
 export const SHOW_EVENTS = false
 export const SHOW_PLAN = false
 export const SHOW_REVIEW_HUB = false
