@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
@@ -13,6 +13,7 @@ import {
 } from '@/api/knowledge'
 
 const router = useRouter()
+const route = useRoute()
 const trees = ref<KnowledgeTreeMeta[]>([])
 const activeKey = ref('')
 const draft = ref<StructuredTree | null>(null)
@@ -261,7 +262,18 @@ async function toggleVisibility(value: boolean) {
   catch (error) { ElMessage.error(error instanceof Error ? error.message : '更新失败') }
 }
 function onBeforeUnload(event: BeforeUnloadEvent) { if (pending || saving) { event.preventDefault(); event.returnValue = '' } }
-onMounted(async () => { window.addEventListener('beforeunload', onBeforeUnload); await loadTrees(); await loadDraft(activeKey.value); await nextTick() })
+async function openAdvancedPreview() {
+  await flushSave()
+  if (pending || !activeKey.value) return
+  await router.push({ path: '/knowledge/legacy', query: { source: 'structured', treeKey: activeKey.value } })
+}
+onMounted(async () => {
+  window.addEventListener('beforeunload', onBeforeUnload)
+  const preferred = typeof route.query.treeKey === 'string' ? route.query.treeKey : ''
+  await loadTrees(preferred)
+  await loadDraft(activeKey.value)
+  await nextTick()
+})
 onBeforeRouteLeave(async () => { await flushSave(); return !pending })
 onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnload); if (saveTimer) clearTimeout(saveTimer) })
 </script>
@@ -277,7 +289,7 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnloa
         <span v-if="draft" class="status">{{ saveState }} · 线上 v{{ activeMeta?.liveVersion || '—' }}</span>
         <div class="top-spacer" />
         <el-button v-if="draft" type="primary" :loading="publishing" :disabled="loading" @click="onPublish">发布</el-button>
-        <el-button v-if="draft" @click="router.push('/knowledge/legacy')">更多操作</el-button>
+        <el-button v-if="draft" @click="openAdvancedPreview">更多操作</el-button>
       </div>
       <div v-if="draft" class="top-sub">
         <span>{{ nodeCount }} 个节点 · {{ issues.filter(i => i.level === 'error').length }} 项需处理</span>

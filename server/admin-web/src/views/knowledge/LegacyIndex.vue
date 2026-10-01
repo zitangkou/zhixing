@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createKnowledgeTree,
   deleteKnowledgeTree,
   fetchKnowledgeDoc,
+  fetchStructuredKnowledge,
   fetchKnowledgeTrees,
   fetchKnowledgeVersion,
   patchKnowledgeTree,
@@ -17,12 +19,16 @@ import {
   type KnowledgeManifest,
   type KnowledgeTreeMeta,
   type MapNode,
+  type StructuredNode,
+  type StructuredTree,
 } from '@/api/knowledge'
 import MdEditor from './MdEditor.vue'
 import MarkmapPreview from './MarkmapPreview.vue'
 import VersionDrawer from './VersionDrawer.vue'
 import { makeThumb, overviewTree, planSegment, rasterizeSvg } from './exportMap'
 
+const route = useRoute()
+const router = useRouter()
 const trees = ref<KnowledgeTreeMeta[]>([])
 const activeKey = ref('')
 const md = ref('')
@@ -43,6 +49,8 @@ const editorRef = ref<InstanceType<typeof MdEditor> | null>(null)
 const markmapRef = ref<InstanceType<typeof MarkmapPreview> | null>(null)
 const createVisible = ref(false)
 const createForm = ref({ treeKey: '', title: '' })
+const structuredDraftRevision = ref(0)
+const structuredMode = computed(() => route.query.source === 'structured')
 
 const activeMeta = computed(() => trees.value.find((t) => t.treeKey === activeKey.value) || null)
 const hasErrors = computed(() => issues.value.some((i) => i.level === 'error'))
@@ -64,7 +72,8 @@ let previewTimer: ReturnType<typeof setTimeout> | null = null
 
 async function loadTrees(preferKey?: string) {
   trees.value = await fetchKnowledgeTrees()
-  const key = preferKey || activeKey.value || trees.value[0]?.treeKey || ''
+  const routeKey = typeof route.query.treeKey === 'string' ? route.query.treeKey : ''
+  const key = preferKey || routeKey || activeKey.value || trees.value[0]?.treeKey || ''
   if (key && trees.value.some((t) => t.treeKey === key)) {
     activeKey.value = key
   } else {
@@ -79,6 +88,10 @@ async function loadDoc(treeKey: string) {
     previewTree.value = null
     issues.value = []
     liveManifest.value = null
+    return
+  }
+  if (structuredMode.value) {
+    await loadStructuredDraft(treeKey)
     return
   }
   loading.value = true
@@ -117,6 +130,67 @@ async function loadDoc(treeKey: string) {
     }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function structuredNodeToMap(node: StructuredNode, parentPath = '', depth = 0): MapNode {
+  const path = parentPath ? `${parentPath}/${node.title}` : node.title
+  const content = node.blocks.map((block) => {
+    if (block.type === 'text') return block.text
+    if (block.type === 'formula') return block.plain || block.latex
+    if (block.type === 'image') return block.alt ? `[图片] ${block.alt}` : '[图片]'
+    return `例题：${block.question}${block.answer ? `\n解析：${block.answer}` : ''}`
+  }).filter(Boolean).join('\n')
+  const children = node.children.map((child) => structuredNodeToMap(child, path, depth + 1))
+  return { id: node.id, title: node.title, content, depth, line: 0, path, children: children.length ? children : null }
+}
+
+function structuredStats(tree: StructuredTree) {
+  let nodeCount = 0
+  let leafCount = 0
+  let maxDepth = 0
+  const walk = (nodes: StructuredNode[], depth: number) => {
+    for (const node of nodes) {
+      nodeCount += 1
+      maxDepth = Math.max(maxDepth, depth)
+      if (!node.children.length) leafCount += 1
+      walk(node.children, depth + 1)
+    }
+  }
+  walk(tree.children, 0)
+  return { nodeCount, leafCount, maxDepth }
+}
+
+async function loadStructuredDraft(treeKey: string) {
+  loading.value = true
+  try {
+    const result = await fetchStructuredKnowledge(treeKey)
+    const children = result.tree.children.map((node) => structuredNodeToMap(node))
+    previewTree.value = {
+      id: 'root', title: result.tree.title, content: result.tree.description,
+      depth: -1, line: 0, path: '', children: children.length ? children : null,
+      description: result.tree.description, groups: result.tree.groups,
+    }
+    structuredDraftRevision.value = result.draftRevision
+    issues.value = result.issues.map((issue) => ({
+      level: issue.level, code: 'STRUCTURED', line: 0, message: issue.message,
+    }))
+    stats.value = structuredStats(result.tree)
+    md.value = ''
+    dirty.value = false
+    const liveVersion = activeMeta.value?.liveVersion || 0
+    if (liveVersion) {
+      try {
+        const version = await fetchKnowledgeVersion(treeKey, liveVersion)
+        liveManifest.value = version.manifest || null
+      } catch { liveManifest.value = null }
+    } else {
+      liveManifest.value = null
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '结构化草稿加载失败')
   } finally {
     loading.value = false
   }
@@ -427,7 +501,7 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 
 onMounted(async () => {
   window.addEventListener('beforeunload', onBeforeUnload)
-  await loadTrees()
+  await loadTrees(typeof route.query.treeKey === 'string' ? route.query.treeKey : undefined)
   await nextTick()
 })
 
@@ -445,35 +519,44 @@ function mediaUrl(u?: string) {
 
 <template>
   <div v-loading="loading" class="page">
-    <el-alert title="高级工具：Markdown 导入或保存会替换可视化草稿及内容块，请先检查版本并保留备份。日常维护请使用知识框架工作台。" type="warning" :closable="false" show-icon />
-    <el-button style="margin: 12px 0" @click="$router.push('/knowledge')">返回知识框架工作台</el-button>
+    <el-alert
+      v-if="structuredMode"
+      title="当前为新版结构化草稿只读预览。内容从已保存的结构化草稿读取；此页不写入、不覆盖草稿或历史版本。"
+      type="success"
+      :closable="false"
+      show-icon
+    />
+    <el-alert v-else title="高级工具：Markdown 导入或保存会替换可视化草稿及内容块，请先检查版本并保留备份。日常维护请使用知识框架工作台。" type="warning" :closable="false" show-icon />
+    <el-button style="margin: 12px 0" @click="router.push({ path: '/knowledge', query: activeKey ? { treeKey: activeKey } : {} })">返回知识框架工作台</el-button>
     <div class="topbar">
       <div class="tabs-row">
         <el-tabs v-model="activeKey" type="card" class="tree-tabs">
           <el-tab-pane v-for="t in trees" :key="t.treeKey" :label="t.title" :name="t.treeKey" />
         </el-tabs>
-        <el-button size="small" @click="createVisible = true">＋ 新建</el-button>
-        <el-upload :show-file-list="false" accept=".md" :http-request="onUploadMd">
+        <el-button v-if="!structuredMode" size="small" @click="createVisible = true">＋ 新建</el-button>
+        <el-upload v-if="!structuredMode" :show-file-list="false" accept=".md" :http-request="onUploadMd">
           <el-button size="small">导入 md</el-button>
         </el-upload>
       </div>
       <div v-if="activeMeta" class="status-row">
-        <el-tag v-if="dirty" type="warning" size="small">未保存</el-tag>
+        <el-tag v-if="structuredMode" type="success" size="small">新版结构化草稿 · 只读</el-tag>
+        <el-tag v-else-if="dirty" type="warning" size="small">未保存</el-tag>
         <el-tag v-else-if="activeMeta.hasUnpublishedChanges" type="warning" size="small">草稿未发布</el-tag>
-        <el-tag v-else type="success" size="small">已同步</el-tag>
+        <el-tag v-else-if="!structuredMode" type="success" size="small">已同步</el-tag>
         <span class="muted">
           线上 v{{ activeMeta.liveVersion || '—' }}
           <template v-if="activeMeta.livePublishedAt"> · {{ activeMeta.livePublishedAt }}</template>
+          <template v-if="structuredMode"> · 当前草稿修订 r{{ structuredDraftRevision }}</template>
           · 节点 {{ stats.nodeCount }} / 叶 {{ stats.leafCount }} / 深 {{ stats.maxDepth }}
         </span>
-        <el-switch
+        <el-switch v-if="!structuredMode"
           :model-value="activeMeta.isVisible"
           inline-prompt
           active-text="学员可见"
           inactive-text="隐藏"
           @change="onToggleVisible"
         />
-        <el-button size="small" type="danger" plain @click="onDeleteTree">删除树</el-button>
+        <el-button v-if="!structuredMode" size="small" type="danger" plain @click="onDeleteTree">删除树</el-button>
       </div>
     </div>
 
@@ -482,16 +565,17 @@ function mediaUrl(u?: string) {
     </div>
 
     <div v-else class="workspace">
-      <div class="left">
+      <div v-if="structuredMode" class="left structured-source">
+        <div class="structured-note">
+          <strong>{{ activeMeta?.title }} · 最新结构化草稿</strong>
+          <p>左侧大纲和右侧导图均来自当前已保存草稿。要继续编辑，请返回知识框架工作台。</p>
+        </div>
+        <el-tree :data="outlineData" :props="{ label: 'label', children: 'children' }" default-expand-all />
+      </div>
+      <div v-else class="left">
         <MdEditor ref="editorRef" :model-value="md" :issues="issues" @update:model-value="onMdChange" />
         <div v-if="issues.length" class="issue-panel">
-          <div
-            v-for="(iss, idx) in issues"
-            :key="idx"
-            class="issue"
-            :class="iss.level"
-            @click="editorRef?.gotoLine(iss.line)"
-          >
+          <div v-for="(iss, idx) in issues" :key="idx" class="issue" :class="iss.level" @click="editorRef?.gotoLine(iss.line)">
             L{{ iss.line }} · {{ iss.code }} · {{ iss.message }}
           </div>
         </div>
@@ -530,7 +614,12 @@ function mediaUrl(u?: string) {
       </div>
     </div>
 
-    <div class="footer">
+    <div v-if="structuredMode" class="footer">
+      <el-button @click="router.push({ path: '/knowledge', query: activeKey ? { treeKey: activeKey } : {} })">返回编辑工作台</el-button>
+      <el-button :loading="loading" :disabled="!activeKey" @click="loadDoc(activeKey)">重新读取最新草稿</el-button>
+      <span class="muted">只读预览，不会修改知识树数据</span>
+    </div>
+    <div v-else class="footer">
       <el-button type="primary" :loading="saving" :disabled="!activeKey" @click="onSave">保存草稿</el-button>
       <el-button :loading="previewing" :disabled="!activeKey" @click="runPreview">更新思维导图</el-button>
       <el-button
@@ -546,7 +635,7 @@ function mediaUrl(u?: string) {
       <span v-if="publishProgress" class="muted">{{ publishProgress }}</span>
     </div>
 
-    <el-dialog v-model="createVisible" title="新建知识树" width="420px">
+    <el-dialog v-if="!structuredMode" v-model="createVisible" title="新建知识树" width="420px">
       <el-form label-width="80px">
         <el-form-item label="treeKey">
           <el-input v-model="createForm.treeKey" placeholder="如：申论" />
@@ -561,7 +650,7 @@ function mediaUrl(u?: string) {
       </template>
     </el-dialog>
 
-    <VersionDrawer
+    <VersionDrawer v-if="!structuredMode"
       v-model="versionDrawer"
       :tree-key="activeKey"
       :live-version="activeMeta?.liveVersion || 0"
@@ -617,6 +706,28 @@ function mediaUrl(u?: string) {
 }
 .left {
   gap: 8px;
+}
+.structured-source {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px;
+}
+.structured-note {
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+  line-height: 1.6;
+}
+.structured-note p {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+.structured-source :deep(.el-tree) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .preview-pane {
   height: calc(100vh - 280px);
