@@ -80,21 +80,25 @@ def validate_tree(value: Any, *, strict: bool = True) -> tuple[dict[str, Any] | 
         node_id = str(raw.get("id") or "")
         name = str(raw.get("title") or "").strip()
         where = f"{path}/{name}" if path else name
+
+        def add_node_issue(message: str, level: str = "error") -> None:
+            issues.append({"level": level, "message": f"{where}：{message}", "path": where, "nodeId": node_id})
+
         if not _ID_RE.fullmatch(node_id) or node_id == "root" or node_id in seen:
-            issues.append({"level": "error", "message": f"{where}：节点 ID 无效或重复"})
+            add_node_issue("节点 ID 无效或重复")
         seen.add(node_id)
         if not name or len(name) > 200:
-            issues.append({"level": "error", "message": f"{where}：标题须为 1–200 字"})
+            add_node_issue("标题须为 1–200 字")
         elif len(name) > 60:
-            issues.append({"level": "warning", "message": f"{where}：标题较长，手机上会换行"})
+            add_node_issue("标题较长，手机上会换行", "warning")
         blocks_raw = raw.get("blocks") or []
         if not isinstance(blocks_raw, list) or len(blocks_raw) > 40:
-            issues.append({"level": "error", "message": f"{where}：内容块格式无效或超过 40 个"})
+            add_node_issue("内容块格式无效或超过 40 个")
             blocks_raw = []
         blocks: list[dict[str, str]] = []
         for block in blocks_raw:
             if not isinstance(block, dict) or block.get("type") not in _BLOCK_TYPES:
-                issues.append({"level": "error", "message": f"{where}：不支持的内容块"})
+                add_node_issue("不支持的内容块")
                 continue
             typ = str(block["type"])
             cleaned = {"type": typ}
@@ -104,20 +108,23 @@ def validate_tree(value: Any, *, strict: bool = True) -> tuple[dict[str, Any] | 
             if typ == "text" and not cleaned.get("text"):
                 continue
             if typ == "formula" and (not cleaned.get("plain") or not cleaned.get("latex")):
-                issues.append({"level": "error" if strict else "warning", "message": f"{where}：公式须填写 LaTeX 和可读式"})
+                add_node_issue("公式须填写 LaTeX 和可读式", "error" if strict else "warning")
             if typ == "image" and not (cleaned.get("url", "").startswith("https://") or re.fullmatch(r"/uploads/knowledge-media/[a-f0-9]{32}\.(png|jpg)", cleaned.get("url", ""))):
-                issues.append({"level": "error" if strict else "warning", "message": f"{where}：图片须上传或使用 HTTPS 地址"})
+                add_node_issue("图片须上传或使用 HTTPS 地址", "error" if strict else "warning")
             if typ == "example" and not cleaned.get("question"):
-                issues.append({"level": "error" if strict else "warning", "message": f"{where}：例题缺少题干"})
+                add_node_issue("例题缺少题干", "error" if strict else "warning")
             blocks.append(cleaned)
         children_raw = raw.get("children") or []
         if not isinstance(children_raw, list):
             issues.append({"level": "error", "message": f"{where}：子节点必须是数组"})
             children_raw = []
         children = [n for child in children_raw if (n := clean_node(child, depth + 1, where))]
-        names = [n["title"] for n in children]
-        if len(names) != len(set(names)):
-            issues.append({"level": "error", "message": f"{where}：同级节点标题重复"})
+        child_names: set[str] = set()
+        for child in children:
+            if child["title"] in child_names:
+                child_path = f"{where}/{child['title']}" if where else child["title"]
+                issues.append({"level": "error", "message": f"{child_path}：同级节点标题重复", "path": child_path, "nodeId": child["id"]})
+            child_names.add(child["title"])
         return {"id": node_id, "title": name, "blocks": blocks, "children": children}
 
     roots_raw = value.get("children") or []
@@ -127,9 +134,11 @@ def validate_tree(value: Any, *, strict: bool = True) -> tuple[dict[str, Any] | 
     roots = [n for raw in roots_raw if (n := clean_node(raw, 0, ""))]
     if not roots:
         issues.append({"level": "error", "message": "至少需要一个一级分类"})
-    names = [n["title"] for n in roots]
-    if len(names) != len(set(names)):
-        issues.append({"level": "error", "message": "一级分类标题重复"})
+    root_names: set[str] = set()
+    for node in roots:
+        if node["title"] in root_names:
+            issues.append({"level": "error", "message": f"{node['title']}：一级分类标题重复", "path": node["title"], "nodeId": node["id"]})
+        root_names.add(node["title"])
     groups_raw = value.get("groups") or []
     groups: list[dict[str, Any]] = []
     if isinstance(groups_raw, list):

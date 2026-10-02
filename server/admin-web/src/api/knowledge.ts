@@ -8,7 +8,7 @@ export interface KnowledgeIssue {
   path?: string
 }
 
-export interface StructuredIssue { level: 'error' | 'warning'; message: string }
+export interface StructuredIssue { level: 'error' | 'warning'; message: string; path?: string; nodeId?: string }
 
 export interface MapNode {
   id: string

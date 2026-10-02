@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { ApiRequestError } from '@/api/http'
 import {
   activateKnowledgeVersion, createKnowledgeTree, fetchKnowledgeTrees,
   fetchStructuredKnowledge, previewStructuredKnowledge, publishKnowledgeTree,
@@ -130,7 +131,22 @@ async function flushSave() {
     } catch (error) {
       pending = true
       saveState.value = '保存失败，请检查内容后重试'
-      ElMessage.error(error instanceof Error ? error.message : '草稿保存失败')
+      const details = error instanceof ApiRequestError && error.data && typeof error.data === 'object'
+        ? (error.data as { issues?: StructuredIssue[] }).issues || []
+        : []
+      if (details.length) {
+        issues.value = details
+        const firstInvalid = details.find(issue => issue.level === 'error' && issue.nodeId)
+        if (firstInvalid?.nodeId) selectedId.value = firstInvalid.nodeId
+        const text = details.map((issue, index) => `${index + 1}. ${issue.path || '知识框架'}：${issue.message.replace(`${issue.path}：`, '')}`).join('\n')
+        void ElMessageBox.alert(text, '草稿保存失败：请按节点修正以下问题', {
+          type: 'error',
+          confirmButtonText: '知道了',
+          customClass: 'knowledge-save-error-dialog',
+        })
+      } else {
+        ElMessage.error(error instanceof Error ? error.message : '草稿保存失败')
+      }
     }
   })()
   try { await saving } finally { saving = null }

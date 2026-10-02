@@ -29,6 +29,7 @@ from app.services.knowledge_doc_service import (  # noqa: E402
     upsert_user_state,
 )
 from app.services.knowledge_structured import get_draft, save_draft as save_structured_draft  # noqa: E402
+from app.services.knowledge_structured import validate_tree  # noqa: E402
 
 Base.metadata.create_all(bind=engine)
 run_compat_migrations()
@@ -490,7 +491,6 @@ def test_legacy_node_user_fields_are_ignored_not_migrated():
 
 
 def test_all_archived_subjects_support_structured_publish():
-    from app.services.knowledge_structured import validate_tree
     directory = Path(__file__).resolve().parents[2] / 'docs/content/knowledge-framework'
     expected = {'判断推理': 245, '数量关系': 206, '申论': 535, '言语理解与表达': 101, '资料分析': 159}
     db = SessionLocal()
@@ -512,6 +512,23 @@ def test_all_archived_subjects_support_structured_publish():
             assert not err
     finally:
         db.close()
+
+
+def test_structured_validation_identifies_invalid_node_path_and_id():
+    draft = {
+        "schemaVersion": 2,
+        "title": "测试科目",
+        "children": [{
+            "id": "bad_node",
+            "title": "资料分析",
+            "blocks": [{"type": "image", "url": "not-a-url"}],
+            "children": [],
+        }],
+    }
+    _, issues = validate_tree(draft)
+    issue = next(item for item in issues if item.get("nodeId") == "bad_node")
+    assert issue["path"] == "资料分析"
+    assert "图片须上传或使用 HTTPS 地址" in issue["message"]
 
 
 def test_incomplete_formula_draft_is_saved_but_publish_blocked():
