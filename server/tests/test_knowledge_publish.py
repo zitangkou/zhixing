@@ -28,7 +28,7 @@ from app.services.knowledge_doc_service import (  # noqa: E402
     save_draft,
     upsert_user_state,
 )
-from app.services.knowledge_structured import get_draft, save_draft as save_structured_draft  # noqa: E402
+from app.services.knowledge_structured import get_draft, preview_markdown_import, save_draft as save_structured_draft  # noqa: E402
 from app.services.knowledge_structured import validate_tree  # noqa: E402
 
 Base.metadata.create_all(bind=engine)
@@ -529,6 +529,17 @@ def test_structured_validation_identifies_invalid_node_path_and_id():
     issue = next(item for item in issues if item.get("nodeId") == "bad_node")
     assert issue["path"] == "资料分析"
     assert "图片须上传或使用 HTTPS 地址" in issue["message"]
+
+
+def test_markdown_import_preview_converts_tree_without_persisting():
+    result = preview_markdown_import("# 资料分析\n\n## 增长率\n\n- 现期量\n  - 基期量\n")
+    assert result["valid"] is True
+    assert result["tree"]["title"] == "资料分析"
+    assert result["stats"]["nodeCount"] == 3
+    root = result["tree"]["children"][0]
+    assert root["title"] == "增长率"
+    assert root["children"][0]["title"] == "现期量"
+    assert root["children"][0]["children"][0]["title"] == "基期量"
 
 
 def test_incomplete_formula_draft_is_saved_but_publish_blocked():

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 from types import SimpleNamespace
 from typing import Any
 
@@ -14,6 +15,46 @@ from app.services.knowledge_md import parse_md
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 _BLOCK_TYPES = {"text", "formula", "image", "example"}
+
+
+def preview_markdown_import(markdown: str) -> dict[str, Any]:
+    """Parse Markdown into the structured draft shape without writing anything."""
+    parsed = parse_md(markdown, temp_id_prefix=f"im{secrets.token_hex(4)}")
+
+    def convert(node: Any) -> dict[str, Any]:
+        content = (node.content or "").strip()
+        return {
+            "id": node.id,
+            "title": node.title,
+            "blocks": [{"type": "text", "text": content}] if content else [],
+            "children": [convert(child) for child in node.children or []],
+        }
+
+    raw_tree = {
+        "schemaVersion": 2,
+        "title": parsed.title or "未命名知识框架",
+        "description": "",
+        "groups": [],
+        "children": [convert(node) for node in parsed.tree.children] if parsed.tree else [],
+    }
+    cleaned, structured_issues = validate_tree(raw_tree, strict=False)
+    markdown_issues = [
+        {
+            "level": issue.level,
+            "message": f"第 {issue.line} 行：{issue.message}",
+            "path": issue.path,
+            "code": issue.code,
+            "line": issue.line,
+        }
+        for issue in parsed.issues
+    ]
+    issues = markdown_issues + structured_issues
+    return {
+        "tree": cleaned or raw_tree,
+        "issues": issues,
+        "stats": parsed.stats,
+        "valid": not any(issue["level"] == "error" for issue in issues),
+    }
 
 
 def from_markdown(db: Session, tree: KnowledgeTree) -> dict[str, Any]:

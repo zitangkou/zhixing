@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css'
 import { ApiRequestError } from '@/api/http'
 import {
   activateKnowledgeVersion, createKnowledgeTree, fetchKnowledgeTrees,
-  fetchStructuredKnowledge, previewStructuredKnowledge, publishKnowledgeTree,
+  fetchStructuredKnowledge, previewStructuredKnowledge, previewStructuredMarkdown, publishKnowledgeTree,
   saveStructuredKnowledge, patchKnowledgeTree, uploadKnowledgeImage,
   type KnowledgeBlock, type KnowledgeTreeMeta, type StructuredIssue,
   type StructuredNode, type StructuredTree,
@@ -30,6 +30,13 @@ const loading = ref(false)
 const publishing = ref(false)
 const searchTree = ref('')
 const treeRef = ref<{ filter: (value: string) => void }>()
+const importVisible = ref(false)
+const importing = ref(false)
+const importMode = ref<'replace' | 'new'>('replace')
+const importFileName = ref('')
+const importPreview = ref<Awaited<ReturnType<typeof previewStructuredMarkdown>> | null>(null)
+const newTreeTitle = ref('')
+const newTreeKey = ref('')
 watch(searchTree, value => treeRef.value?.filter(value))
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let saving: Promise<void> | null = null
@@ -272,6 +279,80 @@ async function createSubject() {
     ElMessage.success('科目已创建，发布前学员不可见')
   } catch (error) { if (error !== 'cancel' && error !== 'close') ElMessage.error(error instanceof Error ? error.message : '创建失败') }
 }
+function openMarkdownImport() {
+  importMode.value = draft.value ? 'replace' : 'new'
+  importFileName.value = ''
+  importPreview.value = null
+  newTreeTitle.value = ''
+  newTreeKey.value = ''
+  importVisible.value = true
+}
+function suggestedTreeKey(title: string) {
+  return title.replace(/[^0-9A-Za-z_\-\u4e00-\u9fff]/g, '').slice(0, 32)
+}
+async function onMarkdownFileChange(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  importPreview.value = null
+  if (!file) return
+  importFileName.value = file.name
+  if (!file.name.toLowerCase().endsWith('.md')) { ElMessage.error('请选择 .md 文件'); return }
+  if (file.size > 1_000_000) { ElMessage.error('Markdown 文件不能超过 1MB'); return }
+  try {
+    const preview = await previewStructuredMarkdown(await file.text())
+    importPreview.value = preview
+    newTreeTitle.value = preview.tree.title
+    newTreeKey.value = suggestedTreeKey(preview.tree.title)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Markdown 解析失败')
+  }
+}
+const duplicateImportKey = computed(() => trees.value.some(tree => tree.treeKey === newTreeKey.value.trim()))
+async function confirmMarkdownImport() {
+  const preview = importPreview.value
+  if (!preview || importing.value) return
+  const errors = preview.issues.filter(issue => issue.level === 'error')
+  if (errors.length) { ElMessage.warning('请先修复 Markdown 结构错误，再导入'); return }
+  if (importMode.value === 'new') {
+    const key = newTreeKey.value.trim()
+    const title = newTreeTitle.value.trim()
+    if (!/^[0-9A-Za-z_\-\u4e00-\u9fff]{1,32}$/.test(key)) { ElMessage.warning('科目标识限 1–32 位中英文、数字、下划线或连字符'); return }
+    if (!title || title.length > 64) { ElMessage.warning('科目名称限 1–64 字'); return }
+    if (duplicateImportKey.value) { ElMessage.warning('该科目标识已存在，请修改标识或改为替换当前科目'); return }
+  } else if (!activeKey.value) {
+    ElMessage.warning('请先选择要替换的科目，或改为导入新科目'); return
+  }
+
+  importing.value = true
+  try {
+    await flushSave()
+    if (pending || saving) { ElMessage.warning('当前草稿尚未保存，请保存成功后重试导入'); return }
+    let targetKey = activeKey.value
+    let baseRevision = revision.value
+    if (importMode.value === 'replace') {
+      await ElMessageBox.confirm(
+        `将用「${preview.tree.title}」中的 ${preview.stats.nodeCount} 个节点替换「${activeMeta.value?.title || targetKey}」的当前草稿。已发布的线上版本不受影响。`,
+        '确认替换当前草稿', { type: 'warning', confirmButtonText: '替换草稿', cancelButtonText: '取消' },
+      )
+    } else {
+      targetKey = newTreeKey.value.trim()
+      await createKnowledgeTree({ treeKey: targetKey, title: newTreeTitle.value.trim() })
+      const created = await fetchStructuredKnowledge(targetKey)
+      baseRevision = created.draftRevision
+    }
+    const saved = await saveStructuredKnowledge(targetKey, {
+      ...preview.tree,
+      title: importMode.value === 'new' ? newTreeTitle.value.trim() : preview.tree.title,
+    }, baseRevision)
+    importVisible.value = false
+    await loadTrees(targetKey)
+    await loadDraft(targetKey)
+    ElMessage.success(`Markdown 已导入为结构化草稿（${saved.tree.children.length} 个一级节点）`)
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error instanceof Error ? error.message : 'Markdown 导入失败')
+  } finally {
+    importing.value = false
+  }
+}
 async function toggleVisibility(value: boolean) {
   if (!activeKey.value) return
   try { await patchKnowledgeTree(activeKey.value, { isVisible: value }); await loadTrees(activeKey.value) }
@@ -302,6 +383,7 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnloa
           <el-option v-for="item in trees" :key="item.treeKey" :label="item.title" :value="item.treeKey" />
         </el-select>
         <el-button @click="createSubject">新增科目</el-button>
+        <el-button v-if="draft" @click="openMarkdownImport">导入 Markdown</el-button>
         <span v-if="draft" class="status">{{ saveState }} · 线上 v{{ activeMeta?.liveVersion || '—' }}</span>
         <div class="top-spacer" />
         <el-button v-if="draft" type="primary" :loading="publishing" :disabled="loading" @click="onPublish">发布</el-button>
@@ -311,7 +393,40 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnloa
         <span>{{ nodeCount }} 个节点 · {{ issues.filter(i => i.level === 'error').length }} 项需处理</span>
         <el-switch :model-value="activeMeta?.isVisible || false" :disabled="!activeMeta?.liveVersion" active-text="学员可见" inactive-text="暂时隐藏" @change="toggleVisibility" />
       </div>
-    </div>
+  </div>
+
+    <el-dialog v-model="importVisible" title="导入 Markdown 知识结构" width="700px" destroy-on-close>
+      <el-alert
+        title="先解析并预览，再写入结构化草稿。此入口不会调用旧版 Markdown 覆盖接口。"
+        type="info" :closable="false" show-icon class="import-tip"
+      />
+      <label class="import-file-button"><input type="file" accept=".md,text/markdown" @change="onMarkdownFileChange" />选择 .md 文件</label>
+      <span v-if="importFileName" class="import-filename">{{ importFileName }}</span>
+      <template v-if="importPreview">
+        <el-divider content-position="left">导入方式</el-divider>
+        <el-radio-group v-model="importMode" :disabled="importing">
+          <el-radio value="new">导入为新科目</el-radio>
+          <el-radio value="replace" :disabled="!draft">替换当前科目草稿</el-radio>
+        </el-radio-group>
+        <el-alert v-if="importMode === 'replace'" :title="`目标科目：${activeMeta?.title || activeKey}。只替换草稿，线上已发布版本保留。`" type="warning" :closable="false" class="import-tip" />
+        <el-form v-else label-width="100px" class="import-form">
+          <el-form-item label="科目名称"><el-input v-model="newTreeTitle" maxlength="64" /></el-form-item>
+          <el-form-item label="科目标识"><el-input v-model="newTreeKey" maxlength="32" /><div v-if="duplicateImportKey" class="import-error">该标识已存在，请修改</div></el-form-item>
+        </el-form>
+        <div class="import-stats">{{ importPreview.stats.nodeCount }} 个节点 · {{ importPreview.stats.leafCount }} 个末级节点 · 最大深度 {{ Math.max(importPreview.stats.maxDepth + 1, 0) }} 层</div>
+        <div class="import-preview-tree"><el-tree :data="importPreview.tree.children" node-key="id" default-expand-all :props="{ label: 'title', children: 'children' }" /></div>
+        <div v-if="importPreview.issues.length" class="import-issues">
+          <div v-for="(issue, index) in importPreview.issues" :key="`${issue.code || ''}-${index}`" :class="issue.level">
+            {{ issue.message }}<span v-if="issue.path"> · {{ issue.path }}</span>
+          </div>
+        </div>
+        <el-alert v-else title="Markdown 结构检查通过，可以导入。" type="success" :closable="false" class="import-tip" />
+      </template>
+      <template #footer>
+        <el-button @click="importVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importing" :disabled="!importPreview || importPreview.issues.some(issue => issue.level === 'error')" @click="confirmMarkdownImport">确认导入为草稿</el-button>
+      </template>
+    </el-dialog>
 
     <el-empty v-if="!draft" description="选择或新增科目后开始维护" />
     <div v-else class="workspace">
@@ -399,5 +514,6 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnloa
 
 <style scoped>
 .knowledge-workbench{height:calc(100vh - 100px);min-height:620px;display:flex;flex-direction:column;gap:12px}.topbar{background:var(--el-bg-color);border:1px solid var(--el-border-color-lighter);border-radius:10px;padding:12px 16px}.top-main,.top-sub{display:flex;align-items:center;gap:10px}.top-sub{margin-top:9px;color:var(--el-text-color-secondary);font-size:12px}.subject-select{width:220px}.top-spacer{flex:1}.status,.hint{color:var(--el-text-color-secondary);font-size:12px}.workspace{flex:1;min-height:0;display:grid;grid-template-columns:minmax(300px,38%) 1fr;gap:12px}.tree-pane,.detail-pane{min-width:0;background:var(--el-bg-color);border:1px solid var(--el-border-color-lighter);border-radius:10px;min-height:0;display:flex;flex-direction:column;padding:14px}.pane-head,.blocks-head{display:flex;justify-content:space-between;align-items:center}.tree-search{margin:12px 0}.tree-view{flex:1;overflow:auto}.tree-actions{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--el-border-color-lighter);padding-top:12px}.tree-actions .el-button{margin:0}.detail-tabs{height:100%;display:flex;flex-direction:column}.detail-tabs :deep(.el-tabs__content){flex:1;min-height:0}.detail-tabs :deep(.el-tab-pane){height:100%}.editor-scroll{height:100%;overflow:auto;padding:5px 5px 20px}.editor-scroll h3{margin:4px 0 18px}.block-editor{border:1px solid var(--el-border-color);border-radius:9px;padding:12px;margin:12px 0;display:flex;flex-direction:column;gap:10px}.block-top{display:flex;justify-content:space-between;align-items:center}.add-block{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}.add-block .el-button{margin:0}.formula-preview{padding:12px;background:var(--el-fill-color-light);overflow:auto}.issues{margin-top:20px;font-size:12px}.issues>div{padding:5px}.issues .error{color:var(--el-color-danger)}.issues .warning{color:var(--el-color-warning)}.phone-wrap{height:100%;overflow:auto;background:var(--el-fill-color-light);display:flex;justify-content:center;padding:10px}.phone{width:390px;max-width:100%;flex-shrink:0;min-height:620px;background:#f3f4f6;color:#1a1a1a;box-shadow:0 5px 24px #0001;border-radius:22px;overflow:hidden}.phone-hero{background:linear-gradient(155deg,#d0021b,#8b0000);color:white;padding:22px 20px}.phone-hero small{font-size:12px}.phone-hero h2{margin:18px 0 7px}.phone-hero p{font-size:12px;line-height:1.6}.phone-body{padding:15px}.phone-crumb{font-size:12px;color:#d0021b;white-space:nowrap;overflow:auto;margin-bottom:14px}.phone-crumb span{cursor:pointer}.phone-tabs{display:flex;background:white;border-radius:9px;padding:4px;margin-bottom:12px}.phone-tabs span{flex:1;text-align:center;padding:7px;cursor:pointer;font-size:12px}.phone-tabs .active{background:#fbeaec;color:#d0021b;border-radius:7px}.phone-body h3{font-size:15px;margin:14px 0 9px}.phone-row{background:white;border:1px solid #eee;border-radius:10px;padding:12px;margin:8px 0;cursor:pointer;font-size:13px;line-height:1.4}.phone-row small{display:block;color:#888;margin-top:5px}.phone-meta{color:#888;font-size:12px;line-height:1.6;margin:12px 0}.phone-block,.phone-overview{padding:12px;background:white;border-radius:10px;margin:9px 0;line-height:1.6;font-size:13px}.phone-block img{max-width:100%}.phone-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.phone-chips span{background:#f5f5f5;border-radius:6px;padding:5px 7px;cursor:pointer;font-size:11px}
+.import-tip,.import-form{margin:12px 0}.import-file-button{display:inline-flex;align-items:center;border:1px solid var(--el-border-color);border-radius:6px;padding:8px 14px;color:var(--el-text-color-regular);cursor:pointer}.import-file-button:hover{color:var(--el-color-primary);border-color:var(--el-color-primary)}.import-file-button input{display:none}.import-filename{margin-left:10px;color:var(--el-text-color-secondary);font-size:13px}.import-stats{margin:14px 0;color:var(--el-text-color-secondary);font-size:13px}.import-preview-tree{max-height:230px;overflow:auto;border:1px solid var(--el-border-color-lighter);border-radius:6px;padding:8px}.import-issues{max-height:150px;overflow:auto;margin-top:12px;font-size:12px}.import-issues>div{padding:4px 0}.import-issues .error,.import-error{color:var(--el-color-danger)}.import-issues .warning{color:var(--el-color-warning)}.import-error{font-size:12px;line-height:20px}
 @media(max-width:1100px){.knowledge-workbench{height:auto}.top-main{flex-wrap:wrap}.subject-select{width:180px}.workspace{grid-template-columns:minmax(0,1fr)}.tree-pane{height:320px}.detail-pane{height:700px}.top-sub{flex-wrap:wrap}.phone-wrap{box-sizing:border-box}}
 </style>

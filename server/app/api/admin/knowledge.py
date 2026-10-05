@@ -27,6 +27,10 @@ class StructuredPreviewBody(BaseModel):
     treeKey: str = ""
 
 
+class StructuredMarkdownImportPreviewBody(BaseModel):
+    md: str
+
+
 def _admin_id(admin) -> str:
     return getattr(admin, "id", "") or ""
 
@@ -144,6 +148,18 @@ def admin_knowledge_structured_preview(
     snapshot, flat, stats = with_paths(cleaned)
     diff = docs.preview_node_diff(db, body.treeKey, flat) if body.treeKey else None
     return ApiResponse.ok({"tree": snapshot, "issues": issues, "stats": stats, "nodeDiffPreview": diff})
+
+
+@router.post("/knowledge/structured-markdown-preview")
+def admin_knowledge_structured_markdown_preview(
+    body: StructuredMarkdownImportPreviewBody,
+    _admin=Depends(require_permission("knowledge:write")),
+):
+    if len(body.md) > 1_000_000:
+        return ApiResponse.fail("Markdown 文件不能超过 1MB", code=400)
+    from app.services.knowledge_structured import preview_markdown_import
+
+    return ApiResponse.ok(preview_markdown_import(body.md))
 
 
 @router.put("/knowledge/trees/{tree_key}/doc")

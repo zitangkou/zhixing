@@ -8,7 +8,7 @@ export interface KnowledgeIssue {
   path?: string
 }
 
-export interface StructuredIssue { level: 'error' | 'warning'; message: string; path?: string; nodeId?: string }
+export interface StructuredIssue { level: 'error' | 'warning'; message: string; path?: string; nodeId?: string; code?: string; line?: number }
 
 export interface MapNode {
   id: string
@@ -172,6 +172,12 @@ export function saveStructuredKnowledge(treeKey: string, tree: StructuredTree, b
 export function previewStructuredKnowledge(tree: StructuredTree, treeKey = '') {
   return getData<{ tree: MapNode; nodeDiffPreview: { added: number; archived: number; kept: number } | null; issues: StructuredIssue[]; stats: { nodeCount: number; leafCount: number; maxDepth: number } }>(
     http.post('/admin/knowledge/structured-preview', { tree, treeKey }),
+  )
+}
+
+export function previewStructuredMarkdown(md: string) {
+  return getData<{ tree: StructuredTree; issues: StructuredIssue[]; stats: { nodeCount: number; leafCount: number; maxDepth: number }; valid: boolean }>(
+    http.post('/admin/knowledge/structured-markdown-preview', { md }),
   )
 }
 
