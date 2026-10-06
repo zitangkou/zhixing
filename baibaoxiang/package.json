@@ -1,0 +1,17 @@
+{
+  "name": "ai-toolbox-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI百宝箱微信小程序前端",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.5",
+    "typescript": "^5.7.2",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {}
+}
