@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#f7f8fa" />
+  <title>知库 · AI知识库</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="page active" id="home-page">
+      <header class="topbar">
+        <div class="brand"><div class="brand-mark">知</div><div><strong>知库</strong><span>AI 知识库</span></div></div>
+        <button class="avatar" aria-label="个人中心" data-page="mine">林</button>
+      </header>
+      <div class="welcome"><div><span class="eyebrow">KNOWLEDGE, IN YOUR HAND</span><h1>把知识，<em>读得更深</em></h1><p>精选资料 · 安全分享 · AI 洞察</p></div><div class="welcome-art"><i></i><b>✳</b><span>知</span></div></div>
+      <label class="search"><span>⌕</span><input id="search-input" placeholder="搜索知识、主题或关键词" /><kbd>⌘ K</kbd></label>
+      <div class="search-results" id="search-results"></div>
+      <div class="section-heading"><div><span class="eyebrow">CURATED FOR YOU</span><h2>为你精选</h2></div><button class="text-button" data-action="all">全部 <span>›</span></button></div>
+      <article class="feature-card" data-doc="ai-research">
+        <div class="feature-top"><span class="tag tag-light">本周精选</span><button class="bookmark" aria-label="收藏">☆</button></div>
+        <div class="feature-copy"><span class="doc-type light-type"><b>MD</b> 深度专题</span><h3>AI 时代的<br/>知识工作流</h3><p>从信息捕获到知识复用，构建你的第二大脑。</p><div class="byline"><span class="mini-avatar">知</span><span>知库研究组</span><span>·</span><span>12 分钟</span></div></div>
+        <div class="feature-shape shape-one"></div><div class="feature-shape shape-two"></div><div class="feature-index">01</div>
+      </article>
+      <div class="quick-stats"><div><b>1,286</b><span>精选知识</span></div><i></i><div><b>32</b><span>本周更新</span></div><i></i><div><b>98%</b><span>内容可信</span></div></div>
+      <div class="section-heading compact"><div><span class="eyebrow">TRENDING NOW</span><h2>热门文档</h2></div><button class="text-button" data-action="all">查看全部 <span>›</span></button></div>
+      <div class="chips"><button class="chip active" data-filter="全部">全部</button><button class="chip" data-filter="AI">AI</button><button class="chip" data-filter="商业">商业</button><button class="chip" data-filter="设计">设计</button></div>
+      <div class="doc-list" id="doc-list"></div>
+      <div class="section-heading compact recommendation"><div><span class="eyebrow">BASED ON YOUR INTEREST</span><h2>猜你喜欢</h2></div><button class="text-button" data-action="refresh">换一批 <span>↻</span></button></div>
+      <div class="recommend-card" data-doc="learning-system"><div class="rec-art"><span>思</span><i>✳</i></div><div class="rec-copy"><span class="doc-type"><b>PDF</b> 方法论</span><h3>搭建个人学习系统</h3><p>把碎片时间变成长期复利</p><div class="doc-meta"><span>知库精选</span><span>·</span><span>8 分钟</span><span class="access-pill">定向可读</span></div></div><span class="arrow">›</span></div>
+      <footer class="page-footer">知库 · 让知识有序流动</footer>
+    </section>
+    <section class="page" id="mine-page">
+      <header class="topbar"><div class="brand"><div class="brand-mark">知</div><div><strong>我的</strong><span>个人知识空间</span></div></div><button class="icon-button" data-action="notifications">♧</button></header>
+      <div class="user-card"><div class="user-main"><div class="user-avatar">林</div><div><h1>林知远 <span class="member-badge">PRO</span></h1><p>知行会员 · 2026.12.31 到期</p></div><span class="arrow">›</span></div><div class="user-stats"><div><b>18</b><span>已收藏</span></div><div><b>06</b><span>最近阅读</span></div><div><b>03</b><span>我的分享</span></div></div></div>
+      <div class="section-heading compact mine-heading"><div><span class="eyebrow">YOUR LIBRARY</span><h2>我的知识库</h2></div><button class="text-button" data-action="all">全部 <span>›</span></button></div>
+      <div class="library-grid"><button data-action="favorites"><span class="library-icon coral">♡</span><b>我的收藏</b><small>18 篇文档</small></button><button data-action="history"><span class="library-icon blue">◷</span><b>最近阅读</b><small>继续上次学习</small></button><button data-action="shares"><span class="library-icon violet">↗</span><b>我的分享</b><small>管理分享权限</small></button><button data-action="downloads"><span class="library-icon green">⇩</span><b>离线资料</b><small>3 份可用</small></button></div>
+      <div class="section-heading compact security-heading"><div><span class="eyebrow">SHARING & SECURITY</span><h2>分享与安全</h2></div></div>
+      <div class="settings-card"><button data-action="share"><span class="setting-icon coral">↗</span><span class="setting-copy"><b>定向分享</b><small>设置查看人、有效期与次数</small></span><span class="arrow">›</span></button><button data-action="permissions"><span class="setting-icon blue">▣</span><span class="setting-copy"><b>阅读权限</b><small>只读模式、水印与访问控制</small></span><span class="arrow">›</span></button><button data-action="privacy"><span class="setting-icon violet">♧</span><span class="setting-copy"><b>隐私与安全</b><small>登录设备、账号保护</small></span><span class="arrow">›</span></button></div>
+      <div class="section-heading compact other-heading"><div><span class="eyebrow">PREFERENCES</span><h2>相关配置</h2></div></div>
+      <div class="settings-card"><button data-action="appearance"><span class="setting-icon amber">◐</span><span class="setting-copy"><b>外观与阅读</b><small>主题、字号、阅读偏好</small></span><span class="setting-value">跟随系统</span><span class="arrow">›</span></button><button data-action="notifications"><span class="setting-icon green">♢</span><span class="setting-copy"><b>消息通知</b><small>内容更新与分享提醒</small></span><span class="arrow">›</span></button><button data-action="about"><span class="setting-icon gray">i</span><span class="setting-copy"><b>关于知库</b><small>版本 1.0.0 · 帮助与反馈</small></span><span class="arrow">›</span></button></div>
+      <div class="membership"><span>✳</span><div><b>让好知识持续为你服务</b><small>查看会员权益与订阅方案</small></div><button data-action="membership">了解会员 <span>›</span></button></div>
+      <footer class="page-footer">知库 · 让知识有序流动</footer>
+    </section>
+    <nav class="tabbar"><button class="tab active" data-page="home"><span class="tab-symbol">⌂</span><b>首页</b></button><button class="tab" data-page="mine"><span class="tab-symbol">♙</span><b>我的</b></button></nav>
+  </main>
+  <div class="overlay" id="overlay" aria-hidden="true"><div class="sheet"><div class="sheet-grabber"></div><button class="sheet-close" data-action="close">×</button><div id="sheet-content"></div></div></div>
+  <script src="./app.js"></script>
+</body>
+</html>
