@@ -305,7 +305,7 @@ async function rollback(release: WechatReplyRelease) {
 onMounted(loadState)
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .reply-page { display: flex; flex-direction: column; gap: 16px; }
 .intro-head, .section-head, .rule-top, .button-row, .status-line, .bottom-actions { display: flex; align-items: center; }
 .intro-head, .section-head { justify-content: space-between; gap: 16px; }
