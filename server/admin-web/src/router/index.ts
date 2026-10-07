@@ -47,6 +47,12 @@ const router = createRouter({
           meta: { title: '账号运营', permissions: ['content_ops:read'] },
         },
         {
+          path: 'wechat-replies',
+          name: 'wechat-replies',
+          component: () => import('@/views/wechatReplies/Index.vue'),
+          meta: { title: '公众号消息回复', permissions: ['wechat_reply:read'] },
+        },
+        {
           path: 'theory-learning',
           name: 'theory-learning',
           component: () => import('@/views/theoryLearning/Index.vue'),

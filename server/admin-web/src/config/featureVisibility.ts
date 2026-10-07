@@ -4,6 +4,7 @@ const VISIBLE_PATHS = new Set([
   '/today',
   '/articles',
   '/categories',
+  '/wechat-replies',
   '/rmrb/articles',
   '/rmrb/term-categories',
   '/rmrb/skeletons',

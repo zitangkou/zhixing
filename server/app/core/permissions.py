@@ -31,6 +31,9 @@ PERMISSIONS = {
     "xingce:write": "导入行测真题",
     "content_ops:read": "查看账号运营内容",
     "content_ops:write": "管理账号运营内容",
+    "wechat_reply:read": "查看公众号回复配置",
+    "wechat_reply:write": "编辑公众号回复草稿",
+    "wechat_reply:publish": "发布或回退公众号回复配置",
 }
 
 ROLE_PERMISSIONS: dict[str, list[str]] = {
@@ -57,6 +60,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "events:write",
         "content_ops:read",
         "content_ops:write",
+        "wechat_reply:read",
+        "wechat_reply:write",
         "feedback:read",
         "feedback:write",
         "xingce:read",
@@ -75,6 +80,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "corpus:read",
         "events:read",
         "content_ops:read",
+        "wechat_reply:read",
         "feedback:read",
         "xingce:read",
     ],

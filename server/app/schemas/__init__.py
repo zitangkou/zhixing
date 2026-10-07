@@ -84,3 +84,12 @@ from app.schemas.question_bank import (
     QuestionVersionOut,
     ReconciliationReport,
 )
+from app.schemas.wechat_reply import (
+    WechatKeywordRule,
+    WechatReplyConfig,
+    WechatReplyPreviewIn,
+    WechatReplyPreviewOut,
+    WechatReplyReleaseOut,
+    WechatReplyStateOut,
+    WechatReplyValidationOut,
+)

@@ -57,6 +57,10 @@ def seed_if_empty(db: Session) -> None:
 
     ensure_content_ops_defaults(db)
 
+    from app.services.wechat_reply_service import ensure_default_reply_configuration
+
+    ensure_default_reply_configuration(db)
+
     _merge_role_permissions(db)
 
 

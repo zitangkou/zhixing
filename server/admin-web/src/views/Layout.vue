@@ -121,6 +121,7 @@ const crumbs = computed(() => {
     const title = ROUTE_TITLES[path] || ''
     return title ? ['时政考点', title] : []
   }
+  if (path === '/wechat-replies') return ['公众号运营', '消息回复']
   const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
   if (['/users', '/feedbacks', '/xingce', '/settings', '/roles'].includes(path)) {
     return title ? ['系统', title] : ['系统']

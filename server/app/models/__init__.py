@@ -24,6 +24,7 @@ from app.models.ziliao import ZiliaoFormula, ZiliaoPracticeLog, ZiliaoQuestionTy
 from app.models.misc import ActivityEvent, ExamCountdown, Feedback
 from app.models.product import DailyLearningTask, TheoryLearningEntry, UserDailyTaskProgress, UserGuestLearningRecord
 from app.models.content_ops import ContentOperationTemplate, ContentPublishPackage, ContentReviewRecord, EntryAttributionEvent
+from app.models.wechat_reply import WechatReplyConfiguration, WechatReplyRelease
 from app.models.question_bank import (
     ExamPaperUnified,
     ImportBatch,

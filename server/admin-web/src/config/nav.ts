@@ -44,6 +44,14 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: 'official-account',
+    title: '公众号运营',
+    icon: ChatDotRound,
+    children: [
+      { path: '/wechat-replies', title: '消息回复', icon: ChatDotRound, permissions: ['wechat_reply:read'] },
+    ],
+  },
+  {
     key: 'rmrb',
     title: '时评精拆',
     icon: Notebook,
@@ -114,6 +122,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/articles': '文章管理',
   '/articles/new': '新建文章',
   '/content-ops': '账号运营',
+  '/wechat-replies': '公众号消息回复',
   '/theory-learning': '时政学习入口',
   '/categories': '分类管理',
   '/users': '用户管理',

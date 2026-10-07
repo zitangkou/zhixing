@@ -3,16 +3,19 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import PlainTextResponse
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.database import get_db
 from app.services.wechat_official_service import (
     build_text_reply,
     decide_reply_once,
     parse_message,
     verify_signature,
 )
+from app.services.wechat_reply_service import load_active_reply_config
 
 router = APIRouter(prefix="/wechat", tags=["公众号回调"])
 
@@ -50,6 +53,7 @@ async def receive_callback(
     timestamp: str = Query(min_length=1, max_length=32),
     nonce: str = Query(min_length=1, max_length=128),
     encrypt_type: str | None = Query(default=None, max_length=16),
+    db: Session = Depends(get_db),
 ):
     settings = _require_config()
     _verify(settings.wechat_official_token, signature, timestamp, nonce)
@@ -59,7 +63,13 @@ async def receive_callback(
         message = parse_message(await request.body())
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    decision = decide_reply_once(message, settings.wechat_official_public_base_url)
+    reply_config, release_id = load_active_reply_config(db)
+    decision = decide_reply_once(
+        message,
+        settings.wechat_official_public_base_url,
+        config=reply_config,
+        cache_namespace=release_id,
+    )
     if decision.text is None:
         return PlainTextResponse("success")
     payload = build_text_reply(message, decision.text)
