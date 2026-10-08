@@ -1,17 +1,6 @@
-export type Tool = {
-  id: string
-  name: string
-  description: string
-  category: string
-  icon: string
-  tint: string
-  badge?: string
-  hot?: boolean
-}
-
 export const categories = ['全部', 'AI绘图', '文件处理', '语音文字', '效率助手']
 
-export const tools: Tool[] = [
+export const tools = [
   { id: 'image-prompt', name: '灵感绘图', description: '一句话，把脑海变成画面', category: 'AI绘图', icon: '✦', tint: 'violet', badge: '推荐', hot: true },
   { id: 'photo-style', name: '照片换风格', description: '动漫、油画、黏土都能玩', category: 'AI绘图', icon: '◈', tint: 'pink', hot: true },
   { id: 'remove-bg', name: '智能去背景', description: '一键抠图，主体更突出', category: 'AI绘图', icon: '▧', tint: 'blue' },

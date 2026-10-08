@@ -57,7 +57,7 @@ async function loadDocument() {
 onMounted(loadDocument)
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @import '../../styles/tokens.scss';
 .zk-reader-page { position:relative; min-height:100vh; padding:0 20px 25px; background:$bg; }
 .zk-reader-header { padding:19px 0 17px; }

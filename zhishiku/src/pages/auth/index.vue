@@ -46,7 +46,7 @@ function openTerms() { void Taro.navigateTo({ url: '/pages/legal/terms' }) }
 function toggleAgreed() { agreed.value = !agreed.value }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @import '../../styles/tokens.scss';
 .zk-auth-page { min-height:100vh; padding:25px 24px; background:$bg; }
 .zk-auth-brand { display:flex; align-items:center; gap:10px; color:$ink; font-size:13px; font-weight:700; }

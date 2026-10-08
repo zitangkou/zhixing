@@ -2,6 +2,7 @@ node_modules/
 dist/
 .swc/
 .DS_Store
+**/project.private.config.json
 *.log
 .idea/
 .vscode/

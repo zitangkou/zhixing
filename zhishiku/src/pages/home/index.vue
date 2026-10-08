@@ -32,13 +32,13 @@
     </view>
     <view v-else class="zk-feature-card zk-feature-empty">
       <view class="zk-feature-tag">知库 · AI 知识库</view>
-      <view class="zk-feature-title">让好知识，<br />随时可以找到</view>
+      <view class="zk-feature-title">让好知识，<text class="zk-feature-title-line">随时可以找到</text></view>
       <view class="zk-feature-desc">登录后浏览精选文档，或上传自己的资料。</view>
       <button class="zk-feature-cta" @tap="openAuth">登录后开始阅读 ›</button>
       <view class="zk-feature-index">知</view>
     </view>
 
-    <view class="zk-stats"><view><text>{{ docs.length }}</text><small>精选知识</small></view><i></i><view><text>MD · PDF</text><small>常用格式</small></view><i></i><view><text>只读</text><small>安全阅读</small></view></view>
+    <view class="zk-stats"><view><text>{{ docs.length }}</text><text class="zk-stat-label">精选知识</text></view><view class="zk-stats-divider"></view><view><text>MD · PDF</text><text class="zk-stat-label">常用格式</text></view><view class="zk-stats-divider"></view><view><text>只读</text><text class="zk-stat-label">安全阅读</text></view></view>
 
     <view class="zk-section-head zk-trending-head">
       <view><text class="zk-eyebrow">ALL DOCUMENTS</text><text class="zk-section-title">全部文档</text></view>
@@ -107,7 +107,7 @@ usePullDownRefresh(async () => { try { await loadCatalog() } finally { Taro.stop
 useReachBottom(() => { /* pagination is added with the catalog admin's paging controls */ })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @import '../../styles/tokens.scss';
 .zk-page { min-height: 100vh; padding: 0 20px 30px; background: $bg; }
 .zk-topbar { height: 68px; display:flex; align-items:center; justify-content:space-between; }
@@ -136,6 +136,7 @@ useReachBottom(() => { /* pagination is added with the catalog admin's paging co
 .zk-feature-tag { display:inline-block; padding:5px 8px; border-radius:6px; background:rgba(255,255,255,.15); font-size:9px; }
 .zk-feature-kind { position:relative; z-index:1; margin-top:15px; color:rgba(255,255,255,.68); font-size:9px; }
 .zk-feature-title { position:relative; z-index:1; max-width:75%; margin-top:8px; font-size:22px; font-weight:700; line-height:1.35; }
+.zk-feature-title-line { display:block; }
 .zk-feature-desc { position:relative; z-index:1; max-width:82%; margin-top:6px; color:rgba(255,255,255,.73); font-size:10px; line-height:1.5; }
 .zk-feature-footer { position:relative; z-index:1; margin-top:13px; color:rgba(255,255,255,.8); font-size:9px; }
 .zk-feature-footer text { margin:0 5px; }
@@ -144,8 +145,8 @@ useReachBottom(() => { /* pagination is added with the catalog admin's paging co
 .zk-stats { display:flex; align-items:center; justify-content:space-around; margin:15px 2px 0; }
 .zk-stats view { display:flex; flex-direction:column; gap:3px; }
 .zk-stats text { font-size:13px; font-weight:700; }
-.zk-stats small { color:#a1a3a9; font-size:9px; }
-.zk-stats i { height:24px; border-left:1px solid #e7e8eb; }
+.zk-stat-label { color:#a1a3a9; font-size:9px; }
+.zk-stats-divider { height:24px; border-left:1px solid #e7e8eb; }
 .zk-trending-head { margin-top:26px; }
 .zk-chips { width:100%; white-space:nowrap; margin:12px 0 7px; }
 .zk-chip { display:inline-block; margin-right:8px; padding:7px 14px; border:1px solid $border; border-radius:18px; color:$muted; font-size:10px; }

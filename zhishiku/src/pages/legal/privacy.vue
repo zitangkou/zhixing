@@ -46,7 +46,7 @@
 definePageConfig({ navigationBarTitleText: '隐私政策' })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @import '../../styles/tokens.scss';
 .zk-legal-page { min-height:100vh; padding:24px 20px 40px; background:$bg; }
 .zk-legal-eyebrow,.zk-legal-title,.zk-legal-meta,.zk-legal-heading,.zk-legal-paragraph,.zk-legal-notice text { display:block; }

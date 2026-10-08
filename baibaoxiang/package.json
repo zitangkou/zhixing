@@ -1,17 +1,34 @@
 {
   "name": "ai-toolbox-miniapp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "AI百宝箱微信小程序前端",
+  "description": "AI百宝箱微信小程序",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build"
+    "sync:config": "node scripts/sync-project-config.mjs",
+    "predev:weapp": "npm run sync:config",
+    "dev:weapp": "taro build --type weapp --watch",
+    "prebuild:weapp": "npm run sync:config",
+    "build:weapp": "taro build --type weapp"
   },
   "dependencies": {
-    "@vitejs/plugin-vue": "^5.2.1",
-    "vite": "^6.0.5",
-    "typescript": "^5.7.2",
-    "vue": "^3.5.13"
+    "@tarojs/components": "4.0.9",
+    "@tarojs/helper": "4.0.9",
+    "@tarojs/plugin-framework-vue3": "4.0.9",
+    "@tarojs/plugin-platform-h5": "4.0.9",
+    "@tarojs/plugin-platform-weapp": "4.0.9",
+    "@tarojs/runtime": "4.0.9",
+    "@tarojs/shared": "4.0.9",
+    "@tarojs/taro": "4.0.9",
+    "vue": "3.5.39"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@tarojs/cli": "4.0.9",
+    "babel-preset-taro": "^4.0.9",
+    "sass": "1.77.8",
+    "typescript": "5.4.5",
+    "@tarojs/vite-runner": "4.0.9",
+    "vite": "^4.5.14"
+  }
 }

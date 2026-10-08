@@ -1,17 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
+    "target": "ES2017",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": true,
+    "moduleResolution": "Node",
     "jsx": "preserve",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
+    "strict": true,
+    "noEmit": true,
     "esModuleInterop": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "types": ["@tarojs/taro"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "config/**/*.ts"]
 }

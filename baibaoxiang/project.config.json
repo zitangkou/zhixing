@@ -1,10 +1,10 @@
 {
   "miniprogramRoot": "dist/",
-  "projectname": "知库",
-  "description": "知库 AI 知识库",
-  "appid": "wxaa1db80480bcfe6f",
+  "projectname": "ai-toolbox",
+  "description": "AI工具聚合助手，涵盖AI绘图、文件处理、录音转文字与日常效率工具。",
+  "appid": "wx5d75ef07d8241d84",
   "setting": {
-    "urlCheck": true,
+    "urlCheck": false,
     "es6": true,
     "enhance": true,
     "compileHotReLoad": true,

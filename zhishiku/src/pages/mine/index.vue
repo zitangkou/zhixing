@@ -99,7 +99,7 @@ onMounted(loadMyDocs)
 useDidShow(() => { syncAuth(); void loadMyDocs() })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @import '../../styles/tokens.scss';
 .zk-mine-page { min-height:100vh; padding:0 20px 32px; background:$bg; }
 .zk-mine-top { display:flex; align-items:center; justify-content:space-between; padding:25px 0 17px; }

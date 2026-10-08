@@ -44,10 +44,9 @@ def list_library_catalog(
     category: str = Query(default="", max_length=64),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    user: AppUser = Depends(get_app_user),
     db: Session = Depends(get_db),
 ):
-    del user  # Authentication is required; only published entries are exposed by the service.
+    # Published catalog entries are intentionally open in the first mini-program release.
     rows = documents.list_catalog_documents(db, q, category, limit=limit, offset=offset)
     return ApiResponse.ok([LibraryDocumentOut.model_validate(row) for row in rows])
 
@@ -55,10 +54,8 @@ def list_library_catalog(
 @router.get("/library/catalog/{document_id}")
 def get_library_catalog_document(
     document_id: str,
-    user: AppUser = Depends(get_app_user),
     db: Session = Depends(get_db),
 ):
-    del user
     document = documents.get_catalog_document(db, document_id)
     if not document:
         return ApiResponse.fail("文档不存在或尚未发布", code=404)
