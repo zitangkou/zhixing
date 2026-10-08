@@ -69,6 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Reading,
     children: [
       { path: '/knowledge', title: '知识框架', icon: Collection, permissions: ['knowledge:read'] },
+      { path: '/knowledge-library', title: '知库文档', icon: Document, permissions: ['knowledge:read'] },
       { path: '/plan', title: '学习计划', icon: Calendar, permissions: ['plan:read'] },
       { path: '/exam', title: '试卷题库', icon: Tickets, permissions: ['exam:read'] },
       { path: '/question-bank/questions', title: '题目资产', icon: Collection, permissions: ['exam:read'] },
@@ -129,6 +130,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/feedbacks': '反馈建议',
   '/xingce': '行测管理',
   '/knowledge': '知识框架',
+  '/knowledge-library': '知库文档',
   '/plan': '学习计划',
   '/exam': '试卷题库',
   '/question-bank/questions': '题目资产',

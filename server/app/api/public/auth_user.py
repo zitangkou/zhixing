@@ -48,9 +48,13 @@ def _wechat_login_error(status_code: int, message: str) -> JSONResponse:
 
 
 @router.post("/auth/wechat/login")
-def app_wechat_login(body: AppWechatLoginBody, db: Session = Depends(get_db)):
+def app_wechat_login(
+    body: AppWechatLoginBody,
+    product=Depends(get_product_context),
+    db: Session = Depends(get_db),
+):
     """小程序 wx.login code 换会话。未配置 AppId/AppSecret 时返回 503。"""
-    user, err = login_with_wechat_code(db, body.code)
+    user, err = login_with_wechat_code(db, body.code, product_key=product.key)
     if err or not user:
         return _wechat_login_error(
             err.status_code if err else 400,

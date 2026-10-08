@@ -5,6 +5,7 @@ from app.api.admin.auth_admin import router as auth_admin_router
 from app.api.admin.categories import router as categories_router
 from app.api.admin.exam import router as exam_router
 from app.api.admin.knowledge import router as knowledge_router
+from app.api.admin.library_documents import router as library_documents_router
 from app.api.admin.misc import router as misc_router
 from app.api.admin.plan import router as plan_router
 from app.api.admin.questions import router as questions_router
@@ -32,6 +33,7 @@ router.include_router(settings_router)
 router.include_router(theory_learning_router)
 router.include_router(roles_router)
 router.include_router(knowledge_router)
+router.include_router(library_documents_router)
 router.include_router(plan_router)
 router.include_router(exam_router)
 router.include_router(rmrb_router)

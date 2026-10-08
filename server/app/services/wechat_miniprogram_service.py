@@ -28,9 +28,10 @@ class WechatLoginError(Exception):
         super().__init__(message)
 
 
-def _exchange_code(code: str) -> str:
+def _exchange_code(code: str, product_key: str = "general") -> str:
     settings = get_settings()
-    if not settings.miniprogram_login_configured:
+    app_id, app_secret = settings.miniprogram_credentials(product_key)
+    if not app_id or not app_secret:
         raise WechatLoginError(503, "微信登录未配置")
 
     js_code = code.strip()
@@ -38,8 +39,8 @@ def _exchange_code(code: str) -> str:
         raise WechatLoginError(400, "微信登录码无效或已过期")
 
     params = {
-        "appid": settings.miniprogram_app_id.strip(),
-        "secret": settings.miniprogram_app_secret.strip(),
+        "appid": app_id,
+        "secret": app_secret,
         "js_code": js_code,
         "grant_type": "authorization_code",
     }
@@ -85,9 +86,11 @@ def _exchange_code(code: str) -> str:
     return openid
 
 
-def login_with_wechat_code(db: Session, code: str) -> tuple[AppUser | None, WechatLoginError | None]:
+def login_with_wechat_code(
+    db: Session, code: str, product_key: str = "general"
+) -> tuple[AppUser | None, WechatLoginError | None]:
     try:
-        openid = _exchange_code(code)
+        openid = _exchange_code(code, product_key)
     except WechatLoginError as exc:
         return None, exc
 
@@ -102,7 +105,7 @@ def login_with_wechat_code(db: Session, code: str) -> tuple[AppUser | None, Wech
         username=None,
         password_hash=None,
         openid=openid,
-        nickname="杜衡阁学员",
+        nickname="知库用户" if product_key == "zhiku" else "杜衡阁学员",
         points=0,
     )
     db.add(user)

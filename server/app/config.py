@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     allow_register: bool = True
     # 多产品：旧客户端不传 Header 时继续使用综合版。
     default_product_key: str = "general"
-    enabled_product_keys: str = "general"
+    enabled_product_keys: str = "general,zhiku"
     # 知识框架本地目录（开发可用 Obsidian；生产留空则走 data/knowledge + 管理端上传）
     knowledge_kb_dir: str = ""
     # 杜衡阁公众号基础回调。密钥只允许通过服务器环境变量注入。
@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # 微信小程序一键登录（jscode2session）。与公众号 AppId 分开配置。
     miniprogram_app_id: str = ""
     miniprogram_app_secret: str = ""
+    # 知库是独立小程序，使用自己的 AppId/AppSecret；不与主应用共用 openid 凭据。
+    zhiku_miniprogram_app_id: str = ""
+    zhiku_miniprogram_app_secret: str = ""
 
     llm_enabled: bool = False
     llm_api_key: str = ""
@@ -57,6 +60,11 @@ class Settings(BaseSettings):
     @property
     def miniprogram_login_configured(self) -> bool:
         return bool(self.miniprogram_app_id.strip() and self.miniprogram_app_secret.strip())
+
+    def miniprogram_credentials(self, product_key: str = "general") -> tuple[str, str]:
+        if product_key == "zhiku":
+            return self.zhiku_miniprogram_app_id.strip(), self.zhiku_miniprogram_app_secret.strip()
+        return self.miniprogram_app_id.strip(), self.miniprogram_app_secret.strip()
 
 
 @lru_cache

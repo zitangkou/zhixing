@@ -1,0 +1,11 @@
+@import './styles/tokens.scss';
+
+page {
+  min-height: 100%;
+  background: $bg;
+  color: $ink;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+}
+
+button { font-family: inherit; }

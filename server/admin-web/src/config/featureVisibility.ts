@@ -14,6 +14,7 @@ const VISIBLE_PATHS = new Set([
   '/feedbacks',
   '/xingce',
   '/knowledge',
+  '/knowledge-library',
   '/settings',
   '/roles',
 ])

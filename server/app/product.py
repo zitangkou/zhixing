@@ -54,6 +54,19 @@ PRODUCTS: dict[str, ProductContext] = {
             ProductTab("profile", "我的", "/pages/user/index"),
         ),
     ),
+    "zhiku": ProductContext(
+        key="zhiku",
+        name="知库",
+        short_name="知库",
+        theme_key="amber",
+        home_mode="knowledge-library",
+        daily_target_min=0,
+        enabled_modules=("library", "profile"),
+        tabs=(
+            ProductTab("library", "首页", "/pages/home/index"),
+            ProductTab("profile", "我的", "/pages/mine/index"),
+        ),
+    ),
 }
 
 

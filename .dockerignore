@@ -3,6 +3,7 @@ server/__pycache__/
 server/**/__pycache__/
 server/data/
 server/.env
+zhishiku/.env
 node_modules/
 dist/
 .git/

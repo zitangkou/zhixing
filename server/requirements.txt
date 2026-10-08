@@ -8,4 +8,5 @@ bcrypt==4.2.1
 httpx==0.28.1
 beautifulsoup4==4.12.3
 python-multipart==0.0.20
+pypdf==6.19.0
 pytest>=8.0.0

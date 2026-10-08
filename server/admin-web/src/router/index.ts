@@ -77,6 +77,12 @@ const router = createRouter({
           meta: { title: '知识框架', permissions: ['knowledge:read'] },
         },
         {
+          path: 'knowledge-library',
+          name: 'knowledge-library',
+          component: () => import('@/views/knowledge/Library.vue'),
+          meta: { title: '知库文档', permissions: ['knowledge:read'] },
+        },
+        {
           path: 'knowledge/legacy',
           name: 'knowledge-legacy',
           component: () => import('@/views/knowledge/LegacyIndex.vue'),

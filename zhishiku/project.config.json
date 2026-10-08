@@ -1,0 +1,15 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "知库",
+  "description": "知库 AI 知识库",
+  "appid": "wxaa1db80480bcfe6f",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "compileHotReLoad": true,
+    "postcss": false,
+    "minified": true
+  },
+  "compileType": "miniprogram"
+}

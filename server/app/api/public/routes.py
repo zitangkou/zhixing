@@ -11,6 +11,7 @@ from app.api.public.exam import router as exam_router
 from app.api.public.entry_attribution import router as entry_attribution_router
 from app.api.public.guest_learning import router as guest_learning_router
 from app.api.public.knowledge import router as knowledge_router
+from app.api.public.library_documents import router as library_documents_router
 from app.api.public.manual_wrong import router as manual_wrong_router
 from app.api.public.plan import router as plan_router
 from app.api.public.practice import router as practice_router
@@ -31,6 +32,7 @@ router.include_router(plan_router)
 router.include_router(practice_router)
 router.include_router(product_router)
 router.include_router(knowledge_router)
+router.include_router(library_documents_router)
 router.include_router(manual_wrong_router)
 router.include_router(exam_router)
 router.include_router(entry_attribution_router)

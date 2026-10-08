@@ -70,6 +70,7 @@ from app.schemas.ziliao import (
     ZiliaoQuestionTypeOut, ZiliaoQuestionTypeUpdate, ZiliaoTrickCreate, ZiliaoTrickOut, ZiliaoTrickUpdate, ZiliaoWeakTypeOut,
 )
 from app.schemas.countdown import ExamCountdownOut, ExamCountdownUpsert
+from app.schemas.library_document import LibraryDocumentDetailOut, LibraryDocumentOut
 from app.schemas.data import DataImportIn
 from app.schemas.product import DailyTaskListOut, DailyTaskProgressBody, DailyTaskProgressOut, DailyLearningTaskOut, TopicItem, TopicListOut
 from app.schemas.content_ops import ContentPackageGenerateFromArticle, ContentPublishPackageCreate, ContentPublishPackageUpdate, ContentPublishStatusBody, EntryAttributionEventCreate
