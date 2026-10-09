@@ -20,6 +20,8 @@ from app.api.public.rmrb import router as rmrb_router
 from app.api.public.wechat_official import router as wechat_official_router
 from app.api.public.xingce import router as xingce_router
 from app.api.public.ziliao import router as ziliao_router
+from app.api.public.image_styles import router as image_styles_router
+from app.api.public.image_generations import router as image_generations_router
 
 router = APIRouter(
     prefix="/api",
@@ -45,3 +47,5 @@ router.include_router(xingce_router)
 router.include_router(ziliao_router)
 router.include_router(countdown_router)
 router.include_router(data_router)
+router.include_router(image_styles_router)
+router.include_router(image_generations_router)

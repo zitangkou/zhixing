@@ -36,3 +36,39 @@ export function saveRemoteProfile(nickname) {
 export function sendFeedback(content) {
   return request('/api/feedback', { method: 'POST', data: { content } })
 }
+
+export function fetchImageStyles() {
+  return request('/api/image-styles')
+}
+
+export async function generateImageStyle(filePath, styleId) {
+  if (!baseUrl) throw new Error('后端地址尚未配置')
+  const token = storage.token()
+  if (!token) throw new Error('请先登录后再生成图片')
+  const upload = await Taro.uploadFile({
+    url: `${baseUrl}/api/image-generations`,
+    filePath,
+    name: 'file',
+    formData: { style_id: styleId },
+    timeout: 180000,
+    header: { Authorization: `Bearer ${token}`, 'X-Product-Key': 'general' },
+  })
+  let body = upload.data
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body) } catch { throw new Error('图片服务返回格式异常') }
+  }
+  if (upload.statusCode < 200 || upload.statusCode >= 300 || body?.code !== 0) {
+    throw new Error(body?.message || '图片生成失败，请稍后重试')
+  }
+  const resultId = body?.data?.resultId
+  if (!resultId) throw new Error('图片服务没有返回生成结果')
+  const result = await Taro.downloadFile({
+    url: `${baseUrl}/api/image-generations/${resultId}/result`,
+    header: { Authorization: `Bearer ${token}`, 'X-Product-Key': 'general' },
+    timeout: 60000,
+  })
+  if (result.statusCode < 200 || result.statusCode >= 300 || !result.tempFilePath) {
+    throw new Error('生成结果下载失败，请稍后重试')
+  }
+  return result.tempFilePath
+}

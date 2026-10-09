@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import {
   Calendar,
   Collection,
+  Cpu,
   DataAnalysis,
   Document,
   Folder,
@@ -99,6 +100,16 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: 'tool-config',
+    title: '工具配置',
+    icon: Folder,
+    children: [
+      { path: '/tool-config/copy', title: '文案配置', icon: Document, permissions: ['setting:read'] },
+      { path: '/tool-config/images', title: '图片配置', icon: Collection, permissions: ['setting:read'] },
+      { path: '/tool-config/models', title: '模型配置', icon: Cpu, permissions: ['setting:read'] },
+    ],
+  },
+  {
     key: 'system',
     title: '系统',
     icon: Setting,
@@ -129,6 +140,9 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/users': '用户管理',
   '/feedbacks': '反馈建议',
   '/xingce': '行测管理',
+  '/tool-config/copy': '文案配置',
+  '/tool-config/images': '图片配置',
+  '/tool-config/models': '模型配置',
   '/knowledge': '知识框架',
   '/knowledge-library': '知库文档',
   '/plan': '学习计划',

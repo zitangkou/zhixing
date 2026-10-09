@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-v4-flash"
     llm_timeout_seconds: int = 120
 
+    # Image generation provider credentials. Values are server-only and must never be returned by admin APIs.
+    dashscope_api_key: str = ""
+    openai_image_api_key: str = ""
+    ark_api_key: str = ""
+
     # 语音识别：默认 none → 前端用免费 Web Speech；可设 aliyun / tencent
     asr_provider: str = "none"
     asr_prefer_cloud: bool = False

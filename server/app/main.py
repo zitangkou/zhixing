@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -25,6 +26,12 @@ async def lifespan(_app: FastAPI):
     db = SessionLocal()
     try:
         seed_if_empty(db)
+        try:
+            from app.services.image_style_service import ensure_image_style_setting
+
+            ensure_image_style_setting(db)
+        except Exception as e:
+            print(f"[image-style] 风格配置初始化失败: {e}")
         # 知识框架改为管理端草稿/发布；禁止启动时用 md 覆盖 DB
         # 启动时确保 plan 模板有默认数据
         try:
@@ -44,7 +51,22 @@ async def lifespan(_app: FastAPI):
     finally:
         db.close()
 
-    yield
+    from app.services.image_generation_service import cleanup_expired_image_results
+
+    async def cleanup_image_results_loop():
+        while True:
+            cleanup_expired_image_results()
+            await asyncio.sleep(60 * 60)
+
+    cleanup_task = asyncio.create_task(cleanup_image_results_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

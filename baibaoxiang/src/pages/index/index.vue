@@ -1,13 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue'
 import Taro from '@tarojs/taro'
-import { categories, tools } from '../../data/tools.js'
+import { tools } from '../../data/tools.js'
 import { storage } from '../../utils/storage'
 import { loginWithWechat, saveRemoteProfile, sendFeedback } from '../../utils/api'
 
 const activeTab = ref('home')
-const activeCategory = ref('全部')
 const searchText = ref('')
+const showAllTools = ref(false)
 const toast = ref('')
 const view = ref('main')
 const profile = ref(storage.profile())
@@ -15,20 +15,16 @@ const user = ref(storage.user())
 const favorites = ref(storage.favorites())
 const history = ref(storage.history())
 const settings = ref(storage.settings())
+const statusBarHeight = Taro.getWindowInfo().statusBarHeight || 20
 const editNickname = ref(profile.value.nickname || user.value?.nickname || '')
 const feedbackText = ref('')
 let toastTimer
 
 const visibleTools = computed(() => {
   const query = searchText.value.trim().toLowerCase()
-  return tools.filter((tool) => {
-    const categoryMatch = activeCategory.value === '全部' || tool.category === activeCategory.value
-    const queryMatch = !query || `${tool.name} ${tool.description} ${tool.category}`.toLowerCase().includes(query)
-    return categoryMatch && queryMatch
-  })
+  return tools.filter((tool) => !query || `${tool.name} ${tool.description} ${tool.category}`.toLowerCase().includes(query))
 })
 const recommended = tools.filter((tool) => tool.badge === '推荐' || tool.hot).slice(0, 3)
-const popular = tools.filter((tool) => tool.hot)
 const favoriteTools = computed(() => tools.filter((tool) => favorites.value.includes(tool.id)))
 const quickFavorites = computed(() => favoriteTools.value.slice(0, 2))
 const displayName = computed(() => user.value?.nickname || profile.value.nickname || '访客用户')
@@ -48,6 +44,10 @@ function openTool(tool) {
   const next = [{ id: tool.id, date: new Date().toISOString() }, ...history.value.filter((item) => item.id !== tool.id)].slice(0, 30)
   history.value = next
   storage.saveHistory(next)
+  if (tool.id === 'photo-style') {
+    Taro.navigateTo({ url: '/pages/photo-style/index' })
+    return
+  }
   notify(`${tool.name}正在准备中`)
 }
 function toggleFavorite(tool) {
@@ -59,7 +59,6 @@ function toggleFavorite(tool) {
   notify(next.includes(tool.id) ? '已加入收藏' : '已取消收藏')
 }
 function onSearchInput(event) { searchText.value = event.detail.value }
-function chooseCategory(category) { activeCategory.value = category }
 function openPage(page) { view.value = page }
 function backToMain() { view.value = 'main' }
 
@@ -129,22 +128,24 @@ async function submitFeedback() {
 
 <template>
   <view class="app-shell">
-    <view v-if="view === 'main' && activeTab === 'home'" class="home-page">
+    <view v-if="view === 'main' && activeTab === 'home'" class="home-page" :style="{ paddingTop: `${statusBarHeight + 8}px` }">
       <view class="topbar">
         <view class="brand-lockup"><view class="brand-mark"><view>✦</view></view><view><view class="brand-name">AI百宝箱</view><view class="brand-caption">让 AI 帮你多一点</view></view></view>
-        <button class="button-reset avatar-button" aria-label="个人中心" @tap="activeTab = 'mine'">{{ displayInitial }}</button>
       </view>
       <view class="welcome-block"><view class="eyebrow"><text class="sparkle">✦</text> YOUR DAILY AI TOOLKIT</view><view class="welcome-title">把想法交给 AI，
 <text>把时间留给生活。</text></view><view class="welcome-desc">图片、文件、语音与日常灵感，一个百宝箱就够了。</view></view>
-      <view class="search-box" aria-label="搜索工具"><text class="search-icon">⌕</text><input :value="searchText" @input="onSearchInput" placeholder="搜一搜，想用什么 AI 工具？" /><button v-if="searchText" class="button-reset clear-search" @tap="searchText = ''">×</button><view v-else class="search-shortcut">AI</view></view>
-      <view class="hero-card" @tap="openTool(recommended[0])"><view class="hero-copy"><view class="hero-label"><view class="hero-dot"></view> 本周灵感推荐</view><view class="hero-title">把脑海里的画面
-变成一张好图</view><view class="hero-desc">从一句描述开始，探索你的创作灵感</view><button class="button-reset hero-cta">开始创作 <text>↗</text></button></view><view class="hero-art" aria-hidden="true"><view class="art-orbit orbit-one"></view><view class="art-orbit orbit-two"></view><view class="art-sun"></view><view class="art-moon">✦</view><view class="art-card card-back"></view><view class="art-card card-front"><text>✺</text></view><view class="art-spark spark-one">✦</view><view class="art-spark spark-two">✧</view></view></view>
-      <view class="section-block"><view class="section-heading"><view><view class="section-kicker">PICKED FOR YOU</view><view class="section-title">为你推荐</view></view><button class="button-reset text-link" @tap="activeCategory = '全部'">全部工具 <text>→</text></button></view><view class="recommend-grid"><view v-for="tool in recommended" :key="tool.id" class="recommend-card"><button class="button-reset recommend-open" @tap="openTool(tool)"><view class="tool-icon" :class="`tint-${tool.tint}`">{{ tool.icon }}</view><view v-if="tool.badge" class="mini-badge">{{ tool.badge }}</view><view class="recommend-name">{{ tool.name }}</view><view class="recommend-desc">{{ tool.description }}</view></button><button class="button-reset favorite-toggle" :aria-label="favorites.includes(tool.id) ? '取消收藏' : '收藏工具'" @tap="toggleFavorite(tool)">{{ favorites.includes(tool.id) ? '★' : '☆' }}</button></view></view></view>
-      <view class="section-block directory-block"><view class="section-heading"><view><view class="section-kicker">EXPLORE TOOLS</view><view class="section-title">发现工具</view></view><view class="tool-count">{{ visibleTools.length }} 个工具</view></view><scroll-view scroll-x class="category-row"><button v-for="category in categories" :key="category" class="button-reset category-chip" :class="{ selected: activeCategory === category }" @tap="chooseCategory(category)">{{ category }}</button></scroll-view><view v-if="visibleTools.length" class="tool-list"><view v-for="tool in visibleTools" :key="tool.id" class="tool-row"><button class="button-reset tool-main" @tap="openTool(tool)"><view class="tool-icon row-icon" :class="`tint-${tool.tint}`">{{ tool.icon }}</view><view class="tool-info"><view class="tool-name">{{ tool.name }} <text v-if="tool.badge" class="row-badge">{{ tool.badge }}</text></view><view class="tool-desc">{{ tool.description }}</view></view><view class="tool-arrow">↗</view></button><button class="button-reset favorite-toggle" :aria-label="favorites.includes(tool.id) ? '取消收藏' : '收藏工具'" @tap="toggleFavorite(tool)">{{ favorites.includes(tool.id) ? '★' : '☆' }}</button></view></view><view v-else class="empty-state"><view>⌕</view><view>没有找到相关工具</view><view>试试其他关键词或分类</view></view></view>
+      <view class="search-box" aria-label="搜索工具"><text class="search-icon">⌕</text><input :value="searchText" @input="onSearchInput" placeholder="搜索你需要的 AI 工具" /><button v-if="searchText" class="button-reset clear-search" @tap="searchText = ''">×</button><view v-else class="search-shortcut">AI</view></view>
+      <view v-if="searchText" class="section-block search-results"><view class="section-heading"><view><view class="section-kicker">SEARCH RESULTS</view><view class="section-title">搜索结果</view></view><view class="tool-count">{{ visibleTools.length }} 个工具</view></view><view v-if="visibleTools.length" class="tool-list"><view v-for="tool in visibleTools" :key="tool.id" class="tool-row"><button class="button-reset tool-main" @tap="openTool(tool)"><view class="tool-icon row-icon" :class="`tint-${tool.tint}`">{{ tool.icon }}</view><view class="tool-info"><view class="tool-name">{{ tool.name }}</view><view class="tool-desc">{{ tool.description }}</view></view><view class="tool-arrow">↗</view></button><button class="button-reset favorite-toggle" :aria-label="favorites.includes(tool.id) ? '取消收藏' : '收藏工具'" @tap="toggleFavorite(tool)">{{ favorites.includes(tool.id) ? '★' : '☆' }}</button></view></view><view v-else class="empty-state"><view class="empty-search">⌕</view><view class="empty-title">没有找到相关工具</view><view class="empty-desc">试试其他关键词</view></view></view>
+      <template v-else>
+      <view class="hero-card" @tap="openTool(tools.find((tool) => tool.id === 'photo-style'))"><view class="hero-copy"><view class="hero-label"><view class="hero-dot"></view> 本周灵感推荐</view><view class="hero-title">给照片换种风格
+留住熟悉的画面</view><view class="hero-desc">选择照片，看看不同风格的表达</view><button class="button-reset hero-cta">试试照片换风格 <text>↗</text></button></view><view class="hero-art" aria-hidden="true"><view class="art-orbit orbit-one"></view><view class="art-orbit orbit-two"></view><view class="art-sun"></view><view class="art-moon">✦</view><view class="art-card card-back"></view><view class="art-card card-front"><text>✺</text></view><view class="art-spark spark-one">✦</view><view class="art-spark spark-two">✧</view></view></view>
+      <view class="section-block"><view class="section-heading"><view><view class="section-kicker">PICKED FOR YOU</view><view class="section-title">为你推荐</view></view><button class="button-reset text-link" @tap="showAllTools = !showAllTools">{{ showAllTools ? '收起工具' : '全部工具' }} <text>{{ showAllTools ? '↑' : '→' }}</text></button></view><view class="recommend-grid"><view v-for="tool in recommended" :key="tool.id" class="recommend-card"><button class="button-reset recommend-open" @tap="openTool(tool)"><view class="tool-icon" :class="`tint-${tool.tint}`">{{ tool.icon }}</view><view class="recommend-name">{{ tool.name }}</view><view class="recommend-desc">{{ tool.description }}</view></button><button class="button-reset favorite-toggle" :aria-label="favorites.includes(tool.id) ? '取消收藏' : '收藏工具'" @tap="toggleFavorite(tool)">{{ favorites.includes(tool.id) ? '★' : '☆' }}</button></view></view></view>
+      <view v-if="showAllTools" class="section-block directory-block"><view class="section-heading"><view><view class="section-kicker">ALL TOOLS</view><view class="section-title">全部工具</view></view><view class="tool-count">{{ tools.length }} 个工具</view></view><view class="tool-list"><view v-for="tool in tools" :key="tool.id" class="tool-row"><button class="button-reset tool-main" @tap="openTool(tool)"><view class="tool-icon row-icon" :class="`tint-${tool.tint}`">{{ tool.icon }}</view><view class="tool-info"><view class="tool-name">{{ tool.name }} <text v-if="tool.badge" class="row-badge">{{ tool.badge }}</text></view><view class="tool-desc">{{ tool.description }}</view></view><view class="tool-arrow">↗</view></button><button class="button-reset favorite-toggle" :aria-label="favorites.includes(tool.id) ? '取消收藏' : '收藏工具'" @tap="toggleFavorite(tool)">{{ favorites.includes(tool.id) ? '★' : '☆' }}</button></view></view></view>
+      </template>
       <view class="home-footer"><text>✦</text> 好用的 AI，装进一个小小百宝箱</view>
     </view>
 
-    <view v-else-if="view === 'main'" class="mine-page">
+    <view v-else-if="view === 'main'" class="mine-page" :style="{ paddingTop: `${statusBarHeight + 18}px` }">
       <view class="mine-top"><view><view class="section-kicker">YOUR SPACE</view><view class="mine-heading">我的</view></view><button class="button-reset settings-button" @tap="openPage('settings')">⚙</button></view>
       <view class="profile-card"><view class="profile-avatar">{{ displayInitial }}<view class="online-dot"></view></view><view class="profile-copy"><view class="profile-name">{{ displayName }}</view><view class="profile-tagline">{{ user ? '微信账号已登录' : '访客模式 · 数据仅保存在本机' }}</view></view><button class="button-reset profile-edit" @tap="editProfile">编辑资料 <text>›</text></button></view>
       <view v-if="!user" class="login-card"><view><view class="login-title">体验模式</view><view class="login-desc">当前体验版可浏览目录、编辑本机昵称、收藏和查看记录</view></view><text>无需登录</text></view>
@@ -154,7 +155,7 @@ async function submitFeedback() {
       <view class="version-label">AI 百宝箱 <text>·</text> 版本 1.0.0</view>
     </view>
 
-    <view v-else class="subpage">
+    <view v-else class="subpage" :style="{ paddingTop: `${statusBarHeight + 8}px` }">
       <view class="subpage-top"><button class="button-reset back-button" @tap="backToMain">‹</button><view>{{ currentPageTitle }}</view></view>
       <view v-if="view === 'profile'" class="panel"><view class="field-label">昵称</view><input class="form-input" :value="editNickname" maxlength="32" placeholder="请输入昵称" @input="editNickname = $event.detail.value" /><view class="form-note">昵称仅用于本机展示；登录后会同步到账号资料。</view><button class="button-reset primary-action" @tap="saveProfile">保存资料</button><button v-if="user" class="button-reset secondary-action" @tap="logout">退出登录</button><view class="privacy-short">头像昵称等微信资料不会在此自动获取；需要你主动填写。</view></view>
       <view v-else-if="view === 'settings'" class="panel"><view class="setting-row"><view><view class="setting-title">消息提醒</view><view class="form-note">当前版本暂不发送推送通知</view></view><switch :checked="settings.reminders" color="#7057e8" @change="toggleSetting('reminders')" /></view><view class="setting-row"><view><view class="setting-title">紧凑列表</view><view class="form-note">偏好仅保存在当前设备</view></view><switch :checked="settings.compactMode" color="#7057e8" @change="toggleSetting('compactMode')" /></view><button class="button-reset secondary-action danger-action" @tap="clearLocalData">清理本地数据</button><button class="button-reset text-action" @tap="openPage('privacy')">查看隐私说明</button></view>
@@ -164,7 +165,7 @@ async function submitFeedback() {
       <view v-else-if="view === 'feedback'" class="panel"><view class="field-label">意见或问题</view><textarea class="feedback-input" maxlength="500" :value="feedbackText" placeholder="请描述你希望改进的地方（最多 500 字）" @input="feedbackText = $event.detail.value" /><view class="form-note">体验版暂未开放在线提交，请通过体验邀请方提供的渠道反馈；请勿填写敏感个人信息。</view></view>
     </view>
 
-    <view v-if="view === 'main'" class="tabbar"><button class="button-reset" :class="{ active: activeTab === 'home' }" @tap="activeTab = 'home'"><view class="tab-icon">⌂</view><view>首页</view></button><button class="button-reset" :class="{ active: activeTab === 'mine' }" @tap="activeTab = 'mine'"><view class="tab-icon">◉</view><view>我的</view></button></view>
+    <view v-if="view === 'main'" class="tabbar"><button class="button-reset tab-item" :class="{ active: activeTab === 'home' }" :style="{ color: activeTab === 'home' ? '#7057e8' : '#85869a', background: activeTab === 'home' ? '#f2efff' : 'transparent' }" @tap="activeTab = 'home'"><view class="tab-content"><view class="tab-icon tab-symbol home-symbol" :class="{ active: activeTab === 'home' }"><view class="home-base"><view class="home-door"></view></view></view><view>首页</view></view></button><button class="button-reset tab-item" :class="{ active: activeTab === 'mine' }" :style="{ color: activeTab === 'mine' ? '#7057e8' : '#85869a', background: activeTab === 'mine' ? '#f2efff' : 'transparent' }" @tap="activeTab = 'mine'"><view class="tab-content"><view class="tab-icon tab-symbol user-symbol" :class="{ active: activeTab === 'mine' }"><view class="user-head"></view><view class="user-body"></view></view><view>我的</view></view></button></view>
     <view v-if="toast" class="toast-message">{{ toast }}</view>
   </view>
 </template>

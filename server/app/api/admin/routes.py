@@ -22,6 +22,8 @@ from app.api.admin.analytics import router as analytics_router
 from app.api.admin.generation import router as generation_router
 from app.api.admin.xingce import router as xingce_router
 from app.api.admin.wechat_replies import router as wechat_replies_router
+from app.api.admin.image_styles import router as image_styles_router
+from app.api.admin.image_models import router as image_models_router
 
 router = APIRouter(prefix="/admin", tags=["管理后台"])
 router.include_router(auth_admin_router)
@@ -46,3 +48,5 @@ router.include_router(analytics_router)
 router.include_router(generation_router)
 router.include_router(xingce_router)
 router.include_router(wechat_replies_router)
+router.include_router(image_styles_router)
+router.include_router(image_models_router)

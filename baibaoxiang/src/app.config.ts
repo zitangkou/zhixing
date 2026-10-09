@@ -1,5 +1,5 @@
 export default defineAppConfig({
-  pages: ['pages/index/index'],
+  pages: ['pages/index/index', 'pages/photo-style/index'],
   window: {
     navigationBarTitleText: 'AI百宝箱',
     navigationBarBackgroundColor: '#f5f6fb',

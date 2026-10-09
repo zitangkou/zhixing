@@ -237,6 +237,28 @@ const router = createRouter({
           meta: { title: '反馈建议', permissions: ['feedback:read'] },
         },
         {
+          path: 'tool-config/copy',
+          name: 'tool-copy-config',
+          component: () => import('@/views/toolConfig/Copy.vue'),
+          meta: { title: '文案配置', permissions: ['setting:read'] },
+        },
+        {
+          path: 'tool-config/images',
+          name: 'image-styles',
+          component: () => import('@/views/imageStyles/Index.vue'),
+          meta: { title: '图片配置', permissions: ['setting:read'] },
+        },
+        {
+          path: 'tool-config/models',
+          name: 'image-model-config',
+          component: () => import('@/views/toolConfig/ImageModels.vue'),
+          meta: { title: '模型配置', permissions: ['setting:read'] },
+        },
+        {
+          path: 'image-styles',
+          redirect: '/tool-config/images',
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/settings/Index.vue'),
