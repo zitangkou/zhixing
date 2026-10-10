@@ -32,6 +32,7 @@ http.interceptors.request.use((config) => {
 
 http.interceptors.response.use(
   (res) => {
+    if (res.config.responseType === 'blob') return res
     const data = res.data as ApiRes<unknown>
     if (data.code !== 0) {
       return Promise.reject(new ApiRequestError(data.message || '请求失败', {

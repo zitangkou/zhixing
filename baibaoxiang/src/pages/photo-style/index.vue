@@ -13,6 +13,8 @@ const step = ref('choose')
 const consented = ref(false)
 const generating = ref(false)
 const resultPath = ref('')
+const generationStatus = ref('queued')
+const generationError = ref('')
 const selectedStyle = computed(() => styles.value.find((item) => item.id === selectedStyleId.value) || null)
 
 async function loadStyles() {
@@ -79,16 +81,17 @@ async function generate() {
   }
   if (generating.value || !selectedStyle.value || !imagePath.value) return
   generating.value = true
-  Taro.showLoading({ title: '正在转换…', mask: true })
+  generationError.value = ''
+  generationStatus.value = 'queued'
   try {
     if (!await ensureLogin()) return
-    resultPath.value = await generateImageStyle(imagePath.value, selectedStyle.value.id)
+    resultPath.value = await generateImageStyle(imagePath.value, selectedStyle.value.id, (status) => { generationStatus.value = status })
     Taro.showToast({ title: '转换完成', icon: 'success' })
   } catch (error) {
-    Taro.showToast({ title: error?.message || '图片生成失败，请稍后重试', icon: 'none', duration: 2800 })
+    generationError.value = error?.message || '图片生成失败，请稍后重试'
+    Taro.showToast({ title: '图片生成失败', icon: 'none', duration: 2800 })
   } finally {
     generating.value = false
-    Taro.hideLoading()
   }
 }
 
@@ -133,7 +136,10 @@ onMounted(loadStyles)
       </view>
       <view v-if="loading" class="state-card">正在加载已上架的图片风格…</view>
       <view v-else-if="loadError" class="state-card error-state">
-        <view>{{ loadError }}</view>
+        <view class="error-message-row">
+          <view class="error-icon">!</view>
+          <view class="error-message">{{ loadError }}</view>
+        </view>
         <button class="button-reset retry-button" @tap="loadStyles">重新加载</button>
       </view>
       <view v-else-if="!styles.length" class="state-card">暂时没有可用图片风格。请稍后再来，或检查后台是否已启用模型和对应风格。</view>
@@ -172,6 +178,18 @@ onMounted(loadStyles)
         <view class="privacy-copy">开始转换后，照片会上传至服务端并发送给所选模型服务处理。生成结果在服务器临时保存 24 小时，之后需重新生成。请勿上传他人或涉及隐私的照片。</view>
       </view>
       <view v-if="!resultPath" class="consent-row" @tap="consented = !consented"><view class="consent-box" :class="{ checked: consented }">{{ consented ? '✓' : '' }}</view><view>我已了解照片将上传至服务器和模型服务处理</view></view>
+      <view v-if="generating" class="generation-status" aria-live="polite">
+        <view class="generation-spinner" />
+        <view>
+          <view class="generation-title">{{ generationStatus === 'queued' ? '任务已提交，正在排队…' : 'AI 正在处理图片…' }}</view>
+          <view class="generation-note">生成时间可能较长，请保持页面打开。完成后会立即提示。</view>
+        </view>
+      </view>
+      <view v-if="generationError && !generating" class="generation-error">
+        <view class="generation-error-title">生成未完成</view>
+        <view>{{ generationError }}</view>
+        <view class="generation-error-note">任务失败原因已记录，管理员可在后台「工具配置 → 图片生成记录」查看。</view>
+      </view>
       <button v-if="!resultPath" class="button-reset primary-action" :disabled="generating || !selectedStyle || !consented" @tap="generate">{{ generating ? '正在生成…' : '开始转换' }}</button>
       <view v-else class="result-panel">
         <view class="result-title">转换完成 · {{ selectedStyle?.name }}</view>
@@ -233,4 +251,10 @@ onMounted(loadStyles)
 .result-image { width: 100%; height: 280px; background: #f7f7fa; }
 .secondary-action { width: 100%; height: 42px; margin-top: 10px; border-radius: 11px; background: #fff; color: #6354b0; font-size: 11px; }
 .text-action { display: block; margin: 14px auto 0; color: #89889b; font-size: 10px; }
+.generation-status, .generation-error { display: flex; gap: 12px; align-items: flex-start; margin: 16px 0; padding: 16px; border: 1px solid #e6e0ff; border-radius: 14px; background: #f8f6ff; color: #55469a; font-size: 14px; line-height: 1.6; }
+.generation-spinner { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 2px; border: 2px solid #d7ceff; border-top-color: #7053e8; border-radius: 50%; animation: generation-spin 0.8s linear infinite; }
+.generation-title, .generation-error-title { font-weight: 600; }
+.generation-note, .generation-error-note { margin-top: 4px; color: #8b879d; font-size: 12px; }
+.generation-error { display: block; border-color: #f3d4d7; background: #fff8f8; color: #a83e4b; overflow-wrap: anywhere; }
+@keyframes generation-spin { to { transform: rotate(360deg); } }
 </style>

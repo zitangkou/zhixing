@@ -53,6 +53,15 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: 'rmrb-archive',
+    title: '人民日报',
+    icon: Reading,
+    children: [
+      { path: '/rmrb-archive/articles', title: '全量文章', icon: Document, permissions: ['rmrb:read'] },
+      { path: '/rmrb-archive/batches', title: '采集批次', icon: Calendar, permissions: ['rmrb:read'] },
+    ],
+  },
+  {
     key: 'rmrb',
     title: '时评精拆',
     icon: Notebook,
@@ -82,6 +91,25 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: 'english',
+    title: '英语学习',
+    icon: ChatDotRound,
+    children: [
+      { path: '/english/overview', title: '学习概览', icon: DataAnalysis, permissions: ['english:read'] },
+      { path: '/english/courses', title: '场景与课程', icon: Reading, permissions: ['english:read'] },
+      { path: '/english/records', title: '学习记录', icon: Tickets, permissions: ['english:read'] },
+    ],
+  },
+  {
+    key: 'photography',
+    title: '摄影学习',
+    icon: Reading,
+    children: [
+      { path: '/photography/courses', title: '技巧课程', icon: Reading, permissions: ['photography:read'] },
+      { path: '/photography/map', title: '知识地图', icon: Collection, permissions: ['photography:read'] },
+    ],
+  },
+  {
     key: 'analytics',
     title: '学习反馈',
     icon: DataAnalysis,
@@ -107,6 +135,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/tool-config/copy', title: '文案配置', icon: Document, permissions: ['setting:read'] },
       { path: '/tool-config/images', title: '图片配置', icon: Collection, permissions: ['setting:read'] },
       { path: '/tool-config/models', title: '模型配置', icon: Cpu, permissions: ['setting:read'] },
+      { path: '/tool-config/image-generation-jobs', title: '图片生成记录', icon: Tickets, permissions: ['setting:read'] },
     ],
   },
   {
@@ -143,6 +172,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/tool-config/copy': '文案配置',
   '/tool-config/images': '图片配置',
   '/tool-config/models': '模型配置',
+  '/tool-config/image-generation-jobs': '图片生成记录',
   '/knowledge': '知识框架',
   '/knowledge-library': '知库文档',
   '/plan': '学习计划',
@@ -156,6 +186,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/analytics/dashboard': '学习反馈看板',
   '/analytics/error-paths': '错因归集',
   '/rmrb/articles': '时评文章',
+  '/rmrb-archive/articles': '全量文章',
+  '/rmrb-archive/batches': '采集批次',
   '/rmrb/import': '三刀导入',
   '/rmrb/term-categories': '规范词分类',
   '/rmrb/skeletons': '骨架模版',
@@ -163,6 +195,11 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/rmrb/sentence-types': '句式类型',
   '/corpus': '语料本',
   '/events': '时事事件',
+  '/english/overview': '英语学习 · 学习概览',
+  '/english/courses': '英语学习 · 场景与课程',
+  '/english/records': '英语学习 · 学习记录',
+  '/photography/courses': '摄影学习 · 技巧课程',
+  '/photography/map': '摄影学习 · 知识地图',
   '/settings': '系统设置',
   '/roles': '角色与权限',
 }

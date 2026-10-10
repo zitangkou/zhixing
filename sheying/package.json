@@ -1,0 +1,32 @@
+{
+  "name": "guang-ying-xue-she",
+  "version": "0.1.0",
+  "private": true,
+  "description": "光线练习簿——学一点，拍一组",
+  "scripts": {
+    "dev:weapp": "taro build --type weapp --watch",
+    "build:weapp": "taro build --type weapp",
+    "dev:h5": "taro build --type h5 --watch",
+    "build:h5": "taro build --type h5"
+  },
+  "dependencies": {
+    "@tarojs/components": "4.0.9",
+    "@tarojs/helper": "4.0.9",
+    "@tarojs/plugin-framework-vue3": "4.0.9",
+    "@tarojs/plugin-platform-h5": "4.0.9",
+    "@tarojs/plugin-platform-weapp": "4.0.9",
+    "@tarojs/runtime": "4.0.9",
+    "@tarojs/shared": "4.0.9",
+    "@tarojs/taro": "4.0.9",
+    "vue": "3.5.13"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@tarojs/cli": "4.0.9",
+    "@tarojs/vite-runner": "4.0.9",
+    "babel-preset-taro": "4.0.9",
+    "sass": "^1.77.0",
+    "typescript": "^5.4.5",
+    "vite": "^4.5.14"
+  }
+}

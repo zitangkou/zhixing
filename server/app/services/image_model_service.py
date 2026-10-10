@@ -31,7 +31,7 @@ def _read_raw(db: Session) -> dict[str, Any]:
 
 def _credential_configured(item: dict[str, Any]) -> bool:
     name = str(item.get("credentialEnv") or "").strip()
-    key_field = {"DASHSCOPE_API_KEY": "dashscope_api_key", "ARK_API_KEY": "ark_api_key", "OPENAI_IMAGE_API_KEY": "openai_image_api_key"}.get(name)
+    key_field = {"DASHSCOPE_API_KEY": "dashscope_api_key", "ARK_API_KEY": "ark_api_key", "OPENAI_IMAGE_API_KEY": "openai_image_api_key", "GEMINI_API_KEY": "gemini_api_key", "TENCENT_TOKENHUB_API_KEY": "tencent_tokenhub_api_key", "BFL_API_KEY": "bfl_api_key"}.get(name)
     return bool(key_field and getattr(get_settings(), key_field, "").strip())
 
 
@@ -61,7 +61,7 @@ def save_image_model_config(db: Session, items: list[ImageModelConfig]) -> dict[
     if len(defaults) > 1:
         raise ValueError("只能设置一个默认模型")
     for item in items:
-        expected_env = {"dashscope": "DASHSCOPE_API_KEY", "volcengine": "ARK_API_KEY", "openai-compatible": "OPENAI_IMAGE_API_KEY"}[item.provider]
+        expected_env = {"dashscope": "DASHSCOPE_API_KEY", "volcengine": "ARK_API_KEY", "gemini": "GEMINI_API_KEY", "tokenhub": "TENCENT_TOKENHUB_API_KEY", "bfl": "BFL_API_KEY", "openai-compatible": "OPENAI_IMAGE_API_KEY"}[item.provider]
         if item.credentialEnv != expected_env:
             raise ValueError(f"{item.provider} 服务商必须使用凭据环境变量 {expected_env}")
         parsed = urlparse(item.baseUrl)
@@ -98,5 +98,5 @@ def resolve_image_model(db: Session, model_id: str = "") -> dict[str, Any]:
 
 
 def image_model_secret(model: dict[str, Any]) -> str:
-    field = {"DASHSCOPE_API_KEY": "dashscope_api_key", "ARK_API_KEY": "ark_api_key", "OPENAI_IMAGE_API_KEY": "openai_image_api_key"}.get(model.get("credentialEnv", ""))
+    field = {"DASHSCOPE_API_KEY": "dashscope_api_key", "ARK_API_KEY": "ark_api_key", "OPENAI_IMAGE_API_KEY": "openai_image_api_key", "GEMINI_API_KEY": "gemini_api_key", "TENCENT_TOKENHUB_API_KEY": "tencent_tokenhub_api_key", "BFL_API_KEY": "bfl_api_key"}.get(model.get("credentialEnv", ""))
     return str(getattr(get_settings(), field, "") or "") if field else ""

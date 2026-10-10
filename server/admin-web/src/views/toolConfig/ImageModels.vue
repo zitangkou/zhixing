@@ -72,6 +72,9 @@
             <el-select v-model="form.provider" style="width: 100%">
               <el-option label="阿里云百炼 DashScope" value="dashscope" />
               <el-option label="火山引擎 Ark" value="volcengine" />
+              <el-option label="Google Gemini API" value="gemini" />
+              <el-option label="腾讯云 TokenHub" value="tokenhub" />
+              <el-option label="Black Forest Labs API" value="bfl" />
               <el-option label="OpenAI 兼容图像编辑接口" value="openai-compatible" />
             </el-select>
           </el-form-item>
@@ -107,6 +110,9 @@ const presetGroups = [
     label: '阿里云百炼',
     options: [
       { id: 'wan26-image', label: '万相 2.6 图像编辑 · 约 ¥0.20/张' },
+      { id: 'wan27-image-pro', label: '万相 2.7 Image Pro · 约 ¥0.50/张' },
+      { id: 'wan27-image', label: '万相 2.7 Image · 标准版' },
+      { id: 'qwen-image-30-pro', label: '千问图像 3.0 Pro · 高质量图像编辑' },
     ],
   },
   {
@@ -114,16 +120,41 @@ const presetGroups = [
     options: [
       { id: 'seedream-40', label: 'Seedream 4.0 · 约 ¥0.20/张' },
       { id: 'seedream-45', label: 'Seedream 4.5 · 约 ¥0.25/张' },
+      { id: 'seedream-50-flash', label: 'Seedream 5.0 Flash · 高精度图像编辑' },
+      { id: 'seedream-50-pro', label: 'Seedream 5.0 Pro · 高质量图像编辑' },
+    ],
+  },
+  {
+    label: '国外模型',
+    options: [
+      { id: 'gemini-3-pro-image', label: 'Google Gemini 3 Pro Image · 高质量编辑' },
+      { id: 'gpt-image-25-sunburst', label: 'OpenAI GPT Image 2.5 Sunburst · 精细编辑' },
+      { id: 'flux-2-flex', label: 'Black Forest Labs FLUX.2 FLEX · 图像编辑旗舰' },
+    ],
+  },
+  {
+    label: '腾讯云 TokenHub',
+    options: [
+      { id: 'hy-image-35-preview', label: '腾讯混元 Hy-Image 3.5 Preview · 高质量图生图' },
     ],
   },
 ]
 const presets: Record<string, Partial<ImageModel>> = {
   'wan26-image': { id: 'wan26-image', name: '万相 2.6 图像编辑', provider: 'dashscope', model: 'wan2.6-image', baseUrl: 'https://dashscope.aliyuncs.com/api/v1', credentialEnv: 'DASHSCOPE_API_KEY', parameters: { enable_interleave: false, size: '1K', n: 1 } },
+  'wan27-image-pro': { id: 'wan27-image-pro', name: '万相 2.7 Image Pro', provider: 'dashscope', model: 'wan2.7-image-pro', baseUrl: 'https://dashscope.aliyuncs.com/api/v1', credentialEnv: 'DASHSCOPE_API_KEY', parameters: { enable_interleave: false, size: '2K', n: 1 } },
+  'wan27-image': { id: 'wan27-image', name: '万相 2.7 Image', provider: 'dashscope', model: 'wan2.7-image', baseUrl: 'https://dashscope.aliyuncs.com/api/v1', credentialEnv: 'DASHSCOPE_API_KEY', parameters: { enable_interleave: false, size: '2K', n: 1 } },
+  'qwen-image-30-pro': { id: 'qwen-image-30-pro', name: '千问图像 3.0 Pro', provider: 'dashscope', model: 'qwen-image-3.0-pro', baseUrl: 'https://dashscope.aliyuncs.com/api/v1', credentialEnv: 'DASHSCOPE_API_KEY', parameters: { size: '1024*1024', n: 1, prompt_extend: true, enable_thinking: true, watermark: false } },
   'seedream-40': { id: 'seedream-40', name: '豆包 Seedream 4.0', provider: 'volcengine', model: 'doubao-seedream-4-0-250828', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', credentialEnv: 'ARK_API_KEY', parameters: { response_format: 'url', size: '2K', sequential_image_generation: 'disabled' } },
   'seedream-45': { id: 'seedream-45', name: '豆包 Seedream 4.5', provider: 'volcengine', model: 'doubao-seedream-4-5-251128', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', credentialEnv: 'ARK_API_KEY', parameters: { response_format: 'url', size: '2K', sequential_image_generation: 'disabled' } },
+  'seedream-50-flash': { id: 'seedream-50-flash', name: '豆包 Seedream 5.0 Flash', provider: 'volcengine', model: 'doubao-seedream-5-0-flash-260915', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', credentialEnv: 'ARK_API_KEY', parameters: { response_format: 'url', size: '2K' } },
+  'seedream-50-pro': { id: 'seedream-50-pro', name: '豆包 Seedream 5.0 Pro', provider: 'volcengine', model: 'doubao-seedream-5-0-pro-260628', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', credentialEnv: 'ARK_API_KEY', parameters: { response_format: 'url', size: '2K', sequential_image_generation: 'disabled' } },
+  'gemini-3-pro-image': { id: 'gemini-3-pro-image', name: 'Google Gemini 3 Pro Image', provider: 'gemini', model: 'gemini-3-pro-image', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', credentialEnv: 'GEMINI_API_KEY', timeoutSeconds: 300, parameters: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: '4:3', imageSize: '2K' } } },
+  'gpt-image-25-sunburst': { id: 'gpt-image-25-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openai-compatible', model: 'gpt-image-2.5-sunburst', baseUrl: 'https://api.openai.com/v1', credentialEnv: 'OPENAI_IMAGE_API_KEY', timeoutSeconds: 300, parameters: { quality: 'high', size: '1536x1152', output_format: 'png' } },
+  'hy-image-35-preview': { id: 'hy-image-35-preview', name: '腾讯混元 Hy-Image 3.5 Preview', provider: 'tokenhub', model: 'hy-image-v3.5-preview', baseUrl: 'https://tokenhub.tencentmaas.com/v1/wand/hunyuan-image/v35-generation', credentialEnv: 'TENCENT_TOKENHUB_API_KEY', timeoutSeconds: 300, parameters: { size: '2048x1536', resize_max_pixels: 4194304 } },
+  'flux-2-flex': { id: 'flux-2-flex', name: 'Black Forest Labs FLUX.2 FLEX', provider: 'bfl', model: 'flux-2-flex', baseUrl: 'https://api.bfl.ai', credentialEnv: 'BFL_API_KEY', timeoutSeconds: 300, parameters: { width: 1536, height: 1152, output_format: 'png', steps: 50, guidance: 5 } },
 }
 function providerName(provider: ImageModel['provider']) {
-  return ({ dashscope: '阿里云百炼', volcengine: '火山引擎 Ark', 'openai-compatible': 'OpenAI 兼容接口' })[provider]
+  return ({ dashscope: '阿里云百炼', volcengine: '火山引擎 Ark', gemini: 'Google Gemini', tokenhub: '腾讯云 TokenHub', bfl: 'Black Forest Labs', 'openai-compatible': 'OpenAI 兼容接口' })[provider]
 }
 
 const auth = useAuthStore()
@@ -137,7 +168,7 @@ const parametersJson = ref('{}')
 const selectedPreset = ref('')
 const enabledCount = computed(() => models.value.filter((item) => item.enabled).length)
 const defaultName = computed(() => models.value.find((item) => item.isDefault)?.name || '未设置')
-const credentialEnvName = computed(() => ({ dashscope: 'DASHSCOPE_API_KEY', volcengine: 'ARK_API_KEY', 'openai-compatible': 'OPENAI_IMAGE_API_KEY' })[form.provider])
+const credentialEnvName = computed(() => ({ dashscope: 'DASHSCOPE_API_KEY', volcengine: 'ARK_API_KEY', gemini: 'GEMINI_API_KEY', tokenhub: 'TENCENT_TOKENHUB_API_KEY', bfl: 'BFL_API_KEY', 'openai-compatible': 'OPENAI_IMAGE_API_KEY' })[form.provider])
 
 function blankModel(): ImageModel {
   return { id: '', name: '', provider: 'dashscope', model: '', baseUrl: 'https://dashscope.aliyuncs.com/api/v1', credentialEnv: 'DASHSCOPE_API_KEY', enabled: false, isDefault: false, supportsImageEdit: true, timeoutSeconds: 180, parameters: {} }

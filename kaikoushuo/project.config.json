@@ -1,0 +1,15 @@
+{
+  "appid": "wxd932b22a30cffb10",
+  "compileType": "miniprogram",
+  "libVersion": "3.8.8",
+  "projectname": "yanyu-english-miniprogram",
+  "miniprogramRoot": "dist/",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "compileHotReLoad": true
+  }
+}

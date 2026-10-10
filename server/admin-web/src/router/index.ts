@@ -173,6 +173,18 @@ const router = createRouter({
           meta: { title: '错因归集', permissions: ['exam:read'] },
         },
         {
+          path: 'rmrb-archive/articles',
+          name: 'rmrb-archive-articles',
+          component: () => import('@/views/rmrbArchive/Articles.vue'),
+          meta: { title: '全量文章', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb-archive/batches',
+          name: 'rmrb-archive-batches',
+          component: () => import('@/views/rmrbArchive/Batches.vue'),
+          meta: { title: '采集批次', permissions: ['rmrb:read'] },
+        },
+        {
           path: 'rmrb',
           redirect: '/rmrb/articles',
         },
@@ -225,6 +237,44 @@ const router = createRouter({
           meta: { title: '时事事件', permissions: ['events:read'] },
         },
         {
+          path: 'english',
+          redirect: '/english/overview',
+        },
+        {
+          path: 'english/overview',
+          name: 'english-overview',
+          component: () => import('@/views/english/Overview.vue'),
+          meta: { title: '英语学习 · 学习概览', permissions: ['english:read'] },
+        },
+        {
+          path: 'english/courses',
+          name: 'english-courses',
+          component: () => import('@/views/english/Index.vue'),
+          meta: { title: '英语学习 · 场景与课程', permissions: ['english:read'] },
+        },
+        {
+          path: 'english/records',
+          name: 'english-records',
+          component: () => import('@/views/english/Records.vue'),
+          meta: { title: '英语学习 · 学习记录', permissions: ['english:read'] },
+        },
+        {
+          path: 'photography',
+          redirect: '/photography/courses',
+        },
+        {
+          path: 'photography/courses',
+          name: 'photography-courses',
+          component: () => import('@/views/photography/Content.vue'),
+          meta: { title: '摄影学习 · 技巧课程', permissions: ['photography:read'] },
+        },
+        {
+          path: 'photography/map',
+          name: 'photography-map',
+          component: () => import('@/views/photography/Content.vue'),
+          meta: { title: '摄影学习 · 知识地图', permissions: ['photography:read'] },
+        },
+        {
           path: 'xingce',
           name: 'xingce',
           component: () => import('@/views/xingce/Index.vue'),
@@ -253,6 +303,12 @@ const router = createRouter({
           name: 'image-model-config',
           component: () => import('@/views/toolConfig/ImageModels.vue'),
           meta: { title: '模型配置', permissions: ['setting:read'] },
+        },
+        {
+          path: 'tool-config/image-generation-jobs',
+          name: 'image-generation-jobs',
+          component: () => import('@/views/toolConfig/ImageGenerationJobs.vue'),
+          meta: { title: '图片生成记录', permissions: ['setting:read'] },
         },
         {
           path: 'image-styles',

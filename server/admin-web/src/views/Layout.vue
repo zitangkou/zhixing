@@ -29,7 +29,7 @@
         active-text-color="var(--admin-aside-active)"
       >
         <template v-for="group in visibleGroups" :key="group.key">
-          <el-sub-menu v-if="group.children.length > 1" :index="group.key">
+          <el-sub-menu v-if="group.children.length > 1 || group.key === 'rmrb-archive'" :index="group.key">
             <template #title>
               <el-icon><component :is="group.icon" /></el-icon>
               <span>{{ group.title }}</span>
@@ -117,11 +117,19 @@ const crumbs = computed(() => {
     const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
     return title ? ['时评精拆', title] : ['时评精拆']
   }
+  if (path.startsWith('/rmrb-archive/')) {
+    const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
+    return title ? ['人民日报', title] : ['人民日报']
+  }
   if (path === '/today' || path === '/articles' || path === '/categories') {
     const title = ROUTE_TITLES[path] || ''
     return title ? ['时政考点', title] : []
   }
   if (path === '/wechat-replies') return ['公众号运营', '消息回复']
+  if (path.startsWith('/photography/')) {
+    const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
+    return title ? ['摄影学习', title] : ['摄影学习']
+  }
   const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
   if (['/users', '/feedbacks', '/xingce', '/settings', '/roles'].includes(path)) {
     return title ? ['系统', title] : ['系统']

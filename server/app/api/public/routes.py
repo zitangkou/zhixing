@@ -22,6 +22,8 @@ from app.api.public.xingce import router as xingce_router
 from app.api.public.ziliao import router as ziliao_router
 from app.api.public.image_styles import router as image_styles_router
 from app.api.public.image_generations import router as image_generations_router
+from app.api.public.english import router as english_router
+from app.api.public.photography import router as photography_router
 
 router = APIRouter(
     prefix="/api",
@@ -49,3 +51,5 @@ router.include_router(countdown_router)
 router.include_router(data_router)
 router.include_router(image_styles_router)
 router.include_router(image_generations_router)
+router.include_router(english_router)
+router.include_router(photography_router)

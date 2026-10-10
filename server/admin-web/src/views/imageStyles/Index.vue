@@ -39,8 +39,9 @@
             <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
+            <el-button v-if="canWrite" link type="success" @click="openTest(row)">生成测试</el-button>
             <el-button link type="primary" @click="openEdit(row)">查看 / 编辑</el-button>
             <el-button v-if="canWrite" link type="danger" @click="remove(row)">删除</el-button>
           </template>
@@ -90,6 +91,52 @@
       <template #footer>
         <el-button @click="importVisible = false">取消</el-button>
         <el-button type="primary" :loading="importing" :disabled="!importPreview?.canImport || !canWrite" @click="confirmImport">确认导入新风格</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="testDialogVisible"
+      title="图片风格生成测试"
+      width="min(860px, 94vw)"
+      :close-on-click-modal="!testRunning"
+      :close-on-press-escape="!testRunning"
+      :show-close="!testRunning"
+      @closed="clearTestPreview"
+    >
+      <div v-if="testStyle" class="test-style-summary">
+        <strong>{{ testStyle.name }}</strong>
+        <span>{{ testStyle.id }} · {{ testStyle.status === 'draft' ? '草稿测试' : '正式配置测试' }}</span>
+      </div>
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        title="使用当前已保存的风格配置和模型"
+        description="草稿风格也可测试；如刚修改提示词或参数，请先保存后再开始。图片会发送至已配置的模型服务处理。"
+      />
+      <div class="test-upload-row">
+        <el-upload :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/webp" :on-change="selectTestImage">
+          <el-button :disabled="testRunning">选择测试图片</el-button>
+        </el-upload>
+        <span v-if="testFile" class="muted">{{ testFile.name }} · {{ (testFile.size / 1024 / 1024).toFixed(2) }} MB</span>
+        <span v-else class="muted">JPG / PNG / WEBP，最大 8 MB</span>
+      </div>
+      <el-alert v-if="testError" class="test-error" type="error" :closable="false" show-icon :title="testError" />
+      <div v-if="testRunning" class="test-progress">
+        <span class="test-spinner" />
+        <span>{{ testStatus === 'queued' ? '任务已提交，正在排队…' : '模型正在生成图片，请稍候…' }}</span>
+        <span v-if="testTaskId" class="muted">任务 {{ testTaskId.slice(0, 10) }}</span>
+      </div>
+      <div v-if="testImageUrl || testResultUrl" class="test-images" :class="{ 'has-result': testResultUrl }">
+        <div v-if="testImageUrl" class="test-image-card"><div class="test-image-label">测试原图</div><img :src="testImageUrl" alt="测试原图" /></div>
+        <div v-if="testResultUrl" class="test-image-card">
+          <div class="test-image-label">生成结果 <a :href="testResultUrl" :download="testDownloadName">下载</a></div>
+          <img :src="testResultUrl" alt="生成结果" />
+        </div>
+      </div>
+      <template #footer>
+        <el-button :disabled="testRunning" @click="testDialogVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="testRunning" :disabled="!testFile || testRunning" @click="runStyleTest">{{ testRunning ? '生成中…' : '开始生成测试' }}</el-button>
       </template>
     </el-dialog>
 
@@ -170,6 +217,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createImageStyle, deleteImageStyle, fetchImageStyles, importImageStyleMarkdown, previewImageStyleMarkdown, updateImageStyle, type ImageStyleImportPreview, type ImageStylePreset } from '@/api/imageStyles'
+import { downloadImageStyleTest, fetchImageStyleTest, startImageStyleTest } from '@/api/imageGenerationJobs'
 import { fetchImageModels, type ImageModel } from '@/api/imageModels'
 import { useAuthStore } from '@/stores/auth'
 
@@ -191,6 +239,16 @@ const importFileName = ref('')
 const importMarkdown = ref('')
 const importPreview = ref<ImageStyleImportPreview | null>(null)
 const importError = ref('')
+const testDialogVisible = ref(false)
+const testStyle = ref<ImageStylePreset | null>(null)
+const testFile = ref<File | null>(null)
+const testImageUrl = ref('')
+const testResultUrl = ref('')
+const testRunning = ref(false)
+const testStatus = ref('')
+const testError = ref('')
+const testTaskId = ref('')
+const testDownloadName = ref('image-style-test.png')
 
 function emptyStyle(): ImageStylePreset {
   return {
@@ -207,6 +265,85 @@ function fillForm(style: ImageStylePreset) {
   rulesJson.value = JSON.stringify(style.rules || {}, null, 2)
   controlsJson.value = JSON.stringify(style.controls || {}, null, 2)
   providerParametersJson.value = JSON.stringify(style.providerParameters || {}, null, 2)
+}
+
+function openTest(style: ImageStylePreset) {
+  clearTestPreview()
+  testStyle.value = style
+  testFile.value = null
+  testImageUrl.value = ''
+  testResultUrl.value = ''
+  testError.value = ''
+  testStatus.value = ''
+  testTaskId.value = ''
+  testDownloadName.value = 'image-style-test.png'
+  testDialogVisible.value = true
+}
+
+function selectTestImage(uploadFile: { raw?: File }) {
+  testError.value = ''
+  if (!uploadFile.raw) return
+  if (uploadFile.raw.size > 8 * 1024 * 1024) {
+    testError.value = '测试图片不能超过 8 MB'
+    return
+  }
+  if (!uploadFile.raw.type.startsWith('image/')) {
+    testError.value = '请选择图片文件'
+    return
+  }
+  if (testImageUrl.value) URL.revokeObjectURL(testImageUrl.value)
+  testFile.value = uploadFile.raw
+  testImageUrl.value = URL.createObjectURL(uploadFile.raw)
+  testResultUrl.value = ''
+  testStatus.value = ''
+}
+
+async function runStyleTest() {
+  if (!testStyle.value || !testFile.value || testRunning.value) return
+  testRunning.value = true
+  testError.value = ''
+  testStatus.value = 'queued'
+  try {
+    const task = await startImageStyleTest(testStyle.value.id, testFile.value)
+    testTaskId.value = task.taskId
+    const deadline = Date.now() + 15 * 60 * 1000
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1800))
+      const current = await fetchImageStyleTest(task.taskId)
+      testStatus.value = current.status
+      if (current.status === 'failed') throw new Error(current.errorMessage || '图片生成失败')
+      if (current.status === 'succeeded') {
+        const response = await downloadImageStyleTest(task.taskId)
+        const imageBlob = response.data
+        testResultUrl.value = URL.createObjectURL(imageBlob)
+        const mime = imageBlob.type || response.headers['content-type'] || 'image/png'
+        const extension = mime.includes('webp') ? 'webp' : mime.includes('jpeg') || mime.includes('jpg') ? 'jpg' : 'png'
+        testDownloadName.value = `${testStyle.value?.slug || testStyle.value?.id || 'image-style-test'}-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`
+        const downloadLink = document.createElement('a')
+        downloadLink.href = testResultUrl.value
+        downloadLink.download = testDownloadName.value
+        downloadLink.style.display = 'none'
+        document.body.appendChild(downloadLink)
+        downloadLink.click()
+        downloadLink.remove()
+        ElMessage.success('生成完成，图片已下载到浏览器默认下载目录')
+        return
+      }
+    }
+    throw new Error('等待超过 15 分钟，任务仍保留在图片生成记录中')
+  } catch (error) {
+    testError.value = error instanceof Error ? error.message : '图片生成失败，请查看生成记录'
+    ElMessage.error('测试未完成，失败信息已记录在图片生成记录中')
+  } finally {
+    testRunning.value = false
+  }
+}
+
+function clearTestPreview() {
+  if (testImageUrl.value) URL.revokeObjectURL(testImageUrl.value)
+  if (testResultUrl.value) URL.revokeObjectURL(testResultUrl.value)
+  testImageUrl.value = ''
+  testResultUrl.value = ''
 }
 
 async function load() {
@@ -347,5 +484,17 @@ onMounted(load)
 .import-alert { margin-top: 14px; }
 .preview-details { margin-top: 14px; }
 .preview-prompt { margin-top: 14px; }
+.test-style-summary { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.test-style-summary span { color: var(--admin-text-muted); font-size: 12px; }
+.test-upload-row { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+.test-error { margin: 12px 0; }
+.test-progress { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--admin-primary); font-size: 13px; }
+.test-spinner { width: 16px; height: 16px; border: 2px solid var(--admin-border); border-top-color: var(--admin-primary); border-radius: 50%; animation: test-spin .8s linear infinite; }
+.test-images { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 16px; }
+.test-images.has-result { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.test-image-card { overflow: hidden; border: 1px solid var(--admin-border); border-radius: 10px; background: var(--admin-surface); }
+.test-image-label { display: flex; justify-content: space-between; padding: 10px 12px; color: var(--admin-text); font-size: 12px; font-weight: 600; }
+.test-image-card img { display: block; width: 100%; max-height: 380px; object-fit: contain; background: #f4f4f6; }
+@keyframes test-spin { to { transform: rotate(360deg); } }
 @media (max-width: 720px) { .card-head { align-items: flex-start; flex-direction: column; } .form-grid, .json-grid { grid-template-columns: 1fr; } }
 </style>

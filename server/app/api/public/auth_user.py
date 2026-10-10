@@ -1,3 +1,4 @@
+from fastapi import Header
 from fastapi.responses import JSONResponse
 
 from app.api.public._deps import *  # noqa: F401,F403
@@ -51,10 +52,14 @@ def _wechat_login_error(status_code: int, message: str) -> JSONResponse:
 def app_wechat_login(
     body: AppWechatLoginBody,
     product=Depends(get_product_context),
+    wechat_app_key: str | None = Header(default=None, alias="X-Wechat-App-Key"),
     db: Session = Depends(get_db),
 ):
     """小程序 wx.login code 换会话。未配置 AppId/AppSecret 时返回 503。"""
-    user, err = login_with_wechat_code(db, body.code, product_key=product.key)
+    app_key = (wechat_app_key or product.key).strip().lower()
+    if app_key not in {"general", "zhiku", "baibaoxiang", "yanyu_english", "sheying"}:
+        return _wechat_login_error(400, "小程序标识无效")
+    user, err = login_with_wechat_code(db, body.code, product_key=product.key, app_key=app_key)
     if err or not user:
         return _wechat_login_error(
             err.status_code if err else 400,

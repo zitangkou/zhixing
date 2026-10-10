@@ -1,0 +1,12 @@
+page { background: #f6f7f3; color: #203432; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+view, text, button { box-sizing: border-box; }
+.page { min-height: 100vh; padding: 36rpx 32rpx 48rpx; }
+.eyebrow { color: #63817c; font-size: 24rpx; letter-spacing: 2rpx; }
+.title { display: block; font-size: 48rpx; font-weight: 700; line-height: 1.25; margin: 12rpx 0; }
+.muted { color: #7c8884; font-size: 26rpx; line-height: 1.6; }
+.card { background: #fff; border-radius: 28rpx; padding: 30rpx; margin-top: 22rpx; box-shadow: 0 10rpx 32rpx rgba(31, 64, 59, .05); }
+.row { display: flex; align-items: center; justify-content: space-between; }
+.pill { color: #256d73; background: #e8f2ef; border-radius: 99rpx; padding: 8rpx 18rpx; font-size: 22rpx; }
+.primary { background: #256d73; color: #fff; border-radius: 18rpx; border: 0; font-size: 28rpx; padding: 18rpx 26rpx; line-height: 1.4; }
+.primary::after { border: 0; }
+.section-title { font-size: 32rpx; font-weight: 700; margin: 36rpx 0 4rpx; display: block; }

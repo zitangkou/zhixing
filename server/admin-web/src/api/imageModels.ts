@@ -3,7 +3,7 @@ import http, { getData } from './http'
 export interface ImageModel {
   id: string
   name: string
-  provider: 'dashscope' | 'volcengine' | 'openai-compatible'
+  provider: 'dashscope' | 'volcengine' | 'gemini' | 'tokenhub' | 'bfl' | 'openai-compatible'
   model: string
   baseUrl: string
   credentialEnv: string

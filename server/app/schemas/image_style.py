@@ -36,7 +36,7 @@ class ImageStyleMarkdownImportBody(BaseModel):
 class ImageModelConfig(BaseModel):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     name: str = Field(min_length=1, max_length=80)
-    provider: Literal["dashscope", "volcengine", "openai-compatible"]
+    provider: Literal["dashscope", "volcengine", "gemini", "tokenhub", "bfl", "openai-compatible"]
     model: str = Field(min_length=1, max_length=128)
     baseUrl: str = Field(min_length=1, max_length=500)
     credentialEnv: str = Field(default="", max_length=80, pattern=r"^$|^[A-Z][A-Z0-9_]{2,79}$")

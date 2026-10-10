@@ -24,6 +24,7 @@ server/tests/_vocab_inbox.db-shm
 server/tests/_vocab_inbox.db-wal
 server/.env
 zhishiku/.env
+sheying/.env
 server/admin-dist/
 server/admin-web/node_modules/
 server/admin-web/tsconfig.tsbuildinfo

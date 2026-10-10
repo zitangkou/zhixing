@@ -3,7 +3,7 @@ import { storage } from './storage'
 
 const baseUrl = API_BASE_URL
 
-export async function request(path, { method = 'GET', data } = {}) {
+export async function request(path, { method = 'GET', data, headers = {} } = {}) {
   if (!baseUrl) throw new Error('后端地址尚未配置，当前可继续以访客模式浏览')
   const token = storage.token()
   const response = await Taro.request({
@@ -14,6 +14,7 @@ export async function request(path, { method = 'GET', data } = {}) {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       'X-Product-Key': 'general',
+      ...headers,
     },
   })
   const body = response.data || {}
@@ -26,7 +27,11 @@ export async function request(path, { method = 'GET', data } = {}) {
 export async function loginWithWechat() {
   const { code } = await Taro.login()
   if (!code) throw new Error('暂未获取到微信登录凭证，请重试')
-  return request('/api/auth/wechat/login', { method: 'POST', data: { code } })
+  return request('/api/auth/wechat/login', {
+    method: 'POST',
+    data: { code },
+    headers: { 'X-Wechat-App-Key': 'baibaoxiang' },
+  })
 }
 
 export function saveRemoteProfile(nickname) {
@@ -41,7 +46,9 @@ export function fetchImageStyles() {
   return request('/api/image-styles')
 }
 
-export async function generateImageStyle(filePath, styleId) {
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export async function generateImageStyle(filePath, styleId, onStatus = () => {}) {
   if (!baseUrl) throw new Error('后端地址尚未配置')
   const token = storage.token()
   if (!token) throw new Error('请先登录后再生成图片')
@@ -50,7 +57,7 @@ export async function generateImageStyle(filePath, styleId) {
     filePath,
     name: 'file',
     formData: { style_id: styleId },
-    timeout: 180000,
+    timeout: 120000,
     header: { Authorization: `Bearer ${token}`, 'X-Product-Key': 'general' },
   })
   let body = upload.data
@@ -60,10 +67,21 @@ export async function generateImageStyle(filePath, styleId) {
   if (upload.statusCode < 200 || upload.statusCode >= 300 || body?.code !== 0) {
     throw new Error(body?.message || '图片生成失败，请稍后重试')
   }
-  const resultId = body?.data?.resultId
-  if (!resultId) throw new Error('图片服务没有返回生成结果')
+  const taskId = body?.data?.taskId
+  if (!taskId) throw new Error('图片服务没有返回任务编号')
+  onStatus('queued')
+  const deadline = Date.now() + 15 * 60 * 1000
+  let task
+  while (Date.now() < deadline) {
+    await wait(1800)
+    task = await request(`/api/image-generations/${taskId}`)
+    onStatus(task.status)
+    if (task.status === 'failed') throw new Error(task.errorMessage || '图片生成失败，请稍后重试')
+    if (task.status === 'succeeded') break
+  }
+  if (task?.status !== 'succeeded' || !task.resultId) throw new Error('生成等待超过 15 分钟，本页面已停止查询；任务记录仍保留，请联系管理员查询状态。')
   const result = await Taro.downloadFile({
-    url: `${baseUrl}/api/image-generations/${resultId}/result`,
+    url: `${baseUrl}/api/image-generations/${task.resultId}/result`,
     header: { Authorization: `Bearer ${token}`, 'X-Product-Key': 'general' },
     timeout: 60000,
   })

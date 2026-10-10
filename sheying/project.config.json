@@ -1,0 +1,16 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "光线练习簿",
+  "description": "学一点，拍一组",
+  "appid": "wxd932b22a30cffb10",
+  "compileType": "miniprogram",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "compileHotReLoad": true,
+    "postcss": false,
+    "minified": true
+  },
+  "condition": {}
+}

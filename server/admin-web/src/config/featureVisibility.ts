@@ -6,6 +6,8 @@ const VISIBLE_PATHS = new Set([
   '/categories',
   '/wechat-replies',
   '/rmrb/articles',
+  '/rmrb-archive/articles',
+  '/rmrb-archive/batches',
   '/rmrb/term-categories',
   '/rmrb/skeletons',
   '/rmrb/argument-methods',
@@ -16,10 +18,16 @@ const VISIBLE_PATHS = new Set([
   '/tool-config/copy',
   '/tool-config/images',
   '/tool-config/models',
+  '/tool-config/image-generation-jobs',
   '/knowledge',
   '/knowledge-library',
   '/settings',
   '/roles',
+  '/english/overview',
+  '/english/courses',
+  '/english/records',
+  '/photography/courses',
+  '/photography/map',
 ])
 
 export function isAdminNavVisible(path: string): boolean {

@@ -1,6 +1,6 @@
 """微信小程序 jscode2session 登录。
 
-只使用 MINIPROGRAM_APP_ID / MINIPROGRAM_APP_SECRET，与公众号回调配置无关。
+使用对应小程序的服务端凭据，与公众号回调配置无关。
 日志与返回文案不得包含 AppSecret、session_key 或微信原始响应。
 """
 from __future__ import annotations
@@ -28,9 +28,9 @@ class WechatLoginError(Exception):
         super().__init__(message)
 
 
-def _exchange_code(code: str, product_key: str = "general") -> str:
+def _exchange_code(code: str, product_key: str = "general", app_key: str = "") -> str:
     settings = get_settings()
-    app_id, app_secret = settings.miniprogram_credentials(product_key)
+    app_id, app_secret = settings.miniprogram_credentials(product_key, app_key)
     if not app_id or not app_secret:
         raise WechatLoginError(503, "微信登录未配置")
 
@@ -87,10 +87,10 @@ def _exchange_code(code: str, product_key: str = "general") -> str:
 
 
 def login_with_wechat_code(
-    db: Session, code: str, product_key: str = "general"
+    db: Session, code: str, product_key: str = "general", app_key: str = ""
 ) -> tuple[AppUser | None, WechatLoginError | None]:
     try:
-        openid = _exchange_code(code, product_key)
+        openid = _exchange_code(code, product_key, app_key)
     except WechatLoginError as exc:
         return None, exc
 
@@ -105,7 +105,12 @@ def login_with_wechat_code(
         username=None,
         password_hash=None,
         openid=openid,
-        nickname="知库用户" if product_key == "zhiku" else "杜衡阁学员",
+        nickname=(
+            "言遇英语用户" if app_key == "yanyu_english" else
+            "光线练习簿用户" if app_key == "sheying" else
+            "AI 百宝箱用户" if app_key == "baibaoxiang" else
+            "知库用户" if product_key == "zhiku" else "杜衡阁学员"
+        ),
         points=0,
     )
     db.add(user)

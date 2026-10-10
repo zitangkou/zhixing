@@ -80,6 +80,15 @@ def configured(monkeypatch):
     get_settings.cache_clear()
 
 
+@pytest.fixture
+def configured_baibaoxiang(monkeypatch):
+    monkeypatch.setenv("BAIBAOXIANG_MINIPROGRAM_APP_ID", "wx-baibaoxiang-appid")
+    monkeypatch.setenv("BAIBAOXIANG_MINIPROGRAM_APP_SECRET", "baibaoxiang-test-secret")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 def patch_wechat(monkeypatch, response: FakeResponse) -> FakeClient:
     fake = FakeClient(response)
     monkeypatch.setattr(
@@ -144,6 +153,24 @@ def test_create_user_then_reuse_openid(monkeypatch, configured, client, db_sessi
         assert rows[0].username is None
         assert rows[0].password_hash is None
         assert rows[0].nickname == "杜衡阁学员"
+
+
+def test_baibaoxiang_header_uses_its_own_mini_program_credentials(
+    monkeypatch, configured, configured_baibaoxiang, client
+):
+    fake = patch_wechat(
+        monkeypatch,
+        FakeResponse(200, {"openid": "o-baibaoxiang-test", "session_key": "session-key-secret"}),
+    )
+    res = client.post(
+        "/api/auth/wechat/login",
+        json={"code": "baibaoxiang-code"},
+        headers={"X-Wechat-App-Key": "baibaoxiang"},
+    )
+    assert res.status_code == 200, res.text
+    assert fake.calls[0][1]["appid"] == "wx-baibaoxiang-appid"
+    assert fake.calls[0][1]["secret"] == "baibaoxiang-test-secret"
+    assert res.json()["data"]["user"]["nickname"] == "AI 百宝箱用户"
 
 
 def test_invalid_code_does_not_leak_secret(monkeypatch, configured, client, caplog):

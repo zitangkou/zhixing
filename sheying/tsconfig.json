@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2017", "module": "ESNext", "moduleResolution": "Node", "jsx": "preserve",
+    "strict": true, "noEmit": true, "esModuleInterop": true, "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true, "types": ["@tarojs/taro"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "config/**/*.ts"]
+}

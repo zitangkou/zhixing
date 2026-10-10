@@ -26,9 +26,18 @@ class Settings(BaseSettings):
     # 微信小程序一键登录（jscode2session）。与公众号 AppId 分开配置。
     miniprogram_app_id: str = ""
     miniprogram_app_secret: str = ""
+    # 言遇英语是独立小程序，凭据不可与知行综合版共用。
+    yanyu_english_miniprogram_app_id: str = ""
+    yanyu_english_miniprogram_app_secret: str = ""
     # 知库是独立小程序，使用自己的 AppId/AppSecret；不与主应用共用 openid 凭据。
     zhiku_miniprogram_app_id: str = ""
     zhiku_miniprogram_app_secret: str = ""
+    # AI 百宝箱复用综合后端，但使用独立微信小程序凭据。
+    baibaoxiang_miniprogram_app_id: str = ""
+    baibaoxiang_miniprogram_app_secret: str = ""
+    # 摄影学习小程序（光线练习簿）使用独立微信凭据。
+    sheying_miniprogram_app_id: str = ""
+    sheying_miniprogram_app_secret: str = ""
 
     llm_enabled: bool = False
     llm_api_key: str = ""
@@ -40,6 +49,9 @@ class Settings(BaseSettings):
     dashscope_api_key: str = ""
     openai_image_api_key: str = ""
     ark_api_key: str = ""
+    gemini_api_key: str = ""
+    tencent_tokenhub_api_key: str = ""
+    bfl_api_key: str = ""
 
     # 语音识别：默认 none → 前端用免费 Web Speech；可设 aliyun / tencent
     asr_provider: str = "none"
@@ -66,7 +78,13 @@ class Settings(BaseSettings):
     def miniprogram_login_configured(self) -> bool:
         return bool(self.miniprogram_app_id.strip() and self.miniprogram_app_secret.strip())
 
-    def miniprogram_credentials(self, product_key: str = "general") -> tuple[str, str]:
+    def miniprogram_credentials(self, product_key: str = "general", app_key: str = "") -> tuple[str, str]:
+        if app_key == "sheying":
+            return self.sheying_miniprogram_app_id.strip(), self.sheying_miniprogram_app_secret.strip()
+        if app_key == "yanyu_english":
+            return self.yanyu_english_miniprogram_app_id.strip(), self.yanyu_english_miniprogram_app_secret.strip()
+        if app_key == "baibaoxiang":
+            return self.baibaoxiang_miniprogram_app_id.strip(), self.baibaoxiang_miniprogram_app_secret.strip()
         if product_key == "zhiku":
             return self.zhiku_miniprogram_app_id.strip(), self.zhiku_miniprogram_app_secret.strip()
         return self.miniprogram_app_id.strip(), self.miniprogram_app_secret.strip()

@@ -34,6 +34,10 @@ PERMISSIONS = {
     "wechat_reply:read": "查看公众号回复配置",
     "wechat_reply:write": "编辑公众号回复草稿",
     "wechat_reply:publish": "发布或回退公众号回复配置",
+    "english:read": "查看英语学习内容与数据",
+    "english:write": "管理英语学习内容",
+    "photography:read": "查看摄影学习内容",
+    "photography:write": "管理摄影学习内容",
 }
 
 ROLE_PERMISSIONS: dict[str, list[str]] = {
@@ -66,6 +70,10 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "feedback:write",
         "xingce:read",
         "xingce:write",
+        "english:read",
+        "english:write",
+        "photography:read",
+        "photography:write",
     ],
     "viewer": [
         "article:read",
@@ -83,6 +91,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "wechat_reply:read",
         "feedback:read",
         "xingce:read",
+        "english:read",
+        "photography:read",
     ],
 }
 

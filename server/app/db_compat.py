@@ -372,6 +372,7 @@ def _ensure_knowledge_tree_draft_column() -> None:
 def run_compat_migrations() -> None:
     """执行全部旧库兼容补列（幂等，可重复调用）。"""
     _ensure_vocab_inbox_table()
+    _ensure_rmrb_archive_editor_column()
     _ensure_article_columns()
     _ensure_app_user_columns()
     _ensure_question_columns()
@@ -386,3 +387,30 @@ def run_compat_migrations() -> None:
     _ensure_rmrb_article_columns()
     _ensure_ziliao_formula_plain_column()
     _ensure_content_ops_columns()
+
+
+def _ensure_rmrb_archive_editor_column() -> None:
+    """给已有人民日报档案表补充编辑署名字段。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("rmrb_archive_articles"):
+        return
+    cols = {c["name"] for c in insp.get_columns("rmrb_archive_articles")}
+    alters = []
+    if "editor_line" not in cols:
+        alters.append("ALTER TABLE rmrb_archive_articles ADD COLUMN editor_line VARCHAR(512) DEFAULT ''")
+    if "page_refs_json" not in cols:
+        alters.append("ALTER TABLE rmrb_archive_articles ADD COLUMN page_refs_json TEXT DEFAULT '[]'")
+    if "classification_suggestion_json" not in cols:
+        alters.append("ALTER TABLE rmrb_archive_articles ADD COLUMN classification_suggestion_json TEXT DEFAULT '{}'")
+    if "classification_method" not in cols:
+        alters.append("ALTER TABLE rmrb_archive_articles ADD COLUMN classification_method VARCHAR(40) DEFAULT 'none'")
+    if "classification_feature_key" not in cols:
+        alters.append("ALTER TABLE rmrb_archive_articles ADD COLUMN classification_feature_key VARCHAR(128) DEFAULT ''")
+    if "classification_history_json" not in cols:
+        alters.append("ALTER TABLE rmrb_archive_articles ADD COLUMN classification_history_json TEXT DEFAULT '[]'")
+    if alters:
+        with engine.begin() as conn:
+            for statement in alters:
+                conn.execute(text(statement))

@@ -10,6 +10,7 @@ from app.api.admin.misc import router as misc_router
 from app.api.admin.plan import router as plan_router
 from app.api.admin.questions import router as questions_router
 from app.api.admin.rmrb import router as rmrb_router
+from app.api.admin.rmrb_archive import router as rmrb_archive_router
 from app.api.admin.roles import router as roles_router
 from app.api.admin.settings import router as settings_router
 from app.api.admin.theory_learning import router as theory_learning_router
@@ -24,6 +25,9 @@ from app.api.admin.xingce import router as xingce_router
 from app.api.admin.wechat_replies import router as wechat_replies_router
 from app.api.admin.image_styles import router as image_styles_router
 from app.api.admin.image_models import router as image_models_router
+from app.api.admin.image_generation_jobs import router as image_generation_jobs_router
+from app.api.admin.english import router as english_router
+from app.api.admin.photography import router as photography_router
 
 router = APIRouter(prefix="/admin", tags=["管理后台"])
 router.include_router(auth_admin_router)
@@ -39,6 +43,7 @@ router.include_router(library_documents_router)
 router.include_router(plan_router)
 router.include_router(exam_router)
 router.include_router(rmrb_router)
+router.include_router(rmrb_archive_router)
 router.include_router(ziliao_router)
 router.include_router(misc_router)
 router.include_router(content_ops_router)
@@ -50,3 +55,6 @@ router.include_router(xingce_router)
 router.include_router(wechat_replies_router)
 router.include_router(image_styles_router)
 router.include_router(image_models_router)
+router.include_router(image_generation_jobs_router)
+router.include_router(english_router)
+router.include_router(photography_router)
