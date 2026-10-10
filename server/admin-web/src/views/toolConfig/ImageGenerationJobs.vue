@@ -17,6 +17,16 @@ const statusType: Record<ImageGenerationStatus, 'info' | 'warning' | 'success' |
   queued: 'info', running: 'warning', succeeded: 'success', failed: 'danger',
 }
 
+function getStatusText(value: unknown): string {
+  const key = String(value) as ImageGenerationStatus
+  return statusText[key] || String(value)
+}
+
+function getStatusType(value: unknown): 'info' | 'warning' | 'success' | 'danger' {
+  const key = String(value) as ImageGenerationStatus
+  return statusType[key] || 'info'
+}
+
 function formatTime(value: string | null) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—'
 }
@@ -65,7 +75,7 @@ onMounted(load)
 
       <el-table v-loading="loading" :data="rows" stripe>
         <el-table-column label="状态" width="110">
-          <template #default="{ row }"><el-tag :type="statusType[row.status]">{{ statusText[row.status] }}</el-tag></template>
+          <template #default="{ row }"><el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="userName" label="用户" min-width="130" />
         <el-table-column prop="styleId" label="风格 ID" min-width="150" />

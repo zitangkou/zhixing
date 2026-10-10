@@ -316,7 +316,7 @@ async function runStyleTest() {
         const response = await downloadImageStyleTest(task.taskId)
         const imageBlob = response.data
         testResultUrl.value = URL.createObjectURL(imageBlob)
-        const mime = imageBlob.type || response.headers['content-type'] || 'image/png'
+        const mime = imageBlob.type || String(response.headers['content-type'] || 'image/png')
         const extension = mime.includes('webp') ? 'webp' : mime.includes('jpeg') || mime.includes('jpg') ? 'jpg' : 'png'
         testDownloadName.value = `${testStyle.value?.slug || testStyle.value?.id || 'image-style-test'}-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`
         const downloadLink = document.createElement('a')
