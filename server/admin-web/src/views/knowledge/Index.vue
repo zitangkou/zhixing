@@ -7,11 +7,13 @@ import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { ApiRequestError } from '@/api/http'
 import { downloadKnowledgeFile, knowledgeTreeToHtml, knowledgeTreeToMarkdown } from './exportDocument'
+import { rasterizeSvg } from './exportMap'
+import { renderTreeToPureSvg } from './mapRender'
 import {
   activateKnowledgeVersion, createKnowledgeTree, fetchKnowledgeTrees,
   fetchStructuredKnowledge, previewStructuredKnowledge, previewStructuredMarkdown, publishKnowledgeTree,
   saveStructuredKnowledge, patchKnowledgeTree, uploadKnowledgeImage,
-  type KnowledgeBlock, type KnowledgeTreeMeta, type StructuredIssue,
+  type KnowledgeBlock, type KnowledgeTreeMeta, type MapNode, type StructuredIssue,
   type StructuredNode, type StructuredTree,
 } from '@/api/knowledge'
 
@@ -30,6 +32,7 @@ const issues = ref<StructuredIssue[]>([])
 const saveState = ref('')
 const loading = ref(false)
 const publishing = ref(false)
+const exportingMap = ref(false)
 const searchTree = ref('')
 const treeRef = ref<{ filter: (value: string) => void }>()
 const importVisible = ref(false)
@@ -367,7 +370,29 @@ async function openAdvancedPreview() {
   await router.push({ path: '/knowledge/legacy', query: { source: 'structured', treeKey: activeKey.value } })
 }
 
-async function exportKnowledge(format: 'md' | 'html') {
+function mapNodeFromStructured(tree: StructuredTree): MapNode {
+  let line = 0
+  const convert = (node: StructuredNode, depth: number, parentPath = ''): MapNode => {
+    const path = parentPath ? `${parentPath}/${node.title}` : node.title
+    return {
+      id: node.id,
+      title: node.title,
+      depth,
+      line: ++line,
+      path,
+      blocks: node.blocks,
+      children: node.children.map(child => convert(child, depth + 1, path)),
+    }
+  }
+  return {
+    id: 'root', title: tree.title, depth: -1, line: 0, path: '',
+    description: tree.description,
+    groups: tree.groups,
+    children: tree.children.map(node => convert(node, 0)),
+  }
+}
+
+async function exportKnowledge(format: 'md' | 'html' | 'map-png') {
   if (!draft.value || !activeKey.value) return
   await flushSave()
   if (pending || saveState.value.includes('失败')) {
@@ -377,10 +402,22 @@ async function exportKnowledge(format: 'md' | 'html') {
   const base = `${activeKey.value.replace(/[\\/:*?"<>|]/g, '_')}-知识框架` || '知识框架'
   if (format === 'md') {
     downloadKnowledgeFile(`${base}.md`, knowledgeTreeToMarkdown(draft.value), 'text/markdown;charset=utf-8')
-  } else {
+  } else if (format === 'html') {
     downloadKnowledgeFile(`${base}.html`, knowledgeTreeToHtml(draft.value), 'text/html;charset=utf-8')
+  } else {
+    exportingMap.value = true
+    try {
+      const pure = await renderTreeToPureSvg(mapNodeFromStructured(draft.value))
+      const raster = await rasterizeSvg(pure, `${base}-思维导图.png`)
+      downloadKnowledgeFile(raster.filename, raster.blob, 'image/png')
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? `思维导图导出失败：${error.message}` : '思维导图导出失败')
+      return
+    } finally {
+      exportingMap.value = false
+    }
   }
-  ElMessage.success(`已导出当前草稿 ${format.toUpperCase()} 文档`)
+  ElMessage.success(format === 'map-png' ? '已导出当前草稿思维导图 PNG' : `已导出当前草稿 ${format.toUpperCase()} 文档`)
 }
 onMounted(async () => {
   window.addEventListener('beforeunload', onBeforeUnload)
@@ -408,6 +445,7 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnloa
             <el-dropdown-menu>
               <el-dropdown-item command="md">导出 Markdown（.md）</el-dropdown-item>
               <el-dropdown-item command="html">导出阅读版（.html）</el-dropdown-item>
+              <el-dropdown-item command="map-png" :disabled="exportingMap">导出思维导图图片（PNG）</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

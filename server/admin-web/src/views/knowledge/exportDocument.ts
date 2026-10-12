@@ -77,7 +77,7 @@ export function knowledgeTreeToHtml(tree: StructuredTree, exportedAt = new Date(
 </style></head><body><main class="page"><header><h1>${escapeHtml(tree.title)}</h1>${tree.description.trim() ? `<p>${escapeHtml(tree.description)}</p>` : ''}<div class="meta">知识框架 · 导出于 ${escapeHtml(exportedAt.toLocaleString('zh-CN'))}</div></header>${tocHtml}<article>${body}</article><footer>由知行知识框架工作台导出</footer></main></body></html>`
 }
 
-export function downloadKnowledgeFile(filename: string, content: string, mime: string): void {
+export function downloadKnowledgeFile(filename: string, content: string | Blob, mime: string): void {
   const url = URL.createObjectURL(new Blob([content], { type: mime }))
   const anchor = document.createElement('a')
   anchor.href = url
