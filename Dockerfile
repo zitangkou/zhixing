@@ -14,7 +14,7 @@ ENV NODE_ENV=production
 ENV TARO_APP_API_URL=
 RUN npm run build:h5
 
-FROM node:20-alpine AS admin-build
+FROM node:20-bookworm-slim AS admin-build
 ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
 WORKDIR /app/server/admin-web
 COPY server/admin-web/package.json server/admin-web/package-lock.json ./
