@@ -4,16 +4,25 @@
     <text class="title">{{ lesson.title }}</text>
     <view class="goal card"><text class="goal-label">本节目标</text><text>{{ lesson.goal }}</text></view>
 
-    <text class="section-title">听一听 · 看对话</text>
+    <text class="section-title">先看 / 听素材</text>
+    <video v-if="playableVideo" class="lesson-video" :src="lesson.videoUrl" :poster="lesson.posterUrl" controls object-fit="contain" />
+    <view v-if="lesson.sourceUrl && lesson.rightsStatus !== 'rejected' && !playableVideo && !playableAudio" class="source-note card">
+      <text>这节课使用官方外链素材，小程序暂不直接播放。</text>
+      <text class="source-action" @tap="copySource">复制官方来源链接</text>
+    </view>
+    <text v-if="playableVideo" class="media-tip">先完整观看一次，再用字幕和台词精听。</text>
+    <text class="section-title">台词与字幕</text>
+    <button class="caption-toggle" @tap="showTranslation = !showTranslation">{{ showTranslation ? '隐藏中文' : '显示中文' }}</button>
     <view class="card dialogue">
       <view v-for="(turn, i) in lesson.dialogue" :key="i" class="turn" :class="{ mine: turn.speaker === 'You' }">
         <text class="speaker">{{ turn.speaker === 'You' ? '你' : turn.speaker }}</text>
         <text class="english">{{ turn.en }}</text>
-        <text class="translation">{{ turn.zh }}</text>
+        <text v-if="showTranslation && turn.zh" class="translation">{{ turn.zh }}</text>
       </view>
+      <text v-if="lesson.dialogue.length === 0" class="audio-note">本课暂未添加台词文本。</text>
     </view>
-    <button class="listen" :disabled="!lesson.dialogueAudioUrl" @tap="listen">{{ speaking ? '正在播放…' : lesson.dialogueAudioUrl ? '▶ 听示范朗读' : '示范音频待配置' }}</button>
-    <text v-if="!lesson.dialogueAudioUrl" class="audio-note">当前样例暂未配置示范音频，可先跟随文本练习并录下自己的表达。</text>
+    <button v-if="playableAudio" class="listen" @tap="listen">{{ speaking ? '正在播放…' : '▶ 听示范音频' }}</button>
+    <text v-else-if="!playableVideo && !lesson.sourceUrl" class="audio-note">本课暂未配置示范音频或视频，可以先按台词练习并录下自己的表达。</text>
 
     <text class="section-title">带走这几句</text>
     <view v-for="phrase in lesson.phrases" :key="phrase.en" class="phrase card"><text class="phrase-en">{{ phrase.en }}</text><text class="muted">{{ phrase.zh }}</text></view>
@@ -36,6 +45,9 @@ import { lessons, loadLessons, markLessonComplete, progressKey, readProgress } f
 definePageConfig({ navigationBarTitleText: '口语练习' })
 const router = useRouter()
 const lesson = computed(() => lessons.find((item) => item.id === router.params.id))
+const showTranslation = ref(false)
+const playableAudio = computed(() => !!lesson.value?.audioUrl && (!lesson.value.rightsStatus || lesson.value.rightsStatus === 'licensed_hosting'))
+const playableVideo = computed(() => !!lesson.value?.videoUrl && (!lesson.value.rightsStatus || lesson.value.rightsStatus === 'licensed_hosting'))
 const speaking = ref(false)
 const recording = ref(false)
 const audioPath = ref('')
@@ -44,14 +56,18 @@ const saved = ref(false)
 let recorder: ReturnType<typeof Taro.getRecorderManager> | undefined
 let player: ReturnType<typeof Taro.createInnerAudioContext> | undefined
 function listen() {
-  if (!lesson.value?.dialogueAudioUrl || speaking.value) return
+  if (!playableAudio.value || !lesson.value?.audioUrl || speaking.value) return
   speaking.value = true
   player?.destroy()
   player = Taro.createInnerAudioContext()
-  player.src = lesson.value.dialogueAudioUrl
+  player.src = lesson.value.audioUrl
   player.onEnded(() => { speaking.value = false })
   player.onError(() => { speaking.value = false; Taro.showToast({ title: '音频暂时无法播放', icon: 'none' }) })
   player.play()
+}
+function copySource() {
+  if (!lesson.value?.sourceUrl) return
+  Taro.setClipboardData({ data: lesson.value.sourceUrl, success: () => Taro.showToast({ title: '来源链接已复制', icon: 'success' }) })
 }
 function record() {
   if (!recording.value) {
@@ -100,6 +116,11 @@ onMounted(async () => { await loadLessons(); completed.value = !!lesson.value &&
 .listen { margin-top:18rpx; border-radius:16rpx; background:#fff; color:#256d73; font-size:25rpx; border:1rpx solid #d9e6e1; }
 .listen[disabled] { color:#8d9994; background:#eff1ee; border-color:#e4e8e4; }
 .audio-note { display:block; color:#899590; text-align:center; font-size:22rpx; margin:12rpx 0 4rpx; }
+.lesson-video { display:block; width:100%; height:420rpx; margin:18rpx 0 8rpx; border-radius:18rpx; background:#172b2c; }
+.media-tip { display:block; margin:8rpx 0 12rpx; color:#899590; font-size:22rpx; }
+.source-note { display:flex; flex-direction:column; gap:14rpx; color:#75847f; font-size:24rpx; }
+.source-action,.caption-toggle { color:#256d73; font-size:23rpx; }
+.caption-toggle { display:block; margin:0 0 12rpx auto; padding:6rpx 18rpx; background:#e9f2ee; border-radius:18rpx; }
 .listen::after,.complete::after { border:0; }
 .phrase { padding:22rpx 26rpx; }
 .phrase-en { display:block; font-size:29rpx; font-weight:650; margin-bottom:8rpx; }

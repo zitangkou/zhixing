@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 RmrbArticleType = Literal[
     "news_brief", "news_report", "feature_investigation", "profile", "interview",
-    "commentary", "editorial", "theory", "policy_qa", "data_report", "picture_report",
+    "commentary", "editorial", "theory", "policy_document", "policy_qa", "data_report", "picture_report",
     "cultural_work", "notice", "other", "undetermined",
 ]
 RecordClass = Literal["article", "notice", "advertisement", "non_article", "undetermined"]

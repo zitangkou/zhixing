@@ -35,6 +35,8 @@
           <el-table-column label="所属场景" min-width="160"><template #default="{ row }">{{ sceneName(row.sceneId) }}</template></el-table-column>
           <el-table-column prop="level" label="等级" width="110" />
           <el-table-column prop="durationMin" label="分钟" width="85" />
+          <el-table-column label="素材" width="100"><template #default="{ row }">{{ mediaLabel(row) }}</template></el-table-column>
+          <el-table-column label="授权" width="120"><template #default="{ row }"><el-tag :type="rightsTag(row)">{{ rightsLabel(row) }}</el-tag></template></el-table-column>
           <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="row.isPublished ? 'success' : 'info'">{{ row.isPublished ? '已发布' : '草稿' }}</el-tag></template></el-table-column>
           <el-table-column label="操作" width="140" fixed="right"><template #default="{ row }"><el-button v-if="canWrite" link type="primary" @click="editUnit(row)">编辑</el-button><el-button v-if="canWrite" link type="danger" @click="removeUnit(row)">删除</el-button></template></el-table-column>
         </el-table>
@@ -47,7 +49,15 @@
     </el-dialog>
 
     <el-dialog v-model="unitDialog" :title="unitForm.id ? '编辑课程' : '新增课程'" width="720px">
-      <el-form label-width="110px"><el-form-item label="所属场景"><el-select v-model="unitForm.sceneId" style="width:100%"><el-option v-for="scene in scenes" :key="scene.id" :label="scene.title" :value="scene.id" /></el-select></el-form-item><el-form-item label="课程名称"><el-input v-model="unitForm.title" maxlength="128" /></el-form-item><el-form-item label="学习目标"><el-input v-model="unitForm.goal" type="textarea" :rows="2" /></el-form-item><el-row :gutter="12"><el-col :span="8"><el-form-item label="等级"><el-select v-model="unitForm.level" style="width:100%"><el-option v-for="level in levels" :key="level" :value="level" :label="level" /></el-select></el-form-item></el-col><el-col :span="8"><el-form-item label="时长"><el-input-number v-model="unitForm.durationMin" :min="1" :max="180" /></el-form-item></el-col><el-col :span="8"><el-form-item label="排序"><el-input-number v-model="unitForm.sortOrder" :min="0" /></el-form-item></el-col></el-row><el-form-item label="课程内容 JSON"><el-input v-model="unitContentText" type="textarea" :rows="12" placeholder="{ &quot;dialogueAudioUrl&quot;: &quot;...&quot;, &quot;dialogue&quot;: [], &quot;phrases&quot;: [], &quot;prompt&quot;: &quot;...&quot; }" /></el-form-item><el-form-item label="发布"><el-switch v-model="unitForm.isPublished" /></el-form-item></el-form>
+      <el-form label-width="110px"><el-form-item label="所属场景"><el-select v-model="unitForm.sceneId" style="width:100%"><el-option v-for="scene in scenes" :key="scene.id" :label="scene.title" :value="scene.id" /></el-select></el-form-item><el-form-item label="课程名称"><el-input v-model="unitForm.title" maxlength="128" /></el-form-item><el-form-item label="学习目标"><el-input v-model="unitForm.goal" type="textarea" :rows="2" /></el-form-item><el-row :gutter="12"><el-col :span="8"><el-form-item label="等级"><el-select v-model="unitForm.level" style="width:100%"><el-option v-for="level in levels" :key="level" :value="level" :label="level" /></el-select></el-form-item></el-col><el-col :span="8"><el-form-item label="时长"><el-input-number v-model="unitForm.durationMin" :min="1" :max="180" /></el-form-item></el-col><el-col :span="8"><el-form-item label="排序"><el-input-number v-model="unitForm.sortOrder" :min="0" /></el-form-item></el-col></el-row>
+        <el-divider content-position="left">视听素材与授权</el-divider>
+        <el-form-item label="媒体类型"><el-select v-model="mediaForm.type" style="width:100%"><el-option label="纯对话/文本" value="text" /><el-option label="音频" value="audio" /><el-option label="视频" value="video" /><el-option label="视频 + 音频" value="video_audio" /></el-select></el-form-item>
+        <el-form-item v-if="mediaForm.type === 'audio' || mediaForm.type === 'video_audio'" label="音频 URL"><el-input v-model="mediaForm.audioUrl" placeholder="填写 HTTPS 音频地址" /></el-form-item>
+        <el-form-item v-if="mediaForm.type === 'video' || mediaForm.type === 'video_audio'" label="视频 URL"><el-input v-model="mediaForm.videoUrl" placeholder="填写已获授权、可在小程序播放的视频地址" /></el-form-item>
+        <el-form-item label="官方来源链接"><el-input v-model="mediaForm.sourceUrl" placeholder="用于来源记录；外链播放需另行验证小程序平台规则" /></el-form-item>
+        <el-form-item label="素材授权"><el-select v-model="mediaForm.rightsStatus" style="width:100%"><el-option label="待核验" value="pending_review" /><el-option label="仅官方外链" value="link_only" /><el-option label="已获托管许可" value="licensed_hosting" /><el-option label="不可使用" value="rejected" /></el-select></el-form-item>
+        <el-form-item label="素材说明"><el-input v-model="mediaForm.rightsNote" type="textarea" :rows="2" placeholder="授权凭证、许可范围或审核备注" /></el-form-item>
+        <el-form-item label="课程内容 JSON"><el-input v-model="unitContentText" type="textarea" :rows="12" placeholder="维护 transcript、dialogue、phrases、prompt、tasks 等课程练习数据" /></el-form-item><el-form-item label="发布"><el-switch v-model="unitForm.isPublished" /></el-form-item></el-form>
       <template #footer><el-button @click="unitDialog = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveUnit">保存</el-button></template>
     </el-dialog>
   </div>
@@ -71,9 +81,13 @@ const levels = ['A1 入门', 'A2 日常', 'B1 进阶']
 const sceneForm = reactive({ id: '', title: '', description: '', level: 'A1 入门', sortOrder: 0, isPublished: false })
 const unitForm = reactive({ id: '', sceneId: '', title: '', level: 'A1 入门', durationMin: 8, goal: '', sortOrder: 0, isPublished: false })
 const unitContentText = ref('{\n  "dialogueAudioUrl": "",\n  "dialogue": [],\n  "phrases": [],\n  "prompt": ""\n}')
+const mediaForm = reactive({ type: 'text', audioUrl: '', videoUrl: '', posterUrl: '', sourceUrl: '', rightsStatus: 'pending_review', rightsNote: '', startSeconds: 0, endSeconds: 0 })
 const filteredScenes = computed(() => scenes.value.filter((row) => `${row.title} ${row.description}`.toLowerCase().includes(sceneQuery.value.toLowerCase())))
 const filteredUnits = computed(() => units.value.filter((row) => (!unitSceneFilter.value || row.sceneId === unitSceneFilter.value) && `${row.title} ${row.goal}`.toLowerCase().includes(unitQuery.value.toLowerCase())))
 function sceneName(id: string) { return scenes.value.find((row) => row.id === id)?.title || '—' }
+function mediaLabel(row: EnglishUnit) { const media = row.content.media as Record<string, unknown> | undefined; return media?.type === 'video_audio' ? '视频+音频' : media?.type === 'video' ? '视频' : media?.type === 'audio' || row.content.dialogueAudioUrl ? '音频' : '无' }
+function rightsLabel(row: EnglishUnit) { const media = row.content.media as Record<string, unknown> | undefined; return ({ pending_review: '待核验', link_only: '仅外链', licensed_hosting: '已授权', rejected: '不可用' } as Record<string, string>)[String(media?.rightsStatus || '')] || '未设置' }
+function rightsTag(row: EnglishUnit) { const media = row.content.media as Record<string, unknown> | undefined; return media?.rightsStatus === 'licensed_hosting' ? 'success' : media?.rightsStatus === 'rejected' ? 'danger' : 'warning' }
 async function load() {
   loading.value = true
   try {
@@ -96,13 +110,23 @@ async function removeScene(row: EnglishScene) {
 }
 function editUnit(row?: EnglishUnit) {
   Object.assign(unitForm, row || { id: '', sceneId: unitSceneFilter.value || scenes.value[0]?.id || '', title: '', level: 'A1 入门', durationMin: 8, goal: '', sortOrder: units.value.length + 1, isPublished: false })
-  unitContentText.value = JSON.stringify(row?.content || { dialogueAudioUrl: '', dialogue: [], phrases: [], prompt: '' }, null, 2)
+  const content = row?.content || { dialogueAudioUrl: '', dialogue: [], phrases: [], prompt: '' }
+  const media = (content.media || {}) as Record<string, unknown>
+  Object.assign(mediaForm, { type: media.type || 'text', audioUrl: media.audioUrl || content.dialogueAudioUrl || '', videoUrl: media.videoUrl || '', posterUrl: media.posterUrl || '', sourceUrl: media.sourceUrl || '', rightsStatus: media.rightsStatus || 'pending_review', rightsNote: media.rightsNote || '', startSeconds: media.startSeconds || 0, endSeconds: media.endSeconds || 0 })
+  unitContentText.value = JSON.stringify(content, null, 2)
   unitDialog.value = true
 }
 async function saveUnit() {
   if (!unitForm.sceneId || !unitForm.title.trim()) return ElMessage.warning('请填写所属场景和课程名称')
   let content: Record<string, unknown>
   try { content = JSON.parse(unitContentText.value) as Record<string, unknown> } catch { return ElMessage.warning('课程内容必须是有效 JSON') }
+  const hasDirectMedia = !!mediaForm.audioUrl.trim() || !!mediaForm.videoUrl.trim()
+  const hasAnyMedia = hasDirectMedia || !!mediaForm.sourceUrl.trim()
+  if (unitForm.isPublished && mediaForm.rightsStatus === 'rejected') return ElMessage.warning('不可使用的素材不能发布')
+  if (unitForm.isPublished && hasDirectMedia && mediaForm.rightsStatus !== 'licensed_hosting') return ElMessage.warning('小程序直播放地址发布前需确认已获得托管许可')
+  if (unitForm.isPublished && hasAnyMedia && mediaForm.rightsStatus === 'pending_review') return ElMessage.warning('请先完成素材授权核验再发布')
+  if (unitForm.isPublished && ['audio', 'video', 'video_audio'].includes(mediaForm.type) && !hasAnyMedia) return ElMessage.warning('请添加可用素材或改为纯对话/文本课')
+  content.media = { type: mediaForm.type, audioUrl: mediaForm.audioUrl.trim(), videoUrl: mediaForm.videoUrl.trim(), posterUrl: mediaForm.posterUrl.trim(), sourceUrl: mediaForm.sourceUrl.trim(), rightsStatus: mediaForm.rightsStatus, rightsNote: mediaForm.rightsNote.trim(), startSeconds: Number(mediaForm.startSeconds) || 0, endSeconds: Number(mediaForm.endSeconds) || 0 }
   saving.value = true
   try { const { id, ...data } = unitForm; await saveEnglishUnit({ ...data, content }, id || undefined); unitDialog.value = false; ElMessage.success('课程已保存'); await load() }
   catch (error) { ElMessage.error(error instanceof Error ? error.message : '保存失败') } finally { saving.value = false }

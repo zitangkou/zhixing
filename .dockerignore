@@ -9,5 +9,7 @@ dist/
 .git/
 *.md
 !DEPLOY.md
+!docs/
+!docs/PROJECT_OPERATIONS_MANUAL.md
 .cursor/
 server/admin-web/node_modules/

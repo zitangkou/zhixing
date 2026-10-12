@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 import { API_BASE_URL } from '@/config'
 import { ensureWechatLogin, getAccessToken } from '@/auth'
 
-export type Lesson = { id: string; serverId?: string; sceneId?: string; sceneTitle?: string; title: string; level: string; minutes: number; goal: string; dialogueAudioUrl?: string; dialogue: { speaker: string; en: string; zh: string }[]; phrases: { en: string; zh: string }[]; prompt: string }
+export type Lesson = { id: string; serverId?: string; sceneId?: string; sceneTitle?: string; title: string; level: string; minutes: number; goal: string; mediaType?: 'text' | 'audio' | 'video' | 'video_audio'; audioUrl?: string; videoUrl?: string; posterUrl?: string; sourceUrl?: string; rightsStatus?: string; startSeconds?: number; endSeconds?: number; dialogueAudioUrl?: string; dialogue: { speaker: string; en: string; zh: string; audioUrl?: string; startSeconds?: number }[]; phrases: { en: string; zh: string }[]; prompt: string }
 
 export const lessons = reactive<Lesson[]>([
   { id: 'coffee-order', title: '在咖啡店点单', level: 'A1 入门', minutes: 8, goal: '点一杯饮品，并说明冷热和大小偏好。', dialogue: [
@@ -60,15 +60,24 @@ export async function loadLessons(): Promise<void> {
     const response = await Taro.request({ url: `${API_BASE_URL}/english/scenes`, header: { 'X-Product-Key': 'general', ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
     const payload = response.data as { code?: number; data?: Array<{ id: string; title: string; units?: Array<Record<string, any>> }> }
     if (payload.code !== 0 || !Array.isArray(payload.data)) return
-    const remote = payload.data.flatMap((scene) => (scene.units || []).map((unit) => ({
+    const remote = payload.data.flatMap((scene) => (scene.units || []).map((unit) => {
+      const content = (unit.content || {}) as Record<string, any>
+      const media = (content.media || {}) as Record<string, any>
+      const transcript = Array.isArray(content.transcript) ? content.transcript : content.dialogue
+      return ({
       id: lessons.find((local) => local.title === unit.title)?.id || unit.id as string,
       serverId: unit.id as string, sceneId: scene.id, sceneTitle: scene.title,
       title: String(unit.title || ''), level: String(unit.level || 'A1 入门'), minutes: Number(unit.durationMin || 8), goal: String(unit.goal || ''),
-      dialogueAudioUrl: String((unit.content as any)?.dialogueAudioUrl || ''),
-      dialogue: Array.isArray((unit.content as any)?.dialogue) ? (unit.content as any).dialogue : [],
-      phrases: Array.isArray((unit.content as any)?.phrases) ? (unit.content as any).phrases : [],
-      prompt: String((unit.content as any)?.prompt || ''),
-    })))
+      mediaType: (media.type || (content.dialogueAudioUrl ? 'audio' : 'text')) as Lesson['mediaType'],
+      audioUrl: String(media.audioUrl || content.dialogueAudioUrl || ''), videoUrl: String(media.videoUrl || ''), posterUrl: String(media.posterUrl || ''),
+      sourceUrl: String(media.sourceUrl || ''), rightsStatus: String(media.rightsStatus || ''),
+      startSeconds: Number(media.startSeconds || 0), endSeconds: Number(media.endSeconds || 0),
+      dialogueAudioUrl: String(media.audioUrl || content.dialogueAudioUrl || ''),
+      dialogue: Array.isArray(transcript) ? transcript : [],
+      phrases: Array.isArray(content.phrases) ? content.phrases : [],
+      prompt: String(content.prompt || content.tasks?.roleplayPrompt || content.tasks?.retellPrompt || ''),
+    })
+    }))
     if (remote.length) lessons.splice(0, lessons.length, ...remote)
   } catch {
     // Offline fallback keeps the bundled sample lessons available.

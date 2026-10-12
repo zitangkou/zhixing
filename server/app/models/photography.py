@@ -38,3 +38,31 @@ class PhotographyLesson(Base):
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class PhotographyCase(Base):
+    """Curated photo case with reviewed analysis and a single practice goal."""
+    __tablename__ = "photography_cases"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("phc"))
+    title: Mapped[str] = mapped_column(String(160))
+    image_url: Mapped[str] = mapped_column(String(1024), default="")
+    source_url: Mapped[str] = mapped_column(String(1024), default="")
+    author: Mapped[str] = mapped_column(String(160), default="")
+    license_type: Mapped[str] = mapped_column(String(32), default="")
+    license_note: Mapped[str] = mapped_column(String(512), default="")
+    category: Mapped[str] = mapped_column(String(64), default="光线")
+    level: Mapped[str] = mapped_column(String(32), default="入门")
+    observation_json: Mapped[str] = mapped_column(Text, default="[]")
+    exif_json: Mapped[str] = mapped_column(Text, default="{}")
+    inference_json: Mapped[str] = mapped_column(Text, default="[]")
+    practice_title: Mapped[str] = mapped_column(String(160), default="")
+    practice_goal: Mapped[str] = mapped_column(Text, default="")
+    practice_steps_json: Mapped[str] = mapped_column(Text, default="[]")
+    practice_variable: Mapped[str] = mapped_column(String(256), default="")
+    criteria_json: Mapped[str] = mapped_column(Text, default="[]")
+    duration_min: Mapped[int] = mapped_column(Integer, default=15)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

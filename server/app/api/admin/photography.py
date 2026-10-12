@@ -1,23 +1,73 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_permission
 from app.core.response import ApiResponse
 from app.database import get_db
-from app.models import PhotographyLesson, PhotographyStage, gen_id
-from app.schemas.photography import PhotographyLessonInput, PhotographyStageInput
-from app.services.photography_service import lesson_dict, stage_dict
+from app.models import PhotographyCase, PhotographyLesson, PhotographyStage, gen_id
+from app.schemas.photography import PhotographyCaseInput, PhotographyLessonInput, PhotographyStageInput
+from app.services.photography_service import case_dict, case_input_values, lesson_dict, stage_dict
+from app.upload_paths import UPLOADS_DIR
 
 router = APIRouter(prefix="/photography", tags=["摄影学习管理"])
+
+
+@router.post("/cases/upload-image")
+async def upload_case_image(file: UploadFile = File(...), _admin=Depends(require_permission("photography:write"))):
+    from uuid import uuid4
+
+    raw = await file.read(5 * 1024 * 1024 + 1)
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(413, "案例图片不能超过 5MB")
+    ext = ".png" if raw.startswith(b"\x89PNG\r\n\x1a\n") else ".jpg" if raw.startswith(b"\xff\xd8\xff") else ""
+    if not ext:
+        raise HTTPException(415, "请上传 PNG 或 JPEG 图片")
+    folder = UPLOADS_DIR / "photography-cases"
+    folder.mkdir(parents=True, exist_ok=True)
+    filename = uuid4().hex + ext
+    (folder / filename).write_bytes(raw)
+    return ApiResponse.ok({"url": f"/uploads/photography-cases/{filename}"})
 
 
 @router.get("/summary")
 def summary(db: Session = Depends(get_db), _admin=Depends(require_permission("photography:read"))):
     return ApiResponse.ok({"stages": db.query(PhotographyStage).count(),
                            "lessons": db.query(PhotographyLesson).count(),
-                           "publishedLessons": db.query(PhotographyLesson).filter(PhotographyLesson.is_published.is_(True)).count()})
+                           "publishedLessons": db.query(PhotographyLesson).filter(PhotographyLesson.is_published.is_(True)).count(),
+                           "cases": db.query(PhotographyCase).count(),
+                           "publishedCases": db.query(PhotographyCase).filter(PhotographyCase.is_published.is_(True)).count()})
+
+
+@router.get("/cases")
+def list_cases(db: Session = Depends(get_db), _admin=Depends(require_permission("photography:read"))):
+    rows = db.query(PhotographyCase).order_by(PhotographyCase.sort_order, PhotographyCase.title).all()
+    return ApiResponse.ok([case_dict(row) for row in rows])
+
+
+@router.post("/cases")
+def create_case(body: PhotographyCaseInput, db: Session = Depends(get_db), _admin=Depends(require_permission("photography:write"))):
+    row = PhotographyCase(id=gen_id("phc"), **case_input_values(body))
+    db.add(row); db.commit(); db.refresh(row)
+    return ApiResponse.ok(case_dict(row))
+
+
+@router.put("/cases/{case_id}")
+def update_case(case_id: str, body: PhotographyCaseInput, db: Session = Depends(get_db), _admin=Depends(require_permission("photography:write"))):
+    row = db.get(PhotographyCase, case_id)
+    if not row: raise HTTPException(404, "摄影案例不存在")
+    for key, value in case_input_values(body).items(): setattr(row, key, value)
+    db.commit(); db.refresh(row)
+    return ApiResponse.ok(case_dict(row))
+
+
+@router.delete("/cases/{case_id}")
+def delete_case(case_id: str, db: Session = Depends(get_db), _admin=Depends(require_permission("photography:write"))):
+    row = db.get(PhotographyCase, case_id)
+    if not row: raise HTTPException(404, "摄影案例不存在")
+    db.delete(row); db.commit()
+    return ApiResponse.ok({"ok": True})
 
 
 @router.get("/stages")

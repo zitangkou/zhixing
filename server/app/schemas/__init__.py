@@ -95,4 +95,4 @@ from app.schemas.wechat_reply import (
     WechatReplyValidationOut,
 )
 from app.schemas.image_style import ImageModelConfig, ImageModelConfigOut, ImageModelConfigUpdate, ImageStyleConfigOut, ImageStylePreset
-from app.schemas.photography import PhotographyLessonInput, PhotographyStageInput
+from app.schemas.photography import PhotographyCaseInput, PhotographyLessonInput, PhotographyStageInput

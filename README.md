@@ -13,6 +13,8 @@ Slogan：**以「上岸」为唯一目标**
 
 **全量功能说明（各模块明细）→ [FEATURES.md](./FEATURES.md)** ｜ 项目进度 → [PROGRESS.md](./PROGRESS.md) ｜ 在用/规划活文档 → [docs/planning/](./docs/planning/)（[FEATURE_INVENTORY](./docs/planning/FEATURE_INVENTORY.md) / [PRODUCT_ROADMAP](./docs/planning/PRODUCT_ROADMAP.md)）
 
+全仓产品矩阵、各小程序/H5/管理后台功能和操作、构建发布步骤 → [项目功能与操作手册](./docs/PROJECT_OPERATIONS_MANUAL.md)。
+
 现行执行计划：[docs/plans/xingce-data-roadmap-2026.md](./docs/plans/xingce-data-roadmap-2026.md)（行测数据/出题调度中枢）、[docs/plans/optimization-plan-2026-09.md](./docs/plans/optimization-plan-2026-09.md)（项目级优化总盘）。
 
 微信公众号订阅号等内容运营方案见 [CONTENT_OPERATIONS_PLAN.md](./CONTENT_OPERATIONS_PLAN.md)。

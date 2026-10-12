@@ -16,6 +16,36 @@ from app.services.knowledge_md import parse_md
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 _BLOCK_TYPES = {"text", "formula", "image", "example"}
 
+# Built-in trees have stable identities. Keep their document title tied to the
+# tree key so importing another subject into the selected tree cannot silently
+# publish a valid but unrelated framework under the wrong key.
+BUILTIN_TREE_TITLES = {
+    "申论": "申论",
+    "申论题型": "申论",
+    "判断推理": "判断推理",
+    "常识判断": "常识判断",
+    "数量关系": "数量关系",
+    "言语理解": "言语理解与表达",
+    "言语理解与表达": "言语理解与表达",
+    "资料分析": "资料分析",
+}
+
+
+def builtin_tree_title(tree_key: str) -> str | None:
+    return BUILTIN_TREE_TITLES.get(tree_key)
+
+
+def subject_title_issue(tree_key: str, title: str) -> dict[str, str] | None:
+    expected = builtin_tree_title(tree_key)
+    if expected and str(title or "").strip() != expected:
+        return {
+            "level": "error",
+            "code": "subject_title_mismatch",
+            "message": f"科目标识「{tree_key}」的标题必须为「{expected}」，不能发布「{str(title or '').strip()}」内容。",
+            "path": str(title or "").strip(),
+        }
+    return None
+
 
 def preview_markdown_import(markdown: str) -> dict[str, Any]:
     """Parse Markdown into the structured draft shape without writing anything."""
@@ -226,6 +256,9 @@ def save_draft(db: Session, tree: KnowledgeTree, value: dict[str, Any], base_rev
     cleaned, issues = validate_tree(value, strict=False)
     if any(i["level"] == "error" for i in issues) or cleaned is None:
         return {"issues": issues}, "invalid"
+    mismatch = subject_title_issue(tree.tree_key, cleaned["title"])
+    if mismatch:
+        return {"issues": [mismatch]}, "invalid"
     _, flat, _ = with_paths(cleaned)
     ids = [n.id for n in flat]
     foreign = db.query(KnowledgeNode.id).filter(KnowledgeNode.id.in_(ids), KnowledgeNode.tree_key != tree.tree_key).first()

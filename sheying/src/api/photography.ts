@@ -2,7 +2,13 @@ import Taro from '@tarojs/taro'
 import type { Lesson, RoadmapStage } from '@/data/lessons'
 
 type ApiResponse<T> = { code: number; data: T; message?: string }
-export type PhotographyCatalog = { lessons: Lesson[]; stages: RoadmapStage[] }
+export type PhotographyCase = {
+  id: string; title: string; imageUrl: string; sourceUrl: string; author: string; licenseType: string; licenseNote: string
+  category: string; level: string; observations: string[]; exif: Record<string, string | number | null>
+  inferences: { statement: string; evidence: string; confidence: string }[]
+  practiceTitle: string; practiceGoal: string; practiceSteps: string[]; practiceVariable: string; criteria: string[]; durationMin: number
+}
+export type PhotographyCatalog = { lessons: Lesson[]; stages: RoadmapStage[]; cases: PhotographyCase[] }
 export type PhotographyLogin = { access_token: string; user: { id: string; nickname: string; avatar?: string | null } }
 
 const API_BASE = (process.env.TARO_APP_API_BASE_URL || '').replace(/\/$/, '')
@@ -41,7 +47,9 @@ export async function fetchPhotographyCatalog(): Promise<PhotographyCatalog | nu
   if (response.statusCode >= 400 || response.data.code !== 0) {
     throw new Error(response.data.message || '摄影课程暂时无法加载')
   }
-  return response.data.data
+  const catalog = response.data.data
+  catalog.cases = (catalog.cases || []).map((item) => ({ ...item, imageUrl: item.imageUrl.startsWith('/') ? `${API_BASE}${item.imageUrl}` : item.imageUrl }))
+  return catalog
 }
 
 function authHeader(): Record<string, string> {

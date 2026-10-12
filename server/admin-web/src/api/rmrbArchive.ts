@@ -27,6 +27,7 @@ export interface RmrbArchiveArticle {
   classificationSuggestion: { sourceArticleType: string; examRelevance: string; confidence: number; method: string; reasons: string[]; featureKey?: string }
   classificationMethod: string
   classificationHistory: Array<Record<string, unknown>>
+  latestEvaluation: RmrbArticleEvaluation | null
   retentionTier: string
   bodyStatus: string
   sourceStatus: string
@@ -40,6 +41,24 @@ export interface RmrbArchiveArticle {
   revisions: Array<{ id: string; revisionNo: number; bodyStorageKey: string; bodySha256: string; bodySizeBytes: number; bodyStatus: string; parserVersion: string; changeNote: string; createdAt: string }>
   createdAt: string
   updatedAt: string
+}
+
+export interface RmrbArticleEvaluation {
+  id: string
+  status: string
+  reviewStatus: string
+  promptVersion: string
+  modelName: string
+  bodySha256: string
+  bodyCharCount: number
+  result: Record<string, any>
+  errorMessage: string
+  reviewNote: string
+  reviewedBy: string
+  reviewedAt: string | null
+  startedAt: string | null
+  finishedAt: string | null
+  createdAt: string
 }
 
 export interface RmrbArchivePage {
@@ -64,6 +83,7 @@ export interface RmrbArchiveFilters {
   editor?: string
   body_status?: string
   review_status?: string
+  evaluation_status?: string
   source_channel?: string
   page?: number
   page_size?: number
@@ -112,4 +132,16 @@ export function listRmrbArchiveBatches() {
 
 export function runRmrbArchiveBatch(issueDate: string) {
   return getData<RmrbArchiveBatch>(http.post('/admin/rmrb-archive/batches/run', { issueDate }))
+}
+
+export function runRmrbEvaluations(data: { issueDate?: string; dateFrom?: string; dateTo?: string; articleIds?: string[]; force?: boolean }) {
+  return getData<{ queued: number; evaluationIds: string[] }>(http.post('/admin/rmrb-archive/evaluations/run', data))
+}
+
+export function getRmrbEvaluation(articleId: string) {
+  return getData<RmrbArticleEvaluation>(http.get(`/admin/rmrb-archive/articles/${articleId}/evaluation`))
+}
+
+export function reviewRmrbEvaluation(articleId: string, data: { decision: string; result?: Record<string, any>; note?: string }) {
+  return getData<RmrbArticleEvaluation>(http.put(`/admin/rmrb-archive/articles/${articleId}/evaluation/review`, data))
 }

@@ -1,22 +1,23 @@
 # 知行公考项目架构与业务功能梳理
 
-> 更新时间：2026-09-09  
+> 更新时间：2026-10-11
 > 项目定位：纯公考备考应用（时政阅读、资料分析、申论、真题套卷、错题闭环、今日驾驶舱）。
 
 ## 1. 系统总览
 
-本项目由三个主要部分组成：
+本仓库由多个独立学员端工程、共享 API 和共享管理后台组成：
 
 | 部分 | 目录 | 技术栈 | 职责 |
 | --- | --- | --- | --- |
-| 学员端应用 | `src/` | Taro 4、Vue 3、TypeScript、NutUI、Pinia | 面向 H5 / 微信小程序的学习、练习、复盘、个人中心 |
-| 后端 API | `server/app/` | FastAPI、SQLAlchemy 2、SQLite、JWT | 业务接口、数据持久化、鉴权、文件上传、启动初始化 |
-| 管理后台 | `server/admin-web/` | Vue 3、Vite、Element Plus、Pinia | 内容、题库、用户、配置、权限和资源管理 |
+| 知行主学员端 | 根目录 `src/` | Taro 4、Vue 3、TypeScript、NutUI、Pinia | 主 H5 与知行微信小程序；公考学习、练习、复盘、个人中心 |
+| 独立小程序 | `baibaoxiang/`、`zhishiku/`、`kaikoushuo/`、`sheying/` | 各自的 Taro 工程和微信 AppID | 百宝箱、知库、言遇英语、光线练习簿；前端构建与发布独立 |
+| 后端 API | `server/app/` | FastAPI、SQLAlchemy 2、SQLite、JWT | 共享业务接口、数据持久化、鉴权、文件上传、启动初始化 |
+| 管理后台 | `server/admin-web/` | Vue 3、Vite、Element Plus、Pinia | 所有产品共用的内容、题库、用户、配置、权限和资源管理 |
 
-整体形态是一个单体仓库：综合学员端 + FastAPI + 管理后台。
+整体形态是一个单体仓库：多个独立客户端 + 一套 FastAPI + 一套管理后台。独立小程序分别拥有项目目录、AppID、客户端本地状态和发布版本；服务端和数据库共享。API 使用产品 Header 和微信 AppKey 选择产品上下文及登录凭据，不应把“独立发布”误认为“独立后端/数据库”。
 
 ```text
-H5 / 小程序学员端
+知行 H5 / 各独立微信小程序
         |
         | /api/*
         v
@@ -26,7 +27,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 管理后台 Vue 应用
 ```
 
-生产 Docker 镜像会构建 H5、构建管理后台，然后把 H5 交给 Nginx，FastAPI 提供 API、上传文件与 `/manage/` 管理后台静态资源。
+生产 Docker 镜像会构建知行主 H5、构建共享管理后台，然后由 FastAPI 提供 `/api/*`、`/admin/*`、上传文件与 `/manage/`。独立小程序由各自工程单独构建并上传到微信平台。全仓产品和操作矩阵见 [`docs/PROJECT_OPERATIONS_MANUAL.md`](./docs/PROJECT_OPERATIONS_MANUAL.md)。
 
 ## 2. 技术架构
 
@@ -90,12 +91,23 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 时政考点 · 文章管理 | 文章 CRUD、Markdown/HTML 导入、审核发布、分类、题目管理、AI 出题 |
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
+| 人民日报 | 全量文章档案、采集批次与逐篇全文 AI 评估；评估记录独立版本化，包含体裁、申论关联、主题、评分、结构、原文证据和物料建议；高/中关联正文归档，人工确认后更新文章分类；评论文章工作流可接收跨版面 AI 识别结果 |
 | 用户管理 | 学员账号、积分、状态管理 |
-| 知识框架 | Markdown 上传、树同步、节点维护 |
+| 知识框架 | Markdown 上传、树同步、节点维护；工作台可将当前已保存结构化草稿导出为 Markdown 或阅读版 HTML（图片引用原资源地址），导图图片可复用 Markmap/SVG 渲染能力 |
 | 学习计划 | 周计划模板维护、同步到待办 |
 | 试卷题库 | 试卷、题目、批量导入 |
 | 资料分析 | 公式、题型、秒杀技巧、练习资源 |
 | 系统设置 | 键值配置、角色权限矩阵 |
+
+### 2.4 独立小程序：言遇英语视听课程
+
+言遇英语客户端独立位于 `kaikoushuo/`，课程数据由共享英语 API 和管理后台提供；详细产品边界与发布流程见 [`docs/PROJECT_OPERATIONS_MANUAL.md`](./docs/PROJECT_OPERATIONS_MANUAL.md)。
+
+- `EnglishUnit.content_json` 保存媒体、台词/字幕、核心句块和口语任务，不新增数据库列，旧课程兼容。
+- 已发布课程目录包含学习所需内容；课程可配置视频/音频、官方来源及授权状态。
+- 管理后台发布校验：直播放地址需标记 `licensed_hosting`；仅外链素材记录 `sourceUrl`，小程序展示复制来源入口；待核验或不可用内容不能带媒体发布。
+- 小程序在授权状态允许且有媒体 URL 时播放音视频；提供中文释义显示控制、口语任务、本地录音回放和完成记录。
+- 当前课程素材库仍处于早期阶段：线上已发布原创情景单元，尚未配置示范音视频；第三方视频/美剧须完成授权核验后再入库。
 
 ## 3. 目录结构说明
 
@@ -187,10 +199,11 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 知识框架 | `KnowledgeNode` |
 | 真题套卷 | `ExamPaper`、`ExamQuestion`、`ExamAttempt`、`ExamAnswer` |
 | 倒计时与行为 | `ExamCountdown`、`ActivityEvent` |
-| 人民日报/申论 | `RmrbArticle`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
+| 人民日报/申论 | `RmrbArticle`、`RmrbArchiveArticle`、`RmrbArticleEvaluation`、`RmrbCommentArticle`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
 | 时政/时评 HTML | `Article.content_html`；`RmrbArticle.content_html`；示范 `ShenlunTeachingExample.display_html` |
 | 事件复盘 | `EventImpression` |
 | 语料与资料分析 | `CorpusItem`、`ZiliaoFormula`、`ZiliaoQuestionType`、`ZiliaoTrick`、`ZiliaoPracticeLog` |
+| 摄影学习 | `PhotographyStage`、`PhotographyLesson`、`PhotographyCase`（含授权信息、观察/推断、EXIF 和练习任务） |
 
 ## 6. 接口分层
 
@@ -202,6 +215,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `/api/auth/*`：学员注册、登录。
 - `/api/user/*`：个人资料、头像、改密。
 - `/api/articles/*`、`/api/questions`、`/api/answer`：文章与刷题。
+- `/api/photography/catalog`：公开已发布摄影课程、知识地图和经授权审核的摄影案例。
 - `/api/wrong/*`、`/api/manual-wrong/*`：错题本。
 - `/api/review/*`、`/api/knowledge/review/*`：复习中心与知识点复习。
 - `/api/plan/*`：学习计划。
@@ -224,6 +238,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `/admin/plan/*`：计划模板。
 - `/admin/exam/*`：试卷题库。
 - `/admin/rmrb/*`：时评文章、词表 CRUD、待收录 `/admin/rmrb/vocab-inbox*`、三刀导入。
+- `/admin/rmrb-archive/*`：人民日报全量文章与采集批次；`/evaluations/run` 批量全文评估，文章 `/evaluation` 查看最新报告与人工审核。
 - `/admin/ziliao/*`：资料分析资源。
 
 ## 7. 运行与部署
@@ -315,6 +330,8 @@ Obsidian Markdown / 管理端上传
     -> 学员端树状浏览
     -> 节点笔记、星标、掌握度与复习
 ```
+
+内置科目以 `tree_key` 作为稳定身份。服务端在结构化草稿保存、Markdown 导入、版本发布和激活时校验科目标题，阻止其他科目的结构被误发布到当前树。
 
 ### 8.4 真题套卷
 

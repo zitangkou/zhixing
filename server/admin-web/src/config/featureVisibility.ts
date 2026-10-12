@@ -7,6 +7,7 @@ const VISIBLE_PATHS = new Set([
   '/wechat-replies',
   '/rmrb/articles',
   '/rmrb-archive/articles',
+  '/rmrb-archive/comments',
   '/rmrb-archive/batches',
   '/rmrb/term-categories',
   '/rmrb/skeletons',
@@ -23,11 +24,13 @@ const VISIBLE_PATHS = new Set([
   '/knowledge-library',
   '/settings',
   '/roles',
+  '/project-manual',
   '/english/overview',
   '/english/courses',
   '/english/records',
   '/photography/courses',
   '/photography/map',
+  '/photography/cases',
 ])
 
 export function isAdminNavVisible(path: string): boolean {

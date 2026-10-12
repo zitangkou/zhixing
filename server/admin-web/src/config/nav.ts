@@ -57,7 +57,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: '人民日报',
     icon: Reading,
     children: [
-      { path: '/rmrb-archive/articles', title: '全量文章', icon: Document, permissions: ['rmrb:read'] },
+      { path: '/rmrb-archive/articles', title: '全量文章 / AI评估', icon: Document, permissions: ['rmrb:read'] },
+      { path: '/rmrb-archive/comments', title: '评论文章', icon: Reading, permissions: ['rmrb:read'] },
       { path: '/rmrb-archive/batches', title: '采集批次', icon: Calendar, permissions: ['rmrb:read'] },
     ],
   },
@@ -107,6 +108,7 @@ export const NAV_GROUPS: NavGroup[] = [
     children: [
       { path: '/photography/courses', title: '技巧课程', icon: Reading, permissions: ['photography:read'] },
       { path: '/photography/map', title: '知识地图', icon: Collection, permissions: ['photography:read'] },
+      { path: '/photography/cases', title: '作品案例', icon: Document, permissions: ['photography:read'] },
     ],
   },
   {
@@ -148,6 +150,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/xingce', title: '行测管理', icon: Tickets, permissions: ['xingce:read'] },
       { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read'] },
       { path: '/roles', title: '角色与权限', icon: User, permissions: ['admin:read'] },
+      { path: '/project-manual', title: '项目功能与操作', icon: Document, permissions: ['setting:read'] },
     ],
   },
 ]
@@ -186,7 +189,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/analytics/dashboard': '学习反馈看板',
   '/analytics/error-paths': '错因归集',
   '/rmrb/articles': '时评文章',
-  '/rmrb-archive/articles': '全量文章',
+  '/rmrb-archive/articles': '全量文章 / AI评估',
+  '/rmrb-archive/comments': '评论文章',
   '/rmrb-archive/batches': '采集批次',
   '/rmrb/import': '三刀导入',
   '/rmrb/term-categories': '规范词分类',
@@ -200,6 +204,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/english/records': '英语学习 · 学习记录',
   '/photography/courses': '摄影学习 · 技巧课程',
   '/photography/map': '摄影学习 · 知识地图',
+  '/photography/cases': '摄影学习 · 作品案例',
+  '/project-manual': '项目功能与操作',
   '/settings': '系统设置',
   '/roles': '角色与权限',
 }

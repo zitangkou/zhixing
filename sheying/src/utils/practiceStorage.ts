@@ -4,6 +4,7 @@ export type PracticeNote = {
   id: string
   lessonId: string
   lessonTitle: string
+  caseId?: string
   subject: string
   observation: string
   nextTry: string

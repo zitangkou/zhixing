@@ -13,6 +13,25 @@ from app.services.english_service import scene_dict, unit_dict
 router = APIRouter(prefix="/english", tags=["英语学习管理"])
 
 
+def _validate_published_media(body: EnglishUnitInput) -> None:
+    if not body.is_published:
+        return
+    content = body.content or {}
+    media = content.get("media") or {}
+    if not isinstance(media, dict):
+        media = {}
+    direct_urls = [media.get("audioUrl"), media.get("videoUrl"), content.get("dialogueAudioUrl")]
+    has_direct_media = any(isinstance(url, str) and url.strip() for url in direct_urls)
+    has_source = bool(isinstance(media.get("sourceUrl"), str) and media["sourceUrl"].strip())
+    rights = media.get("rightsStatus")
+    if rights == "rejected" and (has_direct_media or has_source):
+        raise HTTPException(422, "不可使用的素材不能发布")
+    if has_direct_media and rights != "licensed_hosting":
+        raise HTTPException(422, "小程序直播放地址需确认已获托管许可")
+    if has_source and rights == "pending_review":
+        raise HTTPException(422, "请先完成素材授权核验再发布")
+
+
 @router.get("/summary")
 def summary(db: Session = Depends(get_db), _admin=Depends(require_permission("english:read"))):
     return ApiResponse.ok({"scenes": db.query(EnglishScene).count(), "units": db.query(EnglishUnit).count(),
@@ -69,6 +88,7 @@ def list_units(db: Session = Depends(get_db), _admin=Depends(require_permission(
 @router.post("/units")
 def create_unit(body: EnglishUnitInput, db: Session = Depends(get_db), _admin=Depends(require_permission("english:write"))):
     if not db.get(EnglishScene, body.scene_id): raise HTTPException(404, "所属场景不存在")
+    _validate_published_media(body)
     data = body.model_dump()
     row = EnglishUnit(id=gen_id("enu"), scene_id=data.pop("scene_id"), content_json=json.dumps(data.pop("content"), ensure_ascii=False), **data)
     db.add(row); db.commit(); db.refresh(row)
@@ -80,6 +100,7 @@ def update_unit(unit_id: str, body: EnglishUnitInput, db: Session = Depends(get_
     row = db.get(EnglishUnit, unit_id)
     if not row: raise HTTPException(404, "课程不存在")
     if not db.get(EnglishScene, body.scene_id): raise HTTPException(404, "所属场景不存在")
+    _validate_published_media(body)
     data = body.model_dump()
     data["content_json"] = json.dumps(data.pop("content"), ensure_ascii=False)
     data["scene_id"] = data.pop("scene_id")

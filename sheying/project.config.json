@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "光线练习簿",
   "description": "学一点，拍一组",
-  "appid": "wxd932b22a30cffb10",
+  "appid": "wx9b0c1982315e4c67",
   "compileType": "miniprogram",
   "setting": {
     "urlCheck": true,
@@ -10,7 +10,29 @@
     "enhance": true,
     "compileHotReLoad": true,
     "postcss": false,
-    "minified": true
+    "minified": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
-  "condition": {}
+  "condition": {},
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }

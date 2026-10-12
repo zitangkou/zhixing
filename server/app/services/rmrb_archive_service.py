@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import SessionLocal
-from app.models import RmrbArchiveArticle, RmrbArchiveBatch, RmrbArchiveIssue, RmrbArchivePage, RmrbArchiveRevision, RmrbArchiveSource, gen_id
+from app.models import RmrbArchiveArticle, RmrbArchiveBatch, RmrbArchiveIssue, RmrbArchivePage, RmrbArchiveRevision, RmrbArchiveSource, RmrbArticleEvaluation, gen_id
 from app.services.rmrb_peopleapp_source import fetch_channel_items
 from app.upload_paths import DATA_DIR
 
@@ -120,6 +120,11 @@ def _add_source(db: Session, article: RmrbArchiveArticle, url: str, channel: str
     if not url:
         return
     existing = db.query(RmrbArchiveSource).filter_by(article_id=article.id, source_url=url).first()
+    if existing is None:
+        # SessionLocal 关闭 autoflush；同一批次首页/评论页同时发现一篇稿件时，
+        # 后续查询看不到当前事务里尚未 flush 的 source，需一并检查待写集合防止唯一键冲突。
+        existing = next((row for row in db.new if isinstance(row, RmrbArchiveSource)
+                         and row.article_id == article.id and row.source_url == url), None)
     if existing:
         # 同一稿件可能同时出现在客户端首页和评论页；来源 URL 去重，但保留两个入口的来源标记。
         if channel.startswith("peopleapp_") and existing.source_channel.startswith("peopleapp_"):
@@ -133,7 +138,7 @@ def _add_source(db: Session, article: RmrbArchiveArticle, url: str, channel: str
     ))
 
 
-def _out(article: RmrbArchiveArticle, *, include_body: bool = False) -> dict:
+def _out(article: RmrbArchiveArticle, *, include_body: bool = False, latest_evaluation: dict | None = None) -> dict:
     current = next((rev for rev in article.revisions if rev.revision_no == article.current_revision), None)
     body_text = None
     if include_body and current:
@@ -171,6 +176,7 @@ def _out(article: RmrbArchiveArticle, *, include_body: bool = False) -> dict:
         "classificationMethod": article.classification_method,
         "classificationFeatureKey": article.classification_feature_key,
         "classificationHistory": _parse(article.classification_history_json, []),
+        "latestEvaluation": latest_evaluation,
         "retentionTier": article.retention_tier,
         "bodyStatus": article.body_status,
         "sourceStatus": article.source_status,
@@ -191,7 +197,8 @@ def list_articles(db: Session, *, issue_date: date | None = None, date_from: dat
                   page_no: str | None = None, page_name: str | None = None, title: str | None = None,
                   article_type: str | None = None, record_class: str | None = None, exam_relevance: str | None = None,
                   retention_tier: str | None = None, author: str | None = None, editor: str | None = None, body_status: str | None = None,
-                  review_status: str | None = None, source_channel: str | None = None, page: int = 1, page_size: int = 20):
+                  review_status: str | None = None, evaluation_status: str | None = None,
+                  source_channel: str | None = None, page: int = 1, page_size: int = 20):
     query = db.query(RmrbArchiveArticle).filter(RmrbArchiveArticle.is_archived.is_(False))
     if issue_date: query = query.filter(RmrbArchiveArticle.issue_date == issue_date)
     if date_from: query = query.filter(RmrbArchiveArticle.issue_date >= date_from)
@@ -209,17 +216,35 @@ def list_articles(db: Session, *, issue_date: date | None = None, date_from: dat
     if editor: query = query.filter(RmrbArchiveArticle.editor_line.ilike(f"%{editor.strip()}%"))
     if body_status: query = query.filter(RmrbArchiveArticle.body_status == body_status)
     if review_status: query = query.filter(RmrbArchiveArticle.review_status == review_status)
+    if evaluation_status == "not_evaluated":
+        query = query.filter(~db.query(RmrbArticleEvaluation.id).filter(
+            RmrbArticleEvaluation.article_id == RmrbArchiveArticle.id,
+        ).exists())
+    elif evaluation_status:
+        latest_created = db.query(func.max(RmrbArticleEvaluation.created_at)).filter(
+            RmrbArticleEvaluation.article_id == RmrbArchiveArticle.id,
+        ).correlate(RmrbArchiveArticle).scalar_subquery()
+        query = query.filter(db.query(RmrbArticleEvaluation.id).filter(
+            RmrbArticleEvaluation.article_id == RmrbArchiveArticle.id,
+            RmrbArticleEvaluation.created_at == latest_created,
+            RmrbArticleEvaluation.status == evaluation_status,
+        ).exists())
     if source_channel: query = query.filter(RmrbArchiveArticle.source_channel == source_channel)
     total = query.with_entities(func.count(RmrbArchiveArticle.id)).scalar() or 0
     rows = query.options(selectinload(RmrbArchiveArticle.sources), selectinload(RmrbArchiveArticle.revisions)).order_by(
         RmrbArchiveArticle.issue_date.desc(), RmrbArchiveArticle.page_no.asc(), RmrbArchiveArticle.id.asc()
     ).offset((page - 1) * page_size).limit(page_size).all()
-    return {"items": [_out(row) for row in rows], "total": total, "page": page, "pageSize": page_size}
+    from app.services.rmrb_evaluation_service import latest_evaluations
+    evaluations = latest_evaluations(db, [row.id for row in rows])
+    return {"items": [_out(row, latest_evaluation=evaluations.get(row.id)) for row in rows], "total": total, "page": page, "pageSize": page_size}
 
 
 def get_article(db: Session, article_id: str, include_body: bool = True):
     article = db.query(RmrbArchiveArticle).options(selectinload(RmrbArchiveArticle.sources), selectinload(RmrbArchiveArticle.revisions)).filter_by(id=article_id, is_archived=False).first()
-    return _out(article, include_body=include_body) if article else None
+    if not article:
+        return None
+    from app.services.rmrb_evaluation_service import get_evaluation
+    return _out(article, include_body=include_body, latest_evaluation=get_evaluation(db, article_id))
 
 
 def create_article(db: Session, data) -> dict:
@@ -426,23 +451,34 @@ def _majority(values: list[str], minimum: int = 5, agreement: float = 0.9) -> tu
 
 
 def _rule_classification(article: RmrbArchiveArticle) -> dict:
-    title = " ".join((article.display_title or "", article.column_label or "", article.series_label or ""))
+    title = article.display_title or ""
     compact = _normalize_title(title)
     result = {
         "sourceArticleType": "undetermined", "examRelevance": "pending", "confidence": 0.25,
         "method": "metadata_rules_v1", "reasons": ["当前档案未保存正文；标题和栏目不足以可靠判断申论适配度，需人工查看原文。"],
     }
+    commentary_columns = (
+        "人民时评", "人民论坛", "今日谈", "人民锐评", "人民观点", "锐评", "纵横", "评论员观察",
+        "微观", "金台随笔", "国际论坛", "和音", "社论", "钟声", "本报评论员", "人民要论",
+    )
+    labels = (article.column_label or "", article.series_label or "", article.eyebrow or "")
+    named_column = next((name for name in commentary_columns if any(label.strip() == name for label in labels)), None)
+    named_title = next((name for name in sorted(commentary_columns, key=len, reverse=True)
+                        if re.match(rf"^{re.escape(name)}\s*[：:·｜|]", title)
+                        or re.search(rf"[（(]{re.escape(name)}[）)]\s*$", title)), None)
+    if named_column or named_title:
+        name = named_column or named_title
+        result.update(sourceArticleType="editorial" if name == "社论" else "commentary", confidence=0.96,
+                      reasons=[f"栏目/标题明确命中评论体裁标记：{name}", result["reasons"][0]])
     rules = [
         (r"^(图片报道|图片新闻|图说)$", "picture_report", 0.99, "标题明确标注为图片/图说报道"),
-        (r"社论", "editorial", 0.97, "标题或栏目明确出现“社论”"),
-        (r"今日谈|人民时评|人民论坛|人民锐评|国际论坛|和音", "commentary", 0.96, "栏目/标题属于明确的评论栏目"),
         (r"政策解读|政策问答|答记者问|权威访谈", "policy_qa", 0.93, "标题明确标注政策解读、问答或答记者问"),
         (r"理论文章|理论学习|理论研究", "theory", 0.91, "标题明确标注理论文章/学习/研究"),
         (r"专访|访谈|记者对话|对话", "interview", 0.89, "标题明确标注专访、访谈或对话"),
         (r"记者手记|记者观察|记者再走|调查报道|深度调查|田间探新|身边的创新", "feature_investigation", 0.87, "标题/系列名显示为现场、调查或深度报道"),
         (r"副刊|文学|散文|诗歌|小说", "cultural_work", 0.84, "标题/栏目显示为文化副刊或文学作品"),
     ]
-    for pattern, article_type, confidence, reason in rules:
+    for pattern, article_type, confidence, reason in rules if result["sourceArticleType"] == "undetermined" else ():
         if re.search(pattern, compact):
             result.update(sourceArticleType=article_type, confidence=confidence, reasons=[reason, result["reasons"][0]])
             break
@@ -482,6 +518,8 @@ def _classification_suggestion(db: Session, article: RmrbArchiveArticle) -> dict
 
 def _apply_classification_suggestion(db: Session, article: RmrbArchiveArticle) -> None:
     if article.review_status in {"approved", "auto_approved"}:
+        return
+    if article.classification_method == "llm_fulltext_v1":
         return
     suggestion = _classification_suggestion(db, article)
     article.classification_suggestion_json = json.dumps(suggestion, ensure_ascii=False, separators=(",", ":"))
@@ -814,6 +852,24 @@ def run_collection_batch(batch_id: str) -> None:
         batch.error_summary = "\n".join(failures[:50])
         batch.finished_at = datetime.now(BEIJING).replace(tzinfo=None)
         db.commit()
+        # 全量目录成功入库后，按评论版与评论专栏规则生成学习物料；失败不回滚档案采集。
+        try:
+            from app.services.rmrb_comments_service import run_daily_comment_analysis, scan_comments
+            scan_comments(db, issue_date)
+            run_daily_comment_analysis(issue_date)
+        except Exception as exc:
+            batch = db.get(RmrbArchiveBatch, batch_id)
+            if batch:
+                batch.error_summary = (batch.error_summary + f"\n评论文章物料处理失败：{exc}")[:4000]
+                db.commit()
+        try:
+            from app.services.rmrb_evaluation_service import run_daily_evaluations
+            run_daily_evaluations(issue_date)
+        except Exception as exc:
+            batch = db.get(RmrbArchiveBatch, batch_id)
+            if batch:
+                batch.error_summary = (batch.error_summary + f"\n全量文章 AI 评估排队失败：{exc}")[:4000]
+                db.commit()
     except Exception as exc:
         db.rollback()
         batch = db.get(RmrbArchiveBatch, batch_id)

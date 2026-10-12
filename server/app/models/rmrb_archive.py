@@ -136,3 +136,52 @@ class RmrbArchiveBatch(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class RmrbCommentArticle(Base):
+    """评论文章学习物料流水；文章正文仍以全量档案版本为唯一来源。"""
+    __tablename__ = "rmrb_comment_articles"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("rmc"))
+    article_id: Mapped[str] = mapped_column(ForeignKey("rmrb_archive_articles.id", ondelete="CASCADE"), unique=True, index=True)
+    article: Mapped[RmrbArchiveArticle] = relationship()
+    inclusion_reason: Mapped[str] = mapped_column(String(256), default="")
+    workflow_status: Mapped[str] = mapped_column(String(32), default="identified", index=True)
+    analysis_status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    review_status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    original_md_key: Mapped[str] = mapped_column(String(512), default="")
+    original_html_key: Mapped[str] = mapped_column(String(512), default="")
+    analysis_md_key: Mapped[str] = mapped_column(String(512), default="")
+    analysis_html_key: Mapped[str] = mapped_column(String(512), default="")
+    analysis_version: Mapped[str] = mapped_column(String(32), default="shenlun-v2.23-adapted")
+    analysis_error: Mapped[str] = mapped_column(Text, default="")
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    reviewed_by: Mapped[str] = mapped_column(String(128), default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class RmrbArticleEvaluation(Base):
+    """全量档案文章的 AI 评估版本；每次重评保留独立结果和人工审核记录。"""
+    __tablename__ = "rmrb_article_evaluations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("rme"))
+    article_id: Mapped[str] = mapped_column(ForeignKey("rmrb_archive_articles.id", ondelete="CASCADE"), index=True)
+    article: Mapped[RmrbArchiveArticle] = relationship()
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    review_status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    prompt_version: Mapped[str] = mapped_column(String(40), default="rmrb-eval-v1")
+    model_name: Mapped[str] = mapped_column(String(128), default="")
+    body_sha256: Mapped[str] = mapped_column(String(64), default="", index=True)
+    body_char_count: Mapped[int] = mapped_column(Integer, default=0)
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    error_message: Mapped[str] = mapped_column(Text, default="")
+    reviewed_result_json: Mapped[str] = mapped_column(Text, default="")
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    reviewed_by: Mapped[str] = mapped_column(String(128), default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

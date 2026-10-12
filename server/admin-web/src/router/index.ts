@@ -179,6 +179,12 @@ const router = createRouter({
           meta: { title: '全量文章', permissions: ['rmrb:read'] },
         },
         {
+          path: 'rmrb-archive/comments',
+          name: 'rmrb-archive-comments',
+          component: () => import('@/views/rmrbArchive/Comments.vue'),
+          meta: { title: '评论文章', permissions: ['rmrb:read'] },
+        },
+        {
           path: 'rmrb-archive/batches',
           name: 'rmrb-archive-batches',
           component: () => import('@/views/rmrbArchive/Batches.vue'),
@@ -275,6 +281,12 @@ const router = createRouter({
           meta: { title: '摄影学习 · 知识地图', permissions: ['photography:read'] },
         },
         {
+          path: 'photography/cases',
+          name: 'photography-cases',
+          component: () => import('@/views/photography/Cases.vue'),
+          meta: { title: '摄影学习 · 作品案例', permissions: ['photography:read'] },
+        },
+        {
           path: 'xingce',
           name: 'xingce',
           component: () => import('@/views/xingce/Index.vue'),
@@ -325,6 +337,12 @@ const router = createRouter({
           name: 'roles',
           component: () => import('@/views/settings/Roles.vue'),
           meta: { title: '角色与权限', permissions: ['admin:read'] },
+        },
+        {
+          path: 'project-manual',
+          name: 'project-manual',
+          component: () => import('@/views/system/ProjectManual.vue'),
+          meta: { title: '项目功能与操作', permissions: ['setting:read'] },
         },
       ],
     },

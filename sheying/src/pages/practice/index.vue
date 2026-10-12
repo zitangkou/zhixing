@@ -3,7 +3,7 @@
     <view class="tabs"><text :class="{active: tab === 'journal'}" @tap="tab = 'journal'">拍摄练习</text><text :class="{active: tab === 'map'}" @tap="tab = 'map'">知识地图</text></view>
     <template v-if="tab === 'journal'">
       <view class="intro"><text class="eyebrow">FIELD NOTES</text><text class="title">每次按下快门，都留下线索。</text><text class="copy">记下拍摄条件与复盘，下次就知道从哪里改进。</text></view>
-      <view class="form"><text class="label">今天练了什么</text><picker :range="lessonTitles" @change="onLessonChange"><view class="picker">{{ selectedTitle }} <text>⌄</text></view></picker><text class="label">拍摄主题</text><input v-model="subject" placeholder="例如：窗边的咖啡杯"/><text class="label">我观察到的光线 / 构图</text><textarea v-model="observation" placeholder="光从哪里来？主体和背景是什么关系？"/><text class="label">下次我想调整</text><textarea v-model="nextTry" placeholder="曝光补偿、机位、背景……"/></view>
+      <view class="form"><text class="label">今天练了什么</text><view v-if="currentCase" class="case-task"><text class="case-task-title">{{ currentCase.practiceTitle }}</text><text class="case-task-copy">{{ currentCase.practiceGoal }}</text><text class="case-task-copy">本次主要变量：{{ currentCase.practiceVariable }}</text><text v-for="(step,index) in currentCase.practiceSteps" :key="index" class="case-task-copy">{{ index + 1 }}. {{ step }}</text></view><picker v-else :range="lessonTitles" @change="onLessonChange"><view class="picker">{{ selectedTitle }} <text>⌄</text></view></picker><text class="label">拍摄主题</text><input v-model="subject" placeholder="例如：窗边的咖啡杯"/><text class="label">我观察到的光线 / 构图</text><textarea v-model="observation" placeholder="光从哪里来？主体和背景是什么关系？"/><text class="label">下次我想调整</text><textarea v-model="nextTry" placeholder="曝光补偿、机位、背景……"/></view>
       <view class="save" @tap="saveNote">保存这次练习</view>
       <view class="section-title">最近练习 <text>{{ notes.length }} 条</text></view>
       <view v-if="!notes.length" class="empty">还没有练习记录。先去拍一张吧。<text @tap="goHome">浏览今日技巧 ›</text></view>
@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { lessons, roadmap, loadCatalog } from '@/data/catalog'
+import { lessons, roadmap, photoCases, loadCatalog } from '@/data/catalog'
 import { showToast } from '@/utils/feedback'
 import { readPracticeNotes, savePracticeNotes, type PracticeNote } from '@/utils/practiceStorage'
 definePageConfig({ navigationBarTitleText: '练习与地图' })
@@ -28,6 +28,7 @@ const tab = ref(params.tab === 'map' ? 'map' : 'journal')
 const selected = ref(Math.max(0, lessons.value.findIndex((item) => item.id === params.lessonId)))
 const lessonTitles = computed(() => lessons.value.map((item) => item.title))
 const selectedTitle = computed(() => lessonTitles.value[selected.value] || '')
+const currentCase = computed(() => photoCases.value.find((item) => item.id === params.caseId))
 const subject = ref(''); const observation = ref(''); const nextTry = ref('')
 const notes = ref<PracticeNote[]>([])
 const mapDescription = ['练习判断光源方向、软硬和色彩，用光塑造质感。', '控制画面边缘、主体位置与空间关系，让视线有落点。', '理解光圈、快门、ISO、测光和对焦，建立可控的拍摄习惯。', '围绕人物、静物、街景和风光，练习把感受转成画面选择。', '通过选片、基础调整和系列组织，让单张照片形成作品表达。']
@@ -39,7 +40,7 @@ function saveNote() {
   const cleanSubject = subject.value.trim()
   const cleanObservation = observation.value.trim()
   if (!cleanSubject && !cleanObservation) { showToast('写下拍摄主题或观察再保存'); return }
-  const item: PracticeNote = { id: `${Date.now()}`, lessonId: lessons.value[selected.value].id, lessonTitle: selectedTitle.value, subject: cleanSubject, observation: cleanObservation, nextTry: nextTry.value.trim(), date: new Date().toLocaleDateString('zh-CN') }
+  const item: PracticeNote = { id: `${Date.now()}`, lessonId: currentCase.value ? '' : lessons.value[selected.value].id, lessonTitle: currentCase.value?.practiceTitle || selectedTitle.value, caseId: currentCase.value?.id, subject: cleanSubject, observation: cleanObservation, nextTry: nextTry.value.trim(), date: new Date().toLocaleDateString('zh-CN') }
   notes.value = [item, ...notes.value]
   savePracticeNotes(notes.value)
   subject.value = ''; observation.value = ''; nextTry.value = ''

@@ -60,7 +60,10 @@ def admin_knowledge_patch_tree(
     _admin=Depends(require_permission("knowledge:write")),
     db: Session = Depends(get_db),
 ):
-    t = docs.patch_tree(db, tree_key, body.model_dump(exclude_unset=True))
+    try:
+        t = docs.patch_tree(db, tree_key, body.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        return ApiResponse.fail(str(exc), code=400)
     if not t:
         return ApiResponse.fail("知识树不存在", code=404)
     meta = next((m for m in docs.list_tree_metas(db) if m["treeKey"] == tree_key), None)

@@ -28,7 +28,9 @@ def list_public_scenes(db: Session) -> list[dict]:
     output = []
     for scene in scenes:
         item = scene_dict(scene)
-        item["units"] = [unit_dict(unit, False) for unit in db.query(EnglishUnit).filter(
+        # Published lesson content is returned with the catalogue so the mini-program
+        # can render the learning flow without a second request per unit.
+        item["units"] = [unit_dict(unit) for unit in db.query(EnglishUnit).filter(
             EnglishUnit.scene_id == scene.id, EnglishUnit.is_published.is_(True)
         ).order_by(EnglishUnit.sort_order, EnglishUnit.title).all()]
         output.append(item)

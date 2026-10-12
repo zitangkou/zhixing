@@ -2,7 +2,54 @@ import json
 
 from sqlalchemy.orm import Session
 
-from app.models import PhotographyLesson, PhotographyStage, gen_id
+from app.models import PhotographyCase, PhotographyLesson, PhotographyStage, gen_id
+
+
+def _json_value(value: str, fallback):
+    try:
+        result = json.loads(value or "")
+        return result
+    except (TypeError, json.JSONDecodeError):
+        return fallback
+
+
+def case_dict(row: PhotographyCase) -> dict:
+    return {
+        "id": row.id, "title": row.title, "imageUrl": row.image_url,
+        "sourceUrl": row.source_url, "author": row.author,
+        "licenseType": row.license_type, "licenseNote": row.license_note,
+        "category": row.category, "level": row.level,
+        "observations": _json_value(row.observation_json, []),
+        "exif": _json_value(row.exif_json, {}),
+        "inferences": _json_value(row.inference_json, []),
+        "practiceTitle": row.practice_title, "practiceGoal": row.practice_goal,
+        "practiceSteps": _json_value(row.practice_steps_json, []),
+        "practiceVariable": row.practice_variable,
+        "criteria": _json_value(row.criteria_json, []),
+        "durationMin": row.duration_min, "sortOrder": row.sort_order,
+        "isPublished": row.is_published,
+    }
+
+
+def case_input_values(body) -> dict:
+    data = body.model_dump()
+    required = ("source_url", "author", "license_type", "license_note", "practice_title",
+                "practice_goal", "practice_variable")
+    if data["is_published"]:
+        missing = [name for name in required if not str(data.get(name, "")).strip()]
+        if not data["observations"] or not data["practice_steps"] or not data["criteria"]:
+            missing.append("observations/practice_steps/criteria")
+        if missing:
+            from fastapi import HTTPException
+            raise HTTPException(422, "发布案例需补齐图片来源、作者/授权、画面观察、练习任务和复盘标准")
+    for source, target in (("observations", "observation_json"), ("exif", "exif_json"),
+                           ("inferences", "inference_json"), ("practice_steps", "practice_steps_json"),
+                           ("criteria", "criteria_json")):
+        data[target] = json.dumps(data.pop(source), ensure_ascii=False)
+    for source, target in (("image_url", "image_url"), ("source_url", "source_url"),
+                           ("license_type", "license_type")):
+        data[target] = str(data[target]).strip()
+    return data
 
 
 def stage_dict(row: PhotographyStage) -> dict:
@@ -32,8 +79,12 @@ def photography_catalog(db: Session) -> dict:
         PhotographyLesson.sort_order, PhotographyLesson.title
     ).all()
     visible_stage_ids = {row.id for row in stages}
+    cases = db.query(PhotographyCase).filter(PhotographyCase.is_published.is_(True)).order_by(
+        PhotographyCase.sort_order, PhotographyCase.title
+    ).all()
     return {"stages": [stage_dict(row) for row in stages],
-            "lessons": [lesson_dict(row) for row in lessons if row.stage_id in visible_stage_ids]}
+            "lessons": [lesson_dict(row) for row in lessons if row.stage_id in visible_stage_ids],
+            "cases": [case_dict(row) for row in cases]}
 
 
 def seed_photography_content(db: Session) -> None:

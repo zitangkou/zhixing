@@ -11,9 +11,9 @@ export default defineAppConfig({
     selectedColor: '#256D73',
     backgroundColor: '#FFFFFF',
     list: [
-      { pagePath: 'pages/home/index', text: '今日' },
-      { pagePath: 'pages/scenes/index', text: '场景' },
-      { pagePath: 'pages/mine/index', text: '我的' },
+      { pagePath: 'pages/home/index', text: '今日', iconPath: './assets/icons/today.png', selectedIconPath: './assets/icons/today-active.png' },
+      { pagePath: 'pages/scenes/index', text: '场景', iconPath: './assets/icons/scenes.png', selectedIconPath: './assets/icons/scenes-active.png' },
+      { pagePath: 'pages/mine/index', text: '我的', iconPath: './assets/icons/mine.png', selectedIconPath: './assets/icons/mine-active.png' },
     ],
   },
 })

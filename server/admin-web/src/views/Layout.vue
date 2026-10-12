@@ -131,7 +131,7 @@ const crumbs = computed(() => {
     return title ? ['摄影学习', title] : ['摄影学习']
   }
   const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
-  if (['/users', '/feedbacks', '/xingce', '/settings', '/roles'].includes(path)) {
+  if (['/users', '/feedbacks', '/xingce', '/settings', '/roles', '/project-manual'].includes(path)) {
     return title ? ['系统', title] : ['系统']
   }
   return title ? [title] : []

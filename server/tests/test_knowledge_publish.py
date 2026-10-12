@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 
 _DB = Path(__file__).resolve().parent / "_knowledge_publish.db"
@@ -19,7 +20,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.database import SessionLocal, engine  # noqa: E402
 from app.db_compat import run_compat_migrations  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Base, KnowledgeNode, KnowledgeTree, UserKnowledgeState  # noqa: E402
+from app.models import Base, KnowledgeNode, KnowledgeTree, KnowledgeTreeVersion, UserKnowledgeState  # noqa: E402
 from app.services import knowledge_doc_service as docs  # noqa: E402
 from app.services.knowledge_doc_service import (  # noqa: E402
     activate_version,
@@ -581,5 +582,73 @@ def test_structured_title_stays_private_until_activation_and_rejects_foreign_ids
         assert err == 'invalid'
         _, err = save_structured_draft(db, tree, draft, tree.draft_revision - 1)
         assert err == 'conflict'
+    finally:
+        db.close()
+
+
+def test_builtin_tree_rejects_cross_subject_content_at_save_publish_and_activation():
+    db = SessionLocal()
+    try:
+        out = import_md_to_draft(
+            db,
+            "资料分析",
+            "资料分析",
+            "# 资料分析\n## 增长\n### 增长量\n- 现期量乘增长率\n",
+            admin_id="t",
+        )
+        assert out["ok"]
+        tree = docs.get_or_none_tree(db, "资料分析")
+        draft = get_draft(db, tree)
+
+        # Replacing the selected data-analysis tree with a valid shenlun tree
+        # must be rejected before it can alter either the draft or metadata.
+        draft["title"] = "申论"
+        draft["children"] = [{
+            "id": "shenlun_root",
+            "title": "提出对策题",
+            "blocks": [],
+            "children": [],
+        }]
+        saved, err = save_structured_draft(db, tree, draft, tree.draft_revision)
+        assert err == "invalid"
+        assert saved["issues"][0]["code"] == "subject_title_mismatch"
+        db.refresh(tree)
+        assert tree.title == "资料分析"
+        assert tree.draft_tree_json == ""
+
+        # Also defend publish against legacy or manually injected bad drafts.
+        tree.draft_tree_json = json.dumps(draft, ensure_ascii=False)
+        db.commit()
+        _, err, issues = publish_tree(db, "资料分析", tree.draft_revision, admin_id="t")
+        assert err == "invalid"
+        assert issues[0]["code"] == "subject_title_mismatch"
+
+        # A previously created bad snapshot cannot be activated either.
+        bad_version = KnowledgeTreeVersion(
+            tree_id=tree.id,
+            version=1,
+            md_content=tree.md_draft,
+            tree_json=json.dumps(draft, ensure_ascii=False),
+            node_count=1,
+            assets_ready=True,
+        )
+        db.add(bad_version)
+        tree.latest_version = 1
+        db.commit()
+        _, err = activate_version(db, "资料分析", 1, expected_live=0)
+        assert err == "invalid"
+        assert tree.live_version == 0
+
+        assert docs.create_tree(db, "资料分析", "申论") is None
+        with pytest.raises(ValueError, match="必须为「资料分析」"):
+            docs.patch_tree(db, "资料分析", {"title": "申论"})
+        blocked_import = import_md_to_draft(
+            db,
+            "资料分析",
+            "申论",
+            "# 申论\n## 提出对策题\n",
+            force=True,
+        )
+        assert blocked_import["error"] == "subject_title_mismatch"
     finally:
         db.close()

@@ -11,6 +11,7 @@ from app.api.admin.plan import router as plan_router
 from app.api.admin.questions import router as questions_router
 from app.api.admin.rmrb import router as rmrb_router
 from app.api.admin.rmrb_archive import router as rmrb_archive_router
+from app.api.admin.rmrb_comments import router as rmrb_comments_router
 from app.api.admin.roles import router as roles_router
 from app.api.admin.settings import router as settings_router
 from app.api.admin.theory_learning import router as theory_learning_router
@@ -44,6 +45,7 @@ router.include_router(plan_router)
 router.include_router(exam_router)
 router.include_router(rmrb_router)
 router.include_router(rmrb_archive_router)
+router.include_router(rmrb_comments_router)
 router.include_router(ziliao_router)
 router.include_router(misc_router)
 router.include_router(content_ops_router)

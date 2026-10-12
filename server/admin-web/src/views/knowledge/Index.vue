@@ -2,9 +2,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { ApiRequestError } from '@/api/http'
+import { downloadKnowledgeFile, knowledgeTreeToHtml, knowledgeTreeToMarkdown } from './exportDocument'
 import {
   activateKnowledgeVersion, createKnowledgeTree, fetchKnowledgeTrees,
   fetchStructuredKnowledge, previewStructuredKnowledge, previewStructuredMarkdown, publishKnowledgeTree,
@@ -364,6 +366,22 @@ async function openAdvancedPreview() {
   if (pending || !activeKey.value) return
   await router.push({ path: '/knowledge/legacy', query: { source: 'structured', treeKey: activeKey.value } })
 }
+
+async function exportKnowledge(format: 'md' | 'html') {
+  if (!draft.value || !activeKey.value) return
+  await flushSave()
+  if (pending || saveState.value.includes('失败')) {
+    ElMessage.warning('草稿尚未保存成功，请先处理保存问题后再导出')
+    return
+  }
+  const base = `${activeKey.value.replace(/[\\/:*?"<>|]/g, '_')}-知识框架` || '知识框架'
+  if (format === 'md') {
+    downloadKnowledgeFile(`${base}.md`, knowledgeTreeToMarkdown(draft.value), 'text/markdown;charset=utf-8')
+  } else {
+    downloadKnowledgeFile(`${base}.html`, knowledgeTreeToHtml(draft.value), 'text/html;charset=utf-8')
+  }
+  ElMessage.success(`已导出当前草稿 ${format.toUpperCase()} 文档`)
+}
 onMounted(async () => {
   window.addEventListener('beforeunload', onBeforeUnload)
   const preferred = typeof route.query.treeKey === 'string' ? route.query.treeKey : ''
@@ -384,6 +402,15 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', onBeforeUnloa
         </el-select>
         <el-button @click="createSubject">新增科目</el-button>
         <el-button v-if="draft" @click="openMarkdownImport">导入 Markdown</el-button>
+        <el-dropdown v-if="draft" @command="exportKnowledge">
+          <el-button>导出文档<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="md">导出 Markdown（.md）</el-dropdown-item>
+              <el-dropdown-item command="html">导出阅读版（.html）</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <span v-if="draft" class="status">{{ saveState }} · 线上 v{{ activeMeta?.liveVersion || '—' }}</span>
         <div class="top-spacer" />
         <el-button v-if="draft" type="primary" :loading="publishing" :disabled="loading" @click="onPublish">发布</el-button>

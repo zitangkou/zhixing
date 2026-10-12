@@ -9,6 +9,8 @@
 > 配套开发规范见 [`PROJECT_PROMPT.md`](./PROJECT_PROMPT.md)，架构细节见 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。
 
 > **在用/隐藏状态活文档** → [`docs/planning/FEATURE_INVENTORY.md`](./docs/planning/FEATURE_INVENTORY.md)（操作真相源）；规划清单 → [`docs/planning/PRODUCT_ROADMAP.md`](./docs/planning/PRODUCT_ROADMAP.md)。本文件保留模块明细目录角色。
+>
+> **全仓产品总览** → [`docs/PROJECT_OPERATIONS_MANUAL.md`](./docs/PROJECT_OPERATIONS_MANUAL.md)（包含所有独立小程序、H5、共享管理后台、操作和发布流程）。
 
 ---
 
@@ -285,6 +287,9 @@
 | **时政考点** · 分类管理 | 时政分类树 CRUD；顶栏 **待收录**（推断失败时的标签名，晋升为「未归类」下叶子） |
 | **时评精拆** · 时评文章 | 原文 HTML 预览回填来源/日期/链接/中心论点摘要/主题（约定见 `docs/时评精拆原文HTML_知行导入约定.md`）；今日推荐/发布；行内 **导入解析** |
 | **时评精拆** · 规范词 / 骨架 / 论证方法 / 句式 | 各表 CRUD；顶栏 **待收录**（开采保存或 Markdown 三刀导入扫到的未知名字 → 收录或忽略） |
+| 知识框架工作台（路由保留） | 结构化维护知识树；可将当前已保存草稿导出为 Markdown 或独立阅读版 HTML。HTML 包含目录、公式与打印样式；图片仍引用原资源地址。 |
+| **人民日报** · 全量文章与 AI 评估 | 采集完成后逐篇获取正文并进入全文 AI 评估队列；区分文章体裁与评论/观点属性，输出申论关联、主题、适用场景、摘要、结构、证据和可用物料；高/中关联稿保存正文，AI 结论待人工确认；支持批量评估、重评、失败筛选和报告审核。需服务端 LLM 配置 |
+| **人民日报** · 评论文章 | 评论版、明确栏目及全量 AI 评估发现的评论/社论稿均可纳入；复用档案正文生成原文 Markdown/HTML 与 AI 三刀解剖 Markdown/HTML；支持预览、编辑和人工审核。AI 仅生成草稿，审核通过才标记可用；物料保存在 `server/data/rmrb/comments/` |
 | 用户管理 | 学员列表（积分、状态等） |
 | 系统设置 | `SystemSetting` 键值编辑；角色权限矩阵（只读） |
 

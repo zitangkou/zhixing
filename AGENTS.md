@@ -73,5 +73,7 @@ bash scripts/deploy-from-local.sh
 ### 管理与业务文档
 
 - `FEATURES.md` — 全量功能清单；`ARCHITECTURE.md` — 架构与业务流；`PROJECT_PROMPT.md` — 前端开发规范。
+- `docs/PROJECT_OPERATIONS_MANUAL.md` — 全仓产品矩阵（知行、百宝箱、知库、言遇英语、摄影）、H5、共享管理后台及日常操作/发布流程。
+- **强制文档同步**：新增、调整、隐藏或下线功能时，按改动范围更新项目手册、对应小程序 README、`FEATURES.md` 和/或 `ARCHITECTURE.md`。同时检查管理员菜单、权限、环境变量和部署说明；把计划、待配置、未实现状态与已上线功能分开描述。不得将 AppSecret、API Key 等密钥写入文档。
 - **部署**：日常用 `scripts/deploy-from-local.sh`；见 `docs/release/cloud-server-deploy-guide.md`、`docs/release/agent-handoff-20260924.md`。生产目录常为 `/opt/zhixing-gongkao`（可能无 `.git`），版本看 `.deployed-sha`。
 - 环境变量默认值见 `ARCHITECTURE.md` §7.2：H5 端口 `10087`、后端 `8001`、`CORS_ORIGINS` 默认 `http://localhost:10087`。

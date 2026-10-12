@@ -5,17 +5,24 @@
     <text class="muted">每个小课都包含对话、实用句块和开口任务。</text>
     <view v-for="(lesson, i) in lessons" :key="lesson.id" class="card scene" @tap="open(lesson.id)">
       <view class="scene-number">0{{ i + 1 }}</view>
-      <view class="scene-content"><view class="row"><text class="scene-title">{{ lesson.title }}</text><text class="pill">{{ lesson.level }}</text></view><text class="muted">{{ lesson.goal }}</text><text class="scene-meta">{{ lesson.minutes }} 分钟 · 听对话 · 练表达</text></view>
+      <view class="scene-content"><view class="row"><text class="scene-title">{{ lesson.title }}</text><text class="pill">{{ lesson.level }}</text></view><text class="muted">{{ lesson.goal }}</text><text class="scene-meta">{{ lesson.minutes }} 分钟 · {{ mediaLabel(lesson) }} · 练表达</text></view>
     </view>
     <view class="note card"><text class="note-title">练习小建议</text><text class="muted">先试着自己说，再看参考表达。卡住时听一遍、跟一句，最后再脱稿说一次。</text></view>
   </view>
 </template>
 <script setup lang="ts">
 import Taro from '@tarojs/taro'
-import { lessons, loadLessons } from '@/data'
+import { lessons, loadLessons, type Lesson } from '@/data'
 import { onMounted } from 'vue'
 definePageConfig({ navigationBarTitleText: '场景练习' })
 function open(id: string) { Taro.navigateTo({ url: `/pages/lesson/index?id=${id}` }) }
+function mediaLabel(lesson: Lesson) {
+  if (lesson.rightsStatus === 'rejected' || lesson.rightsStatus === 'pending_review') return '台词练习'
+  if (lesson.videoUrl) return '视频精听'
+  if (lesson.audioUrl) return '音频跟读'
+  if (lesson.sourceUrl) return '官方素材外链'
+  return '对话跟读'
+}
 onMounted(() => { void loadLessons() })
 </script>
 <style lang="scss">

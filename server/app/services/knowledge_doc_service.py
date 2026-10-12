@@ -130,6 +130,10 @@ def create_tree(
     title = (title or "").strip() or tree_key
     if not tree_key or get_or_none_tree(db, tree_key):
         return None
+    from app.services.knowledge_structured import subject_title_issue
+
+    if subject_title_issue(tree_key, title):
+        return None
     t = KnowledgeTree(
         tree_key=tree_key,
         title=title,
@@ -150,7 +154,13 @@ def patch_tree(db: Session, tree_key: str, data: dict[str, Any]) -> KnowledgeTre
     if not t:
         return None
     if "title" in data and data["title"] is not None:
-        t.title = str(data["title"]).strip() or t.title
+        title = str(data["title"]).strip() or t.title
+        from app.services.knowledge_structured import subject_title_issue
+
+        mismatch = subject_title_issue(tree_key, title)
+        if mismatch:
+            raise ValueError(mismatch["message"])
+        t.title = title
     if "sortOrder" in data and data["sortOrder"] is not None:
         t.sort_order = int(data["sortOrder"])
     if "isVisible" in data and data["isVisible"] is not None:
@@ -411,6 +421,12 @@ def publish_tree(
         stats = parsed.stats
         issues = [i.to_dict() for i in parsed.issues]
 
+    from app.services.knowledge_structured import subject_title_issue
+
+    mismatch = subject_title_issue(tree_key, tree_snapshot.get("title", ""))
+    if mismatch:
+        return None, "invalid", [mismatch]
+
     version = int(t.latest_version) + 1
     ver = KnowledgeTreeVersion(
         tree_id=t.id,
@@ -474,6 +490,12 @@ def activate_version(
     if expected_live is not None and int(t.live_version or 0) != int(expected_live):
         return None, "conflict"
     snapshot = json.loads(ver.tree_json or "{}")
+    from app.services.knowledge_structured import subject_title_issue
+
+    snapshot_title = snapshot.get("title", "") if isinstance(snapshot, dict) else ""
+    mismatch = subject_title_issue(tree_key, snapshot_title)
+    if mismatch:
+        return None, "invalid"
     if snapshot.get("schemaVersion") == 2:
         from app.services.knowledge_structured import validate_tree, with_paths
 
@@ -489,6 +511,8 @@ def activate_version(
     node_diff = derive_nodes(db, tree_key, flat_nodes, source_file=f"v{version}")
     prev = int(t.live_version or 0)
     t.live_version = version
+    if snapshot_title:
+        t.title = snapshot_title
     t.updated_at = utcnow()
     db.commit()
     return {"treeKey": tree_key, "liveVersion": version, "previousLive": prev, "nodeDiff": node_diff}, None
@@ -925,6 +949,11 @@ def import_md_to_draft(
     - 内容与现有草稿一致时不改动（不升 revision）。
     """
     t = get_or_none_tree(db, tree_key)
+    from app.services.knowledge_structured import subject_title_issue
+
+    mismatch = subject_title_issue(tree_key, title)
+    if mismatch:
+        return {"ok": False, "error": "subject_title_mismatch", "treeKey": tree_key, "expectedTitle": mismatch["message"]}
     if t and not force and t.md_draft.strip():
         return {"ok": False, "error": "exists", "treeKey": tree_key}
     if t and t.md_draft == md and not t.draft_tree_json:

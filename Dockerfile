@@ -20,6 +20,7 @@ WORKDIR /app/server/admin-web
 COPY server/admin-web/package.json server/admin-web/package-lock.json ./
 RUN npm ci
 COPY server/admin-web .
+COPY docs/PROJECT_OPERATIONS_MANUAL.md /app/docs/PROJECT_OPERATIONS_MANUAL.md
 RUN npm run build
 
 FROM python:3.12-slim
