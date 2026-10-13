@@ -147,6 +147,10 @@ class RmrbCommentArticle(Base):
     article: Mapped[RmrbArchiveArticle] = relationship()
     inclusion_reason: Mapped[str] = mapped_column(String(256), default="")
     workflow_status: Mapped[str] = mapped_column(String(32), default="identified", index=True)
+    article_review_status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    article_review_note: Mapped[str] = mapped_column(Text, default="")
+    article_reviewed_by: Mapped[str] = mapped_column(String(128), default="")
+    article_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     analysis_status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     review_status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     original_md_key: Mapped[str] = mapped_column(String(512), default="")
@@ -185,3 +189,72 @@ class RmrbArticleEvaluation(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class RmrbCommentQuote(Base):
+    """评论文章金句；保留 AI 草稿与人工审核状态，引用必须能回溯原文。"""
+    __tablename__ = "rmrb_comment_quotes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("rmq"))
+    comment_article_id: Mapped[str] = mapped_column(ForeignKey("rmrb_comment_articles.id", ondelete="CASCADE"), index=True)
+    comment_article: Mapped[RmrbCommentArticle] = relationship()
+    text: Mapped[str] = mapped_column(Text, default="")
+    quote_type: Mapped[str] = mapped_column(String(32), default="argument")
+    topics_json: Mapped[str] = mapped_column(Text, default="[]")
+    use_cases_json: Mapped[str] = mapped_column(Text, default="[]")
+    application_example: Mapped[str] = mapped_column(Text, default="")
+    source_evidence: Mapped[str] = mapped_column(Text, default="")
+    collection_method: Mapped[str] = mapped_column(String(16), default="manual")
+    review_status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    reviewed_by: Mapped[str] = mapped_column(String(128), default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class RmrbCommentExclusionRule(Base):
+    """Reusable article exclusion inferred from a manually rejected title series."""
+    __tablename__ = "rmrb_comment_exclusion_rules"
+    __table_args__ = (UniqueConstraint("rule_type", "rule_value", name="uq_rmrb_comment_exclusion_rule"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("rmer"))
+    rule_type: Mapped[str] = mapped_column(String(32), default="title_prefix", index=True)
+    rule_value: Mapped[str] = mapped_column(String(64), default="", index=True)
+    source_article_id: Mapped[str] = mapped_column(ForeignKey("rmrb_archive_articles.id", ondelete="SET NULL"), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(128), default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class RmrbQuoteOpsPackage(Base):
+    """Approved quote collection and editable daily operations deliverables."""
+    __tablename__ = "rmrb_quote_ops_packages"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("rqo"))
+    issue_date: Mapped[date] = mapped_column(Date, index=True)
+    topic: Mapped[str] = mapped_column(String(128), default="")
+    title: Mapped[str] = mapped_column(String(256), default="")
+    channels_json: Mapped[str] = mapped_column(Text, default='["wechat","xiaohongshu"]')
+    xhs_title: Mapped[str] = mapped_column(String(256), default="")
+    xhs_content: Mapped[str] = mapped_column(Text, default="")
+    wechat_title: Mapped[str] = mapped_column(String(256), default="")
+    wechat_summary: Mapped[str] = mapped_column(Text, default="")
+    wechat_content: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(24), default="draft", index=True)
+    xhs_published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    wechat_published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(128), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class RmrbQuoteOpsPackageItem(Base):
+    __tablename__ = "rmrb_quote_ops_package_items"
+    __table_args__ = (UniqueConstraint("package_id", "quote_id", name="uq_rmrb_quote_ops_item"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("rqoi"))
+    package_id: Mapped[str] = mapped_column(ForeignKey("rmrb_quote_ops_packages.id", ondelete="CASCADE"), index=True)
+    quote_id: Mapped[str] = mapped_column(ForeignKey("rmrb_comment_quotes.id", ondelete="CASCADE"), index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)

@@ -65,7 +65,10 @@ def _body_from_source(article: RmrbArchiveArticle) -> str:
     response.raise_for_status()
     response.encoding = response.encoding or "utf-8"
     soup = BeautifulSoup(response.text, "html.parser")
-    content = soup.select_one("#ozoom") or soup.select_one(".newsContent")
+    content = next((soup.select_one(selector) for selector in (
+        "#ozoom", ".newsContent", ".news-content", ".article-content", ".article_content",
+        ".detail-content", ".detail_content", "#content", "article", ".content",
+    ) if soup.select_one(selector)), None)
     if content is None:
         raise ValueError("来源页面未找到正文区域")
     for node in content.select("script,style,iframe,button,.ad,.share"):

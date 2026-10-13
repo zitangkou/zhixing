@@ -71,9 +71,9 @@ async def lifespan(_app: FastAPI):
             await asyncio.sleep(60 * 60)
 
     cleanup_task = asyncio.create_task(cleanup_image_results_loop())
-    from app.services.rmrb_archive_service import rmrb_daily_scheduler_loop
+    from app.services.daily_quote_jobs import scheduler
 
-    rmrb_scheduler_task = asyncio.create_task(rmrb_daily_scheduler_loop())
+    rmrb_scheduler_task = asyncio.create_task(scheduler())
     try:
         yield
     finally:

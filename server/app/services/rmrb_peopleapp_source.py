@@ -59,7 +59,7 @@ def _parse_publish_datetime(raw_time) -> datetime | None:
 
 
 def fetch_channel_items(channel: str, window_start: datetime, window_end: datetime) -> list[dict]:
-    """Fetch homepage/opinion articles published in the rolling 24-hour window.
+    """Fetch homepage/opinion articles published in the rolling 48-hour window.
 
     Bounds are explicit so both channels use the same collection window. Naive bounds
     are interpreted as Beijing local time for compatibility with callers.
@@ -73,8 +73,8 @@ def fetch_channel_items(channel: str, window_start: datetime, window_end: dateti
         window_end = window_end.replace(tzinfo=BEIJING)
     else:
         window_end = window_end.astimezone(BEIJING)
-    if window_end <= window_start or window_end - window_start > timedelta(hours=24):
-        raise ValueError("采集时间范围必须大于 0 且不超过 24 小时")
+    if window_end <= window_start or window_end - window_start > timedelta(hours=48):
+        raise ValueError("采集时间范围必须大于 0 且不超过 48 小时")
     response = httpx.get(url, timeout=25, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")

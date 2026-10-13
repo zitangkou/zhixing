@@ -17,6 +17,7 @@
           </el-icon>
         </button>
       </div>
+      <div class="menu-scroll">
       <el-menu
         :default-active="activeMenu"
         :default-openeds="defaultOpeneds"
@@ -45,6 +46,7 @@
           </el-menu-item>
         </template>
       </el-menu>
+      </div>
     </el-aside>
     <el-container>
       <el-header class="header">
@@ -125,13 +127,12 @@ const crumbs = computed(() => {
     const title = ROUTE_TITLES[path] || ''
     return title ? ['时政考点', title] : []
   }
-  if (path === '/wechat-replies') return ['公众号运营', '消息回复']
   if (path.startsWith('/photography/')) {
     const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
     return title ? ['摄影学习', title] : ['摄影学习']
   }
   const title = ROUTE_TITLES[path] || (route.meta.title as string) || ''
-  if (['/users', '/feedbacks', '/xingce', '/settings', '/roles', '/project-manual'].includes(path)) {
+  if (['/users', '/feedbacks', '/xingce', '/settings', '/wechat-replies', '/roles', '/project-manual'].includes(path)) {
     return title ? ['系统', title] : ['系统']
   }
   return title ? [title] : []
@@ -161,6 +162,12 @@ function onLogout() {
   background: var(--admin-aside-bg);
   transition: width 0.2s ease;
   overflow: hidden;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
 .brand {
   display: flex;
@@ -219,6 +226,13 @@ function onLogout() {
 .aside-menu {
   border-right: none;
   width: 100%;
+}
+.menu-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .aside-menu:not(.el-menu--collapse) {
   width: 220px;

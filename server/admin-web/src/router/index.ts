@@ -175,19 +175,37 @@ const router = createRouter({
         {
           path: 'rmrb-archive/articles',
           name: 'rmrb-archive-articles',
-          component: () => import('@/views/rmrbArchive/Articles.vue'),
+          redirect: '/rmrb-archive/quotes',
           meta: { title: '全量文章', permissions: ['rmrb:read'] },
         },
         {
           path: 'rmrb-archive/comments',
           name: 'rmrb-archive-comments',
-          component: () => import('@/views/rmrbArchive/Comments.vue'),
+          redirect: '/rmrb-archive/quotes',
           meta: { title: '评论文章', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb-archive/peopleapp-opinions',
+          name: 'rmrb-archive-peopleapp-opinions',
+          redirect: '/rmrb-archive/quotes',
+          meta: { title: '客户端评论 / 金句', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb-archive/quote-operations',
+          name: 'rmrb-archive-quote-operations',
+          redirect: '/rmrb-archive/quotes',
+          meta: { title: '金句运营库', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb-archive/quotes',
+          name: 'rmrb-archive-quotes',
+          component: () => import('@/views/rmrbArchive/QuoteLibrary.vue'),
+          meta: { title: '金句管理', permissions: ['rmrb:read'] },
         },
         {
           path: 'rmrb-archive/batches',
           name: 'rmrb-archive-batches',
-          component: () => import('@/views/rmrbArchive/Batches.vue'),
+          redirect: '/rmrb-archive/quotes',
           meta: { title: '采集批次', permissions: ['rmrb:read'] },
         },
         {

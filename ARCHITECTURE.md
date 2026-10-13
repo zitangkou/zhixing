@@ -91,7 +91,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 时政考点 · 文章管理 | 文章 CRUD、Markdown/HTML 导入、审核发布、分类、题目管理、AI 出题 |
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
-| 人民日报 | 全量文章档案、采集批次与逐篇全文 AI 评估；评估记录独立版本化，包含体裁、申论关联、主题、评分、结构、原文证据和物料建议；高/中关联正文归档，人工确认后更新文章分类；评论文章工作流可接收跨版面 AI 识别结果 |
+| 人民日报 | 独立每日金句库：DailyQuote、DailyQuoteSelection、DailyQuoteJob；每句结构化属性包含来源、证据、句式、高亮和多个主题仿写。全文只在任务内存中使用，旧档案采集与评估API退役 |
 | 用户管理 | 学员账号、积分、状态管理 |
 | 知识框架 | Markdown 上传、树同步、节点维护；工作台可将当前已保存结构化草稿导出为 Markdown、阅读版 HTML（图片引用原资源地址）或 Markmap 渲染 PNG（长边上限 4096 像素） |
 | 学习计划 | 周计划模板维护、同步到待办 |
@@ -199,7 +199,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 知识框架 | `KnowledgeNode` |
 | 真题套卷 | `ExamPaper`、`ExamQuestion`、`ExamAttempt`、`ExamAnswer` |
 | 倒计时与行为 | `ExamCountdown`、`ActivityEvent` |
-| 人民日报/申论 | `RmrbArticle`、`RmrbArchiveArticle`、`RmrbArticleEvaluation`、`RmrbCommentArticle`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
+| 人民日报/申论 | `RmrbArticle`、`DailyQuote`、`DailyQuoteSelection`、`DailyQuoteJob`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
 | 时政/时评 HTML | `Article.content_html`；`RmrbArticle.content_html`；示范 `ShenlunTeachingExample.display_html` |
 | 事件复盘 | `EventImpression` |
 | 语料与资料分析 | `CorpusItem`、`ZiliaoFormula`、`ZiliaoQuestionType`、`ZiliaoTrick`、`ZiliaoPracticeLog` |
@@ -237,8 +237,8 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `/admin/knowledge/*`：知识框架管理。
 - `/admin/plan/*`：计划模板。
 - `/admin/exam/*`：试卷题库。
+- `/admin/daily-quotes*`：金句列表/详情、录入编辑、JSON导入预检/提交/导出、日期精选、任务状态与手动整理。读写分别要求rmrb:read / rmrb:write；后台调度独立于已退役全量档案。
 - `/admin/rmrb/*`：时评文章、词表 CRUD、待收录 `/admin/rmrb/vocab-inbox*`、三刀导入。
-- `/admin/rmrb-archive/*`：人民日报全量文章与采集批次；`/evaluations/run` 批量全文评估，文章 `/evaluation` 查看最新报告与人工审核。
 - `/admin/ziliao/*`：资料分析资源。
 
 ## 7. 运行与部署
@@ -364,3 +364,8 @@ Obsidian Markdown / 管理端上传
 - 管理后台权限采用菜单权限和接口权限双层控制，权限定义集中在 `server/app/core/permissions.py`。
 - 上传文件不进 SQLite，部署和迁移时必须同时备份数据库和 `data/uploads`。
 - `FEATURES.md` 已经覆盖较细的功能清单；本文档重点是架构、模块边界和业务流。
+
+
+### 每日金句部署状态与数据生命周期（2026-10-13）
+新代码已实现，生产待发布。默认北京时间06:40每日整理，08:00停止自动重试。运行状态用数据库唯一刊期与CAS领取，多进程不重复执行；中断超过2小时可重试。全文不进入业务表、附件或任务日志；仅每句附近必要连续文本作为证据。LLM缺配置时自动任务不运行，页面明确提示。
+旧表定义仅留作迁移兼容，当前管理API不再访问。生产停服后用`server/scripts/retire_rmrb_archive.py`迁移已审核通过金句并清理旧档案表与专用目录，备份核对后30天内人工清理；不能在旧进程仍运行时清理。

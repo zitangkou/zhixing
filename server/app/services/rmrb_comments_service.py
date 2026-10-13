@@ -13,7 +13,7 @@ import httpx
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import RmrbArchiveArticle, RmrbArchiveRevision, RmrbCommentArticle
+from app.models import RmrbArchiveArticle, RmrbArchiveRevision, RmrbCommentArticle, RmrbCommentExclusionRule, RmrbCommentQuote
 from app.config import get_settings
 from app.database import SessionLocal
 from app.services.ai.llm_client import chat_json
@@ -42,7 +42,10 @@ def _article_body(article: RmrbArchiveArticle) -> str:
     response.raise_for_status()
     response.encoding = response.encoding or "utf-8"
     soup = BeautifulSoup(response.text, "html.parser")
-    content = soup.select_one("#ozoom") or soup.select_one(".newsContent")
+    content = next((soup.select_one(selector) for selector in (
+        "#ozoom", ".newsContent", ".news-content", ".article-content", ".article_content",
+        ".detail-content", ".detail_content", "#content", "article", ".content",
+    ) if soup.select_one(selector)), None)
     if content is None:
         return ""
     for node in content.select("script,style,iframe,button"):
@@ -139,6 +142,10 @@ def _is_comment(article: RmrbArchiveArticle) -> tuple[bool, str]:
     title = (article.display_title or article.headline or "").strip()
     if article.record_class != "article" or title in {"图片报道", "图片新闻", "图说", "漫画", "广告"}:
         return False, "排除：非评论文章正文素材"
+    if article.source_channel == "peopleapp_opinion" or any(
+        "peopleapp_opinion" in (source.source_channel or "") for source in article.sources
+    ):
+        return True, "人民日报客户端评论页（最近 24 小时发布）"
     page = (article.page_name or "").strip()
     if page == "评论":
         return True, "人民日报电子报评论版目录"
@@ -172,9 +179,12 @@ def _out(row: RmrbCommentArticle) -> dict:
     return {"id": row.id, "articleId": article.id, "issueDate": article.issue_date, "pageNo": article.page_no,
             "pageName": article.page_name, "title": article.display_title, "subtitle": article.subtitle,
             "columnLabel": article.column_label or article.series_label, "author": article.author_line,
+            "publicationTime": article.publication_time,
             "sourceUrl": article.primary_source_url, "bodyStatus": article.body_status,
             "inclusionReason": row.inclusion_reason, "workflowStatus": row.workflow_status,
             "analysisStatus": row.analysis_status, "reviewStatus": row.review_status,
+            "articleReviewStatus": row.article_review_status, "articleReviewNote": row.article_review_note,
+            "articleReviewedBy": row.article_reviewed_by,
             "analysisVersion": row.analysis_version, "analysisError": row.analysis_error,
             "originalMdKey": row.original_md_key, "originalHtmlKey": row.original_html_key,
             "analysisMdKey": row.analysis_md_key, "analysisHtmlKey": row.analysis_html_key,
@@ -193,6 +203,45 @@ def list_comment_articles(db: Session, issue_date: date | None = None, q: str = 
         query = query.filter(RmrbCommentArticle.workflow_status == status)
     rows = query.order_by(RmrbArchiveArticle.issue_date.desc(), RmrbArchiveArticle.page_no, RmrbArchiveArticle.display_title).limit(500).all()
     return {"items": [_out(x) for x in rows], "total": len(rows)}
+
+
+def list_peopleapp_opinion_articles(db: Session, page: int = 1, page_size: int = 20) -> dict:
+    """返回已归档的客户端评论来源文章；最近 48 小时按 publishTime 精确筛选并分页。"""
+    from app.models import RmrbArchiveSource
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    end = datetime.now(ZoneInfo("Asia/Shanghai"))
+    start = end - timedelta(hours=48)
+    query = db.query(RmrbCommentArticle).join(RmrbArchiveArticle).join(
+        RmrbArchiveSource, RmrbArchiveSource.article_id == RmrbArchiveArticle.id
+    ).options(joinedload(RmrbCommentArticle.article)).filter(
+        RmrbArchiveArticle.is_archived.is_(False),
+        RmrbArchiveArticle.issue_date >= start.date(),
+        RmrbArchiveArticle.issue_date <= end.date(),
+        RmrbArchiveSource.source_channel.like("%peopleapp_opinion%"),
+        RmrbCommentArticle.article_review_status != "excluded",
+    ).distinct()
+    rows = query.order_by(RmrbArchiveArticle.publication_time.desc(), RmrbArchiveArticle.display_title).all()
+    from app.services.rmrb_peopleapp_source import _parse_publish_datetime
+    rows = [row for row in rows if (published := _parse_publish_datetime(row.article.publication_time)) is not None
+            and start <= published <= end]
+    rules = db.query(RmrbCommentExclusionRule).filter_by(is_active=True, rule_type="title_prefix").all()
+    rows = [row for row in rows if row.article_review_status == "approved" or not any(
+        (row.article.display_title or "").strip().startswith(rule.rule_value) for rule in rules
+    )]
+    total = len(rows)
+    offset = max(0, page - 1) * page_size
+    rows = rows[offset:offset + page_size]
+    items = []
+    for row in rows:
+        item = _out(row)
+        opinion_source = next((source for source in row.article.sources
+                               if "peopleapp_opinion" in (source.source_channel or "")), None)
+        if opinion_source:
+            item["sourceUrl"] = opinion_source.source_url
+        items.append(item)
+    return {"items": items, "total": total, "page": page, "pageSize": page_size,
+            "windowStart": start, "windowEnd": end}
 
 
 def scan_comments(db: Session, issue_date: date) -> dict:

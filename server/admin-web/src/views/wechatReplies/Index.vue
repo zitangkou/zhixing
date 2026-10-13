@@ -184,8 +184,26 @@ const previewType = ref<'text' | 'subscribe'>('text')
 const previewMessage = ref('')
 const previewResult = ref<WechatReplyPreview | null>(null)
 
+function cloneConfig(source: WechatReplyConfig): WechatReplyConfig {
+  return {
+    welcomeReply: source.welcomeReply,
+    fallbackReply: source.fallbackReply,
+    unsupportedMessageReply: source.unsupportedMessageReply,
+    unsupportedEventReply: source.unsupportedEventReply,
+    keywordRules: source.keywordRules.map(rule => ({
+      id: rule.id,
+      name: rule.name,
+      keywords: [...rule.keywords],
+      matchType: rule.matchType,
+      responseText: rule.responseText,
+      enabled: rule.enabled,
+      priority: rule.priority,
+    })),
+  }
+}
+
 function copyConfig(source: WechatReplyConfig) {
-  Object.assign(draft, structuredClone(source))
+  Object.assign(draft, cloneConfig(source))
 }
 
 async function loadState() {
@@ -215,7 +233,7 @@ function removeRule(index: number) {
 }
 
 function currentConfig(): WechatReplyConfig {
-  return structuredClone(draft)
+  return cloneConfig(draft)
 }
 
 async function runValidation() {

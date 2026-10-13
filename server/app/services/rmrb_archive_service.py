@@ -610,6 +610,67 @@ def _merge_duplicate_article(db: Session, canonical: RmrbArchiveArticle, duplica
     return canonical
 
 
+def collect_peopleapp_opinion_recent(db: Session) -> dict:
+    """独立采集客户端评论页最近 48 小时文章，并按链接/原标题去重入档。"""
+    window_end = datetime.now(BEIJING)
+    window_start = window_end - timedelta(hours=48)
+    items = fetch_channel_items("peopleapp_opinion", window_start, window_end)
+    created = linked = 0
+    issue_dates: set[date] = set()
+    for item in items:
+        issue_date = item["issue_date"]
+        issue_dates.add(issue_date)
+        article = db.query(RmrbArchiveArticle).filter_by(primary_source_url=item["url"]).first()
+        if article is None:
+            # 同日纸媒已有同标题稿件时，复用档案记录，客户端文章列表仍通过来源关系可见。
+            candidates = db.query(RmrbArchiveArticle).filter(
+                RmrbArchiveArticle.issue_date == issue_date,
+                RmrbArchiveArticle.is_archived.is_(False),
+            ).all()
+            normalized = _normalize_title(item["title"])
+            article = next((row for row in candidates if row.source_channel == "people_daily_epaper"
+                            and _normalize_title(row.display_title) == normalized), None)
+        if article is None:
+            issue, _ = _ensure_issue_page(db, issue_date, "", "", "", "regular", "")
+            article = RmrbArchiveArticle(
+                issue_id=issue.id, issue_date=issue_date, page_no="", page_name="",
+                primary_source_url=item["url"], source_channel="peopleapp_opinion",
+                display_title=item["title"], headline=item["title"], author_line=item["author_line"],
+                publication_time=item["publication_time"], record_class="article", source_article_type="undetermined",
+                exam_relevance="pending", retention_tier="metadata_only", body_status="not_fetched",
+                source_status="metadata_confirmed", review_status="pending",
+            )
+            db.add(article)
+            db.flush()
+            created += 1
+        if not article.publication_time:
+            article.publication_time = item["publication_time"]
+        if not article.author_line and item.get("author_line"):
+            article.author_line = item["author_line"]
+        _add_source(db, article, item["url"], "peopleapp_opinion", "same_article", item["title"], "client_opinion_card")
+        linked += 1
+    db.commit()
+    return {"windowStart": window_start.isoformat(timespec="seconds"), "windowEnd": window_end.isoformat(timespec="seconds"),
+            "discovered": len(items), "created": created, "linked": linked,
+            "issueDates": [x.isoformat() for x in sorted(issue_dates)]}
+
+
+def process_peopleapp_opinion_materials(issue_dates: list[str]) -> None:
+    """在后台补正文、写阅读文档並尝试生成待审三刀稿。"""
+    from app.services.rmrb_comments_service import scan_comments, run_daily_comment_analysis
+    for value in issue_dates:
+        try:
+            issue_date = date.fromisoformat(value)
+            db = SessionLocal()
+            try:
+                scan_comments(db, issue_date)
+            finally:
+                db.close()
+            run_daily_comment_analysis(issue_date)
+        except Exception as exc:
+            print(f"[rmrb-peopleapp-opinion] {value}: {exc}")
+
+
 def create_manual_batch(db: Session, issue_date: date) -> dict:
     batch = RmrbArchiveBatch(
         run_key=f"manual:{gen_id('')}", issue_date=issue_date, trigger_mode="manual", status="queued",
@@ -839,6 +900,10 @@ def run_collection_batch(batch_id: str) -> None:
                     db.add(article)
                     db.flush()
                     created_count += 1
+                if not article.publication_time:
+                    article.publication_time = item["publication_time"]
+                if not article.author_line and item.get("author_line"):
+                    article.author_line = item["author_line"]
                 _add_source(db, article, item["url"], channel, "same_article", item["title"], "client_card")
         for article in db.query(RmrbArchiveArticle).filter_by(issue_date=issue_date, is_archived=False).all():
             _apply_classification_suggestion(db, article)

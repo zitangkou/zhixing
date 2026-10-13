@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -38,6 +39,11 @@ class Settings(BaseSettings):
     # 摄影学习小程序（光线练习簿）使用独立微信凭据。
     sheying_miniprogram_app_id: str = ""
     sheying_miniprogram_app_secret: str = ""
+
+    # 独立每日金句任务（旧全量采集已退役），北京时间调度。
+    daily_quotes_enabled: bool = True
+    daily_quotes_hour: int = Field(6, ge=0, le=7)
+    daily_quotes_minute: int = Field(40, ge=0, le=59)
 
     llm_enabled: bool = False
     llm_api_key: str = ""

@@ -387,6 +387,27 @@ def run_compat_migrations() -> None:
     _ensure_rmrb_article_columns()
     _ensure_ziliao_formula_plain_column()
     _ensure_content_ops_columns()
+    _ensure_rmrb_comment_review_columns()
+
+
+def _ensure_rmrb_comment_review_columns() -> None:
+    """Add article-level review fields to existing comment workflows."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("rmrb_comment_articles"):
+        return
+    cols = {c["name"] for c in insp.get_columns("rmrb_comment_articles")}
+    alters = {
+        "article_review_status": "ALTER TABLE rmrb_comment_articles ADD COLUMN article_review_status VARCHAR(24) DEFAULT 'pending'",
+        "article_review_note": "ALTER TABLE rmrb_comment_articles ADD COLUMN article_review_note TEXT DEFAULT ''",
+        "article_reviewed_by": "ALTER TABLE rmrb_comment_articles ADD COLUMN article_reviewed_by VARCHAR(128) DEFAULT ''",
+        "article_reviewed_at": "ALTER TABLE rmrb_comment_articles ADD COLUMN article_reviewed_at DATETIME",
+    }
+    with engine.begin() as conn:
+        for name, sql in alters.items():
+            if name not in cols:
+                conn.execute(text(sql))
 
 
 def _ensure_rmrb_archive_editor_column() -> None:

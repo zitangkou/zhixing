@@ -38,6 +38,7 @@ from app.models.question_bank import (
 from app.models.generation import GenerationBatch, ReviewRecord
 from app.models.library_document import LibraryDocument
 from app.models.image_generation import ImageGenerationJob
-from app.models.rmrb_archive import RmrbArchiveArticle, RmrbArchiveBatch, RmrbArchiveIssue, RmrbArchivePage, RmrbArchiveRevision, RmrbArchiveSource, RmrbCommentArticle, RmrbArticleEvaluation
+from app.models.rmrb_archive import RmrbArchiveArticle, RmrbArchiveBatch, RmrbArchiveIssue, RmrbArchivePage, RmrbArchiveRevision, RmrbArchiveSource, RmrbCommentArticle, RmrbArticleEvaluation, RmrbCommentQuote, RmrbCommentExclusionRule, RmrbQuoteOpsPackage, RmrbQuoteOpsPackageItem
 from app.models.english import EnglishScene, EnglishStudyRecord, EnglishUnit
 from app.models.photography import PhotographyCase, PhotographyLesson, PhotographyStage
+from app.models.daily_quote import DailyQuote, DailyQuoteSelection, DailyQuoteJob
