@@ -91,6 +91,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 时政考点 · 文章管理 | 文章 CRUD、Markdown/HTML 导入、审核发布、分类、题目管理、AI 出题 |
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
+| 时政要点 | TheoryPoint 编排已发布原文及题目；Article 保存 brief_json / brief_status，学员端仅取已发布要点。时政套题用 ArticleQuizProgress 保存用户进度与最近作答。 |
 | 人民日报 | 独立每日金句库：DailyQuote、DailyQuoteSelection、DailyQuoteJob；每句结构化属性包含来源、证据、句式、高亮和多个主题仿写。全文只在任务内存中使用，旧档案采集与评估API退役 |
 | 用户管理 | 学员账号、积分、状态管理 |
 | 知识框架 | Markdown 上传、树同步、节点维护；工作台可将当前已保存结构化草稿导出为 Markdown、阅读版 HTML（图片引用原资源地址）或 Markmap 渲染 PNG（长边上限 4096 像素） |
@@ -199,6 +200,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 知识框架 | `KnowledgeNode` |
 | 真题套卷 | `ExamPaper`、`ExamQuestion`、`ExamAttempt`、`ExamAnswer` |
 | 倒计时与行为 | `ExamCountdown`、`ActivityEvent` |
+| 时政 | `TheoryPoint`、`ArticleQuizProgress`；`Article.brief_json` / `brief_status` |
 | 人民日报/申论 | `RmrbArticle`、`DailyQuote`、`DailyQuoteSelection`、`DailyQuoteJob`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
 | 时政/时评 HTML | `Article.content_html`；`RmrbArticle.content_html`；示范 `ShenlunTeachingExample.display_html` |
 | 事件复盘 | `EventImpression` |
@@ -214,7 +216,8 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `/api/config`：公开配置，如是否允许注册。
 - `/api/auth/*`：学员注册、登录。
 - `/api/user/*`：个人资料、头像、改密。
-- `/api/articles/*`、`/api/questions`、`/api/answer`：文章与刷题。
+- `/api/articles/*`、`/api/questions`、`/api/answer`：文章与刷题；`/api/quiz-progress`：时政套题进度。
+- `/api/theory-points`：学员端已发布时政要点；`/api/quotes`：已启用金句素材。
 - `/api/photography/catalog`：公开已发布摄影课程、知识地图和经授权审核的摄影案例。
 - `/api/wrong/*`、`/api/manual-wrong/*`：错题本。
 - `/api/review/*`、`/api/knowledge/review/*`：复习中心与知识点复习。
@@ -231,13 +234,14 @@ FastAPI 后端 ---- SQLite / data/uploads
 管理端接口统一挂在 `/admin`，需管理员 Token 和权限：
 
 - `/admin/auth/*`：管理登录与当前用户。
-- `/admin/articles/*`、`/admin/questions/*`、`/admin/categories/*`：内容和题库；分类待收录 `/admin/categories/vocab-inbox*`。
+- `/admin/articles/*`、`/admin/questions/*`、`/admin/categories/*`：内容和题库；分类待收录 `/admin/categories/vocab-inbox*`。文章要点由后台文章流程维护。
+- `/admin/theory-briefs/*`：时政要点编排，读写分别要求 `article:read` / `article:write`.（路径挂载前缀为 `/admin`）
 - `/admin/users/*`：用户管理。
 - `/admin/settings/*`、`/admin/roles/*`、`/admin/permissions`：系统设置和权限。
 - `/admin/knowledge/*`：知识框架管理。
 - `/admin/plan/*`：计划模板。
 - `/admin/exam/*`：试卷题库。
-- `/admin/daily-quotes*`：金句列表/详情、录入编辑、JSON导入预检/提交/导出、日期精选、任务状态与手动整理。读写分别要求rmrb:read / rmrb:write；后台调度独立于已退役全量档案。
+- `/admin/daily-quotes*`：金句列表/详情、录入编辑、JSON导入预检/提交/导出、日期精选、任务状态与手动整理；包含审核与客户端启用状态。读写分别要求rmrb:read / rmrb:write；后台调度独立于已退役全量档案。
 - `/admin/rmrb/*`：时评文章、词表 CRUD、待收录 `/admin/rmrb/vocab-inbox*`、三刀导入。
 - `/admin/ziliao/*`：资料分析资源。
 

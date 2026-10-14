@@ -4,7 +4,7 @@ export interface DailyQuote {
   history?: {at:string;actor:string;fields:string[]}[]; id: string; text: string; collectedDate: string; articleDate: string; articleTitle: string; sourceUrl: string
   source: string; author: string; component: string; quoteType: string; topics: string[]; use: string; formula: string
   why: string; guidance: string; pitfall: string; evidence: string; evidenceLocation: string
-  highlights: string[]; examples: QuoteExample[]; reviewStatus: string; selected: boolean
+  highlights: string[]; examples: QuoteExample[]; reviewStatus: string; auditStatus: string; enabled: boolean; selected: boolean
 }
 export const listQuotes = (params: Record<string, unknown>) => getData<{items: DailyQuote[];total:number;stats:Record<string,number>}>(http.get('/admin/daily-quotes', {params}))
 export const saveQuote = (item: DailyQuote) => getData<DailyQuote>(item.id ? http.put(`/admin/daily-quotes/${item.id}`, {collected_date:item.collectedDate,item}) : http.post('/admin/daily-quotes', {collected_date:item.collectedDate,item}))

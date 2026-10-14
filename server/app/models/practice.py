@@ -152,3 +152,18 @@ class PracticeAnswer(Base):
     source: Mapped[str] = mapped_column(String(16), default="real", index=True)  # real | demo
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
+
+class ArticleQuizProgress(Base):
+    """一套时政题里，某用户对某题的最近一次作答。再进入时接着做，不重复计分。"""
+
+    __tablename__ = "article_quiz_progress"
+    __table_args__ = (UniqueConstraint("user_id", "question_id"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("aqp"))
+    user_id: Mapped[str] = mapped_column(String(32), index=True)
+    article_id: Mapped[str] = mapped_column(String(32), index=True)
+    question_id: Mapped[str] = mapped_column(String(32), index=True)
+    user_answer: Mapped[str] = mapped_column(Text, default="")
+    is_correct: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+

@@ -3,16 +3,37 @@
     <view v-if="loading" class="empty-tip">加载题目中...</view>
 
     <view v-else-if="finished && !reviewFromResults" class="result-panel">
-      <text class="result-title">答题完成</text>
-      <text class="result-score">正确 {{ correctCount }} / {{ totalCount }} 题</text>
-      <text class="result-accuracy">正确率 {{ accuracyPercent }}%</text>
-      <text v-if="quizStats.rank" class="result-rank">
-        本套题排名第 {{ quizStats.rank }} 名
-        <text v-if="quizStats.totalParticipants > 1" class="rank-meta">
-          （共 {{ quizStats.totalParticipants }} 人参与）
-        </text>
-      </text>
-      <text class="result-points">获得积分 +{{ earnedPoints }}</text>
+      <text class="result-title">{{ wrongLeft ? `还有 ${wrongLeft} 题没掌握` : '这套题已掌握' }}</text>
+      <text class="result-score">{{ totalCount }} 题对了 {{ correctCount }}</text>
+      <nut-button
+        v-if="articleWrongIds.length"
+        type="primary"
+        block
+        class="primary-btn"
+        @click="redoArticleWrongs"
+      >
+        订正这 {{ articleWrongIds.length }} 题
+      </nut-button>
+      <nut-button
+        v-if="isArticleSession"
+        plain
+        type="primary"
+        block
+        class="primary-btn"
+        @click="practiceAgain"
+      >
+        再练一遍
+      </nut-button>
+      <nut-button
+        plain
+        type="primary"
+        block
+        class="primary-btn"
+        @click="leavePage"
+      >
+        回列表
+      </nut-button>
+      <text v-if="earnedPoints" class="result-points">积分 +{{ earnedPoints }}</text>
 
       <view class="result-list">
         <text class="result-list-title">答题明细（点击可回看）</text>
@@ -35,6 +56,7 @@
       </view>
 
       <nut-button
+        v-if="!isArticleSession"
         type="primary"
         block
         class="primary-btn"
@@ -54,10 +76,9 @@
         <text class="toolbar-btn" @tap="reviewFromResults ? backToResults() : exitQuiz()">
           {{ reviewFromResults ? '返回结果' : '退出' }}
         </text>
-        <text v-if="!reviewFromResults" class="toolbar-btn primary" @tap="restartQuiz">重新开始</text>
       </view>
       <view class="progress-header">
-        <text>{{ currentIndex + 1 }} / {{ questions.length }}</text>
+        <text>第 {{ currentIndex + 1 }} 题 · 共 {{ questions.length }}</text>
         <view class="bar"><view class="fill" :style="{ width: progress + '%' }" /></view>
       </view>
       <QuestionItem
@@ -99,6 +120,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Taro, { useRouter } from '@tarojs/taro'
 import { Button as NutButton } from '@nutui/nutui-taro'
 import QuestionItem from '@/components/QuestionItem.vue'
+import { api } from '@/api'
 import { useQuestionStore } from '@/store/question'
 import { useDailyTaskStore } from '@/store/dailyTask'
 import type { QuizAnswerRecord, Question, QuizMode } from '@/types'
@@ -108,8 +130,6 @@ import { useThemeClass } from '@/utils/brandColor'
 definePageConfig({ navigationBarTitleText: '刷题' })
 
 const { themeClass } = useThemeClass()
-const CORRECT_AUTO_NEXT_MS = 2000
-
 const router = useRouter()
 const questionStore = useQuestionStore()
 const dailyTaskStore = useDailyTaskStore()
@@ -130,7 +150,7 @@ const answerRecords = ref<Record<string, QuizAnswerRecord>>({})
 const pendingMulti = ref<string[]>([])
 const quizStats = ref({ rank: 0, totalParticipants: 0, accuracy: 0, bestAccuracy: 0 })
 const quizSession = ref<
-  | { kind: 'article'; articleId: string }
+  | { kind: 'article'; articleId: string; practice?: boolean }
   | { kind: 'mode'; mode: QuizMode }
   | { kind: 'wrong'; questionId: string }
   | { kind: 'wrong-session' }
@@ -145,9 +165,6 @@ const isLast = computed(() => currentIndex.value >= questions.value.length - 1)
 const totalCount = computed(() => questions.value.length)
 const progress = computed(() =>
   questions.value.length ? Math.round(((currentIndex.value + 1) / questions.value.length) * 100) : 0,
-)
-const accuracyPercent = computed(() =>
-  totalCount.value ? Math.round((correctCount.value / totalCount.value) * 100) : 0,
 )
 const currentSelectedAnswer = computed(() => {
   const q = currentQuestion.value
@@ -170,9 +187,15 @@ const nextLabel = computed(() => {
     return isLast.value ? '提交答案' : '下一题'
   }
   if (isLast.value && showResult.value) return '查看结果'
+  if (showResult.value && !lastAnswerCorrect.value) return '看懂了，下一题'
   return '下一题'
 })
+const isArticleSession = computed(() => quizSession.value?.kind === 'article')
 const isWrongRedo = computed(() => quizSession.value?.kind === 'wrong')
+const articleWrongIds = computed(() =>
+  questions.value.filter((q) => answerRecords.value[q.id] && !answerRecords.value[q.id].correct).map((q) => q.id),
+)
+const wrongLeft = computed(() => articleWrongIds.value.length)
 const isWrongSession = computed(() => quizSession.value?.kind === 'wrong-session')
 const isWrongMode = computed(() => isWrongRedo.value || isWrongSession.value)
 const dailyTask = computed(() => dailyTaskStore.tasks.find((item) => item.id === taskId) || null)
@@ -191,13 +214,13 @@ onUnmounted(() => {
 
 async function boot() {
   if (taskId && !dailyTask.value) await dailyTaskStore.load()
-  const { mode, articleId, wrongId, wrongSession } = router.params || {}
+  const { mode, articleId, wrongId, wrongSession, wrongOnly } = router.params || {}
   if (wrongSession === '1' || wrongSession === 'true') {
     await startWrongSession()
   } else if (wrongId) {
     await startWrongRedo(String(wrongId))
   } else if (articleId) {
-    await startQuiz(String(articleId))
+    await startQuiz(String(articleId), wrongOnly === '1', router.params?.practice === '1')
   } else if (mode) {
     await startModeQuiz(String(mode) as QuizMode)
   } else {
@@ -276,25 +299,9 @@ function onMultiChange(answer: string[]) {
 }
 
 async function exitQuiz() {
-  const ok = await showConfirm('退出答题', '当前进度不会保存，确定退出吗？')
+  const ok = await showConfirm('退出答题', '做到这里会记下，下次从下一题继续。')
   if (!ok) return
   leavePage()
-}
-
-async function restartQuiz() {
-  if (!quizSession.value) return
-  const ok = await showConfirm('重新开始', '当前进度将清零，是否重新开始本组题目？')
-  if (!ok) return
-  const session = quizSession.value
-  if (session.kind === 'article') {
-    await startQuiz(session.articleId)
-  } else if (session.kind === 'wrong') {
-    await startWrongRedo(session.questionId)
-  } else if (session.kind === 'wrong-session') {
-    await startWrongSession()
-  } else {
-    await startModeQuiz(session.mode)
-  }
 }
 
 async function startModeQuiz(mode: QuizMode) {
@@ -314,8 +321,8 @@ async function startModeQuiz(mode: QuizMode) {
   }
 }
 
-async function startQuiz(articleId: string) {
-  quizSession.value = { kind: 'article', articleId }
+async function startQuiz(articleId: string, wrongOnly = false, practice = false) {
+  quizSession.value = { kind: 'article', articleId, practice }
   loading.value = true
   resetQuizState()
   try {
@@ -326,14 +333,50 @@ async function startQuiz(articleId: string) {
       return
     }
     const part = Number(router.params?.part || 0)
-    questions.value = part >= 1 && part <= 4 ? qs.slice((part - 1) * 5, part * 5) : qs
-    if (!questions.value.length) {
-      showToast('该分辑暂无题目', 'error')
+    let list = part >= 1 && part <= 4 ? qs.slice((part - 1) * 5, part * 5) : qs
+    const progress = await api.getQuizProgress(articleId)
+    const saved = new Map((progress.code === 0 && progress.data ? progress.data : []).map((row) => [row.questionId, row]))
+    if (wrongOnly) list = list.filter((q) => saved.get(q.id) && !saved.get(q.id)!.correct)
+    if (!list.length) {
+      showToast(wrongOnly ? '这套没有待订正的题' : '该文章暂无题目', 'error')
       leavePage()
+      return
     }
+    questions.value = list
+    if (!practice) {
+      for (const q of list) {
+        const row = saved.get(q.id)
+        if (!row) continue
+        answerRecords.value[q.id] = {
+          correct: row.correct,
+          analysis: q.analysis,
+          userAnswer: row.userAnswer,
+        }
+        if (row.correct) correctCount.value++
+      }
+    }
+    const next = list.findIndex((q) => !answerRecords.value[q.id])
+    if (next === -1) {
+      finished.value = true
+      return
+    }
+    currentIndex.value = next
+    restoreQuestionState()
   } finally {
     loading.value = false
   }
+}
+
+function redoArticleWrongs() {
+  const session = quizSession.value
+  if (session?.kind !== 'article') return
+  Taro.redirectTo({ url: `/pages/question/taking?articleId=${session.articleId}&wrongOnly=1` })
+}
+
+function practiceAgain() {
+  const session = quizSession.value
+  if (session?.kind !== 'article') return
+  Taro.redirectTo({ url: `/pages/question/taking?articleId=${session.articleId}&practice=1` })
 }
 
 async function startWrongRedo(questionId: string) {
@@ -388,9 +431,10 @@ async function onAnswer(answer: string | string[]) {
   if (showResult.value || !currentQuestion.value || reviewFromResults.value) return
   const q = currentQuestion.value
   const wrongRedo = isWrongMode.value
+  const practice = quizSession.value?.kind === 'article' && !!quizSession.value.practice
   const result = wrongRedo
     ? await questionStore.redoWrongQuestion(q.id, answer)
-    : await questionStore.submitAnswer(q.id, answer, q)
+    : await questionStore.submitAnswer(q.id, answer, q, practice)
   if (!result) return
   showResult.value = true
   analysisText.value = result.analysis
@@ -401,26 +445,22 @@ async function onAnswer(answer: string | string[]) {
     userAnswer: answer,
   }
   pendingMulti.value = []
-  if (result.correct) {
-    correctCount.value++
-    earnedPoints.value += result.pointsEarned
-    if (wrongRedo) {
-      if (result.pointsEarned >= 5) {
-        sessionSummary.value.mastered += 1
-        showToast('已掌握，移出错题本', 'success')
-      } else {
-        sessionSummary.value.scheduled += 1
-        showToast('答对了，已安排下次复习', 'success')
+    if (result.correct) {
+        correctCount.value++
+        earnedPoints.value += result.pointsEarned
+        if (wrongRedo) {
+          if (result.pointsEarned >= 5) {
+            sessionSummary.value.mastered += 1
+            showToast('这题已掌握', 'success')
+          } else {
+            sessionSummary.value.scheduled += 1
+            showToast('这题过几天再出现', 'success')
+          }
+        }
+      } else if (wrongRedo) {
+        sessionSummary.value.reset += 1
+        showToast('明天还会再见到这题')
       }
-    }
-    clearAutoNext()
-    autoNextTimer = setTimeout(() => {
-      void goNext()
-    }, CORRECT_AUTO_NEXT_MS)
-  } else if (wrongRedo) {
-    sessionSummary.value.reset += 1
-    showToast('已重置，明天再来')
-  }
 }
 
 function goPrev() {
@@ -469,6 +509,10 @@ async function finishQuiz() {
   }
   const mode = session?.kind === 'mode' ? session.mode : 'article'
   const articleId = session?.kind === 'article' ? session.articleId : undefined
+  if (session?.kind === 'article' && session.practice) {
+    syncingResult.value = false
+    return
+  }
   const stats = await questionStore.submitQuizComplete({
     articleId,
     mode,

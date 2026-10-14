@@ -208,5 +208,7 @@ class ArticleOut(BaseModel):
     allowQuiz: bool = True
     isDaily: bool = False
     createdAt: str = ""
+    brief: dict | None = None
+    briefStatus: str = ""
 
 

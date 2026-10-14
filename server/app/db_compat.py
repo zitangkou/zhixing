@@ -35,6 +35,10 @@ def _ensure_article_columns():
         alters.append("ALTER TABLE articles ADD COLUMN source_url VARCHAR(512) DEFAULT ''")
     if "content_html" not in cols:
         alters.append("ALTER TABLE articles ADD COLUMN content_html TEXT DEFAULT ''")
+    if "brief_json" not in cols:
+        alters.append("ALTER TABLE articles ADD COLUMN brief_json TEXT DEFAULT ''")
+    if "brief_status" not in cols:
+        alters.append("ALTER TABLE articles ADD COLUMN brief_status VARCHAR(16) DEFAULT ''")
     if not alters:
         return
     with engine.begin() as conn:
@@ -369,6 +373,36 @@ def _ensure_knowledge_tree_draft_column() -> None:
             conn.execute(text("ALTER TABLE knowledge_trees ADD COLUMN draft_tree_json TEXT DEFAULT ''"))
 
 
+def _ensure_theory_point_key_column() -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("theory_points"):
+        return
+    cols = {c["name"] for c in insp.get_columns("theory_points")}
+    if "is_key" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE theory_points ADD COLUMN is_key BOOLEAN DEFAULT 0"))
+
+
+def _ensure_daily_quote_audit_columns() -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("daily_quotes"):
+        return
+    cols = {c["name"] for c in insp.get_columns("daily_quotes")}
+    with engine.begin() as conn:
+        if "audit_status" not in cols:
+            conn.execute(text("ALTER TABLE daily_quotes ADD COLUMN audit_status VARCHAR(16) DEFAULT 'pending'"))
+        if "enabled" not in cols:
+            conn.execute(text("ALTER TABLE daily_quotes ADD COLUMN enabled BOOLEAN DEFAULT 0"))
+        conn.execute(text(
+            "UPDATE daily_quotes SET audit_status='passed', enabled=1 "
+            "WHERE review_status='confirmed' AND (audit_status IS NULL OR audit_status='pending')"
+        ))
+
+
 def run_compat_migrations() -> None:
     """执行全部旧库兼容补列（幂等，可重复调用）。"""
     _ensure_vocab_inbox_table()
@@ -380,6 +414,8 @@ def run_compat_migrations() -> None:
     _ensure_manual_wrong_images_column()
     _ensure_knowledge_node_columns()
     _ensure_knowledge_tree_draft_column()
+    _ensure_theory_point_key_column()
+    _ensure_daily_quote_audit_columns()
     _ensure_exam_question_knowledge_columns()
     _ensure_corpus_knowledge_columns()
     _ensure_plan_task_priority_column()

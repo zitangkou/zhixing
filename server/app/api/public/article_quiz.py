@@ -1,14 +1,114 @@
+from datetime import date
+
 from app.api.public._deps import *  # noqa: F401,F403
-from app.models import Feedback
+import json
+
+from app.models import DailyQuote, Feedback, TheoryPoint, ArticleQuizProgress, WrongAnswer
 from app.product import ProductContext
+from app.services.daily_quote_service import out as quote_out
+from app.services.serializers import student_article_dict
+from app.services.theory_brief_service import approved_count
 router = APIRouter()
+
+def _with_brief():
+    return (
+        Article.is_published.is_(True),
+        Article.status == "published",
+        Article.brief_status == "published",
+    )
+
+def _student(db: Session, article: Article) -> dict:
+    data = student_article_dict(article)
+    data["quizReady"] = approved_count(db, article.id) > 0
+    return data
+
+from fastapi.security import HTTPBearer
+
+_optional_bearer = HTTPBearer(auto_error=False)
+
+
+def _viewer(creds=Depends(_optional_bearer), db: Session = Depends(get_db)):
+    if not creds:
+        return None
+    from app.core.security import decode_token
+    user_id = decode_token(creds.credentials)
+    if not user_id:
+        return None
+    user = db.get(AppUser, user_id)
+    return user if user and user.is_active else None
+
+
+@router.get("/theory-points")
+def public_theory_points(db: Session = Depends(get_db), user: AppUser | None = Depends(_viewer)):
+    rows = (
+        db.query(TheoryPoint)
+        .filter(TheoryPoint.is_published.is_(True))
+        .order_by(TheoryPoint.sort_order, TheoryPoint.created_at.desc())
+        .all()
+    )
+    article_ids = [row.article_id for row in rows if row.article_id]
+    answered: dict[str, int] = {}
+    wrong_left: dict[str, int] = {}
+    if user and article_ids:
+        progress_rows = (
+            db.query(ArticleQuizProgress)
+            .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.article_id.in_(article_ids))
+            .all()
+        )
+        wrong_ids = {
+            item.question_id
+            for item in db.query(WrongAnswer).filter(WrongAnswer.user_id == user.id).all()
+        }
+        for item in progress_rows:
+            answered[item.article_id] = answered.get(item.article_id, 0) + 1
+            if item.question_id in wrong_ids:
+                wrong_left[item.article_id] = wrong_left.get(item.article_id, 0) + 1
+    return ApiResponse.ok([
+        {
+            "id": row.id,
+            "title": row.title,
+            "articleId": row.article_id or "",
+            "questionCount": approved_count(db, row.article_id) if row.article_id else 0,
+            "answered": answered.get(row.article_id or "", 0),
+            "wrongLeft": wrong_left.get(row.article_id or "", 0),
+            "isKey": bool(row.is_key),
+            "summary": (row.highlights or "").strip(),
+        }
+        for row in rows
+    ])
+
+
+@router.get("/quotes")
+def public_quotes(day: date | None = None, db: Session = Depends(get_db)):
+    query = db.query(DailyQuote).filter(DailyQuote.enabled.is_(True))
+    if day:
+        query = query.filter(DailyQuote.collected_date == day)
+    rows = query.order_by(DailyQuote.collected_date.desc(), DailyQuote.created_at.desc()).limit(50).all()
+    return ApiResponse.ok([
+        {
+            "id": item["id"],
+            "text": item["text"],
+            "collectedDate": item["collectedDate"],
+            "highlights": item.get("highlights") or [],
+            "topics": item.get("topics") or [],
+            "examples": item.get("examples") or [],
+            "articleTitle": item.get("articleTitle") or "",
+            "articleDate": item.get("articleDate") or "",
+            "source": item.get("source") or "",
+            "component": item.get("component") or "",
+            "quoteType": item.get("quoteType") or "",
+            "use": item.get("use") or "",
+            "formula": item.get("formula") or "",
+            "why": item.get("why") or "",
+            "guidance": item.get("guidance") or "",
+            "pitfall": item.get("pitfall") or "",
+        }
+        for item in (quote_out(row) for row in rows)
+    ])
 
 @router.get("/articles/daily")
 def daily_articles(db: Session = Depends(get_db)):
-    published = db.query(Article).filter(
-        Article.is_published.is_(True),
-        Article.status == "published",
-    )
+    published = db.query(Article).filter(*_with_brief())
     rows = (
         published.filter(Article.is_daily.is_(True))
         .order_by(Article.publish_date.desc(), Article.created_at.desc())
@@ -20,7 +120,7 @@ def daily_articles(db: Session = Depends(get_db)):
             .limit(1)
             .all()
         )
-    return ApiResponse.ok([article_to_out(a).model_dump() for a in rows])
+    return ApiResponse.ok([_student(db, a) for a in rows])
 
 
 @router.get("/articles/recommended")
@@ -31,15 +131,12 @@ def recommended_articles(
 ):
     base = (
         db.query(Article)
-        .filter(
-            Article.is_published.is_(True),
-            Article.status == "published",
-        )
+        .filter(*_with_brief())
         .order_by(Article.is_featured.desc(), Article.publish_date.desc(), Article.created_at.desc())
     )
     total = base.count()
     rows = base.offset(offset).limit(limit).all()
-    items = [article_to_out(a).model_dump() for a in rows]
+    items = [_student(db, a) for a in rows]
     return ApiResponse.ok(
         {
             "items": items,
@@ -76,9 +173,9 @@ def quiz_by_mode(
 @router.get("/articles/{article_id}")
 def article_detail(article_id: str, db: Session = Depends(get_db)):
     article = db.get(Article, article_id)
-    if not article or not article.is_published or article.status != "published":
-        return ApiResponse.fail("文章不存在", code=404)
-    return ApiResponse.ok(article_to_out(article).model_dump())
+    if not article or not article.is_published or article.status != "published" or article.brief_status != "published":
+        return ApiResponse.fail("要点尚未发布", code=404)
+    return ApiResponse.ok(_student(db, article))
 
 
 @router.post("/articles/{article_id}/read")
@@ -148,6 +245,48 @@ def submit_answer(body: AnswerSubmit, user: AppUser = Depends(get_app_user), db:
     q = db.get(Question, body.questionId)
     if not q or not q.is_active or getattr(q, "status", "approved") != "approved":
         return ApiResponse.fail("题目不存在", code=404)
+    existing = (
+        db.query(ArticleQuizProgress)
+        .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.question_id == q.id)
+        .first()
+    )
+    correct_answer = parse_correct_answer(q.correct_answer or "")
+    if existing and not body.practice:
+        return ApiResponse.ok(
+            AnswerResult(
+                correct=existing.is_correct,
+                analysis=q.analysis,
+                correctAnswer=correct_answer,
+                pointsEarned=0,
+            ).model_dump()
+        )
+    if existing and body.practice:
+        from app.services.wrong_service import apply_wrong_redo_result
+
+        correct = check_answer(q, body.answer)
+        if correct:
+            apply_wrong_redo_result(db, user.id, q.id, True)
+        else:
+            in_book = (
+                db.query(WrongAnswer)
+                .filter(WrongAnswer.user_id == user.id, WrongAnswer.question_id == q.id)
+                .first()
+            )
+            if in_book:
+                apply_wrong_redo_result(db, user.id, q.id, False)
+            else:
+                record_wrong(db, user.id, q.id, body.answer)
+        existing.user_answer = json.dumps(body.answer, ensure_ascii=False)
+        existing.is_correct = correct
+        db.commit()
+        return ApiResponse.ok(
+            AnswerResult(
+                correct=correct,
+                analysis=q.analysis,
+                correctAnswer=correct_answer,
+                pointsEarned=0,
+            ).model_dump()
+        )
     correct = check_answer(q, body.answer)
     points = 0
     if correct:
@@ -155,8 +294,15 @@ def submit_answer(body: AnswerSubmit, user: AppUser = Depends(get_app_user), db:
         points = 2
     else:
         record_wrong(db, user.id, q.id, body.answer)
+    db.add(ArticleQuizProgress(
+        user_id=user.id,
+        article_id=q.article_id,
+        question_id=q.id,
+        user_answer=json.dumps(body.answer, ensure_ascii=False),
+        is_correct=correct,
+    ))
+    db.commit()
     db.refresh(user)
-    correct_answer = parse_correct_answer(q.correct_answer or "")
     return ApiResponse.ok(
         AnswerResult(
             correct=correct,
@@ -165,6 +311,27 @@ def submit_answer(body: AnswerSubmit, user: AppUser = Depends(get_app_user), db:
             pointsEarned=points,
         ).model_dump()
     )
+
+
+@router.get("/quiz-progress")
+def quiz_progress(
+    articleId: str = Query(...),
+    user: AppUser = Depends(get_app_user),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(ArticleQuizProgress)
+        .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.article_id == articleId)
+        .all()
+    )
+    return ApiResponse.ok([
+        {
+            "questionId": row.question_id,
+            "userAnswer": json.loads(row.user_answer) if row.user_answer else "",
+            "correct": row.is_correct,
+        }
+        for row in rows
+    ])
 
 
 @router.get("/wrong")
@@ -199,6 +366,14 @@ def wrong_redo(body: WrongRedoBody, user: AppUser = Depends(get_app_user), db: S
     correct = check_answer(q, body.answer)
     points = 0
     outcome = apply_wrong_redo_result(db, user.id, q.id, correct)
+    progress = (
+        db.query(ArticleQuizProgress)
+        .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.question_id == q.id)
+        .first()
+    )
+    if progress and correct:
+        progress.is_correct = True
+        db.commit()
     if correct:
         if outcome == "removed":
             add_points_log(db, user, 5, "复习", "错题掌握（记忆曲线完成）")

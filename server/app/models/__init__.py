@@ -1,8 +1,8 @@
 """ORM 模型：按域拆分后统一 re-export（保持 from app.models import X 兼容）。"""
 from app.models.base import Base, gen_id, utcnow
 from app.models.account import AdminUser, AppUser, Role, SystemSetting
-from app.models.content import Article, Category, Question
-from app.models.practice import ManualWrong, PointsLog, PracticeAnswer, QuizAttempt, SectionRead, SignRecord, StudyRecord, WrongAnswer
+from app.models.content import Article, Category, Question, TheoryPoint
+from app.models.practice import ArticleQuizProgress, ManualWrong, PointsLog, PracticeAnswer, QuizAttempt, SectionRead, SignRecord, StudyRecord, WrongAnswer
 from app.models.plan import DailyReview, PlanTask, PlanTemplate
 from app.models.knowledge import KnowledgeNode, KnowledgeTree, KnowledgeTreeVersion, UserKnowledgeState
 from app.models.exam import ExamAnswer, ExamAttempt, ExamPaper, ExamQuestion

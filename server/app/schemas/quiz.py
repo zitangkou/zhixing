@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class AnswerSubmit(BaseModel):
     questionId: str
     answer: str | list[str]
+    practice: bool = False
 
 
 class AnswerResult(BaseModel):

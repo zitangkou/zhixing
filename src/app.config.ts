@@ -25,6 +25,10 @@ export default defineAppConfig({
       pages: ['detail', 'mindmap'],
     },
     {
+      root: 'pages/quotes',
+      pages: ['index', 'detail'],
+    },
+    {
       root: 'pages/question',
       pages: [
         'index',

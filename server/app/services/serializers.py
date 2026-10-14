@@ -50,6 +50,27 @@ def parse_correct_answer(value: str) -> str | list[str]:
     return str(parsed)
 
 
+def _published_brief(article: Article) -> dict | None:
+    raw = getattr(article, "brief_json", "") or ""
+    if not str(raw).strip():
+        return None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def student_article_dict(article: Article) -> dict:
+    data = article_to_out(article).model_dump()
+    if (getattr(article, "brief_status", "") or "") != "published":
+        data["brief"] = None
+    data["content"] = ""
+    data["contentHtml"] = ""
+    data["sections"] = []
+    return data
+
+
 def article_to_out(article: Article) -> ArticleOut:
     mind_raw = parse_json(article.mind_map, None)
     if not isinstance(mind_raw, dict) or not mind_raw.get("id") or not mind_raw.get("title"):
@@ -87,6 +108,8 @@ def article_to_out(article: Article) -> ArticleOut:
         status=getattr(article, "status", "published") or "published",
         allowQuiz=bool(getattr(article, "allow_quiz", True)),
         isDaily=bool(getattr(article, "is_daily", False)),
+        briefStatus=getattr(article, "brief_status", "") or "",
+        brief=_published_brief(article),
         createdAt=article.created_at.isoformat() if getattr(article, "created_at", None) else "",
     )
 

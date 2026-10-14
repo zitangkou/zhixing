@@ -44,6 +44,8 @@ class Article(Base):
     summary: Mapped[str] = mapped_column(String(512))
     content: Mapped[str] = mapped_column(Text)
     content_html: Mapped[str] = mapped_column(Text, default="")
+    brief_json: Mapped[str] = mapped_column(Text, default="")
+    brief_status: Mapped[str] = mapped_column(String(16), default="")  # draft | published
     sections: Mapped[str] = mapped_column(Text, default="[]")  # JSON 多层级小节
     tags: Mapped[str] = mapped_column(String(256), default="[]")  # JSON
     mind_map: Mapped[str] = mapped_column(Text, default="{}")  # JSON
@@ -61,6 +63,22 @@ class Article(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     questions: Mapped[list["Question"]] = relationship(back_populates="article")
+
+
+class TheoryPoint(Base):
+    """一条时政要点。套题不另建表，用所关联原文下已通过的题目。"""
+
+    __tablename__ = "theory_points"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("tp"))
+    title: Mapped[str] = mapped_column(String(256))
+    article_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("articles.id"), nullable=True, index=True)
+    highlights: Mapped[str] = mapped_column(Text, default="")
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_key: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class Question(Base):

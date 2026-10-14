@@ -93,7 +93,8 @@ def normalize(item, collected_date):
 
 def out(row, selected=False):
     return {'id': row.id, 'text': row.text, **parse(row.attributes_json), 'collectedDate': row.collected_date.isoformat(),
-            'reviewStatus': row.review_status, 'reviewedBy': row.reviewed_by, 'reviewedAt': row.reviewed_at,
+            'reviewStatus': row.review_status, 'auditStatus': row.audit_status or 'pending', 'enabled': bool(row.enabled),
+            'reviewedBy': row.reviewed_by, 'reviewedAt': row.reviewed_at,
             'selected': selected, 'updatedAt': row.updated_at}
 
 
@@ -116,8 +117,16 @@ def save(db, item, collected_date, row=None, reviewer='', commit=True):
     text, attrs, fingerprint = normalize(item, collected_date)
     status = item.get('reviewStatus', 'pending')
     if status not in STATUSES: raise ValueError('审核状态无效')
-    if status == 'confirmed' and (not attrs['evidence'] or not attrs['articleTitle']):
-        raise ValueError('确认金句须有原文证据摘录及标题')
+    audit = item.get('auditStatus') or (row.audit_status if row else None) or 'pending'
+    if audit not in {'pending', 'passed', 'rejected'}:
+        raise ValueError('审核结果无效')
+    enabled = bool(item.get('enabled', row.enabled if row else False))
+    if enabled and audit != 'passed':
+        raise ValueError('请先审核通过，再启用')
+    if enabled and (not attrs['evidence'] or not attrs['articleTitle']):
+        raise ValueError('启用金句须有原文证据摘录及标题')
+    if status == 'confirmed' and not enabled:
+        status = 'pending'
     if row is None:
         row = DailyQuote(text=text, collected_date=collected_date, fingerprint=fingerprint)
         db.add(row)
@@ -131,9 +140,12 @@ def save(db, item, collected_date, row=None, reviewer='', commit=True):
                               'previous': {k: previous.get(k) for k in changed if k in previous}}]
     attrs['history'] = history[-30:]
     row.text, row.attributes_json, row.fingerprint = text, dump(attrs), fingerprint
-    row.collected_date, row.review_status = collected_date, status
-    row.reviewed_by = reviewer if status == 'confirmed' else ''
-    row.reviewed_at = utcnow() if status == 'confirmed' else None
+    row.collected_date = collected_date
+    row.audit_status = audit
+    row.enabled = enabled
+    row.review_status = 'confirmed' if enabled else status
+    row.reviewed_by = reviewer if audit == 'passed' else ''
+    row.reviewed_at = utcnow() if audit == 'passed' else None
     if status == 'archived' and row.id:
         db.query(DailyQuoteSelection).filter_by(quote_id=row.id).delete()
     db.flush()

@@ -41,6 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
     children: [
       { path: '/today', title: '今日学员端', icon: Calendar, permissions: ['article:read', 'rmrb:read'] },
       { path: '/articles', title: '文章管理', icon: Document, permissions: ['article:read'] },
+      { path: '/theory-briefs', title: '时政要点', icon: Tickets, permissions: ['article:read'] },
       { path: '/categories', title: '分类管理', icon: Folder, permissions: ['article:read', 'article:write'] },
     ],
   },
@@ -155,6 +156,7 @@ export const NAV_ITEMS: NavItem[] = FLAT_NAV_ITEMS
 export const ROUTE_TITLES: Record<string, string> = {
   '/today': '今日学员端',
   '/articles': '文章管理',
+  '/theory-briefs': '时政要点',
   '/articles/new': '新建文章',
   '/content-ops': '账号运营',
   '/wechat-replies': '公众号消息回复',

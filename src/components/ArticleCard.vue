@@ -16,10 +16,10 @@
       >
         {{ article.importanceLabel || '重点' }}
       </text>
-      <text class="chip chip-source">
+      <text v-if="article.source" class="chip chip-source">
         {{ article.source }}
       </text>
-      <text class="meta-date">
+      <text v-if="article.publishDate" class="meta-date">
         {{ article.publishDate }}
       </text>
     </view>
@@ -46,7 +46,7 @@
           {{ article.sections.length }} 章
         </text>
       </view>
-      <text class="action"> 阅读 › </text>
+      <text class="action">{{ actionLabel || '阅读 ›' }}</text>
     </view>
   </view>
 </template>
@@ -56,7 +56,7 @@ import { computed } from 'vue'
 import type { Article } from '@/types'
 import { useThemeClass } from '@/utils/brandColor'
 
-const props = defineProps<{ article: Article; typeLabel?: string }>()
+const props = defineProps<{ article: Article; typeLabel?: string; actionLabel?: string }>()
 const emit = defineEmits<{ tap: [id: string] }>()
 const { themeClass } = useThemeClass()
 const isEmphasized = computed(() => !!(props.article.isFeatured || props.article.isDaily))

@@ -1,6 +1,16 @@
 import * as d from '../_shared'
 
 export const apiLearning = {
+  getTheoryPoints(): Promise<d.ApiRes<d.TheoryPointCard[]>> {
+    const authed = !!d.getToken()
+    return d.request('/api/theory-points', { auth: authed })
+  },
+
+  getQuotes(day?: string): Promise<d.ApiRes<d.DailyQuoteCard[]>> {
+    const q = day ? `?day=${encodeURIComponent(day)}` : ''
+    return d.request(`/api/quotes${q}`, { auth: false })
+  },
+
   getDailyArticles(): Promise<d.ApiRes<d.Article[]>> {
     return d.isMock
       ? d.mockService.getDailyArticles()
@@ -17,6 +27,10 @@ export const apiLearning = {
     return d.isMock
       ? d.mockService.getArticleDetail(id)
       : d.request(`/api/articles/${id}`, { auth: false })
+  },
+
+  getQuizProgress(articleId: string): Promise<d.ApiRes<Array<{ questionId: string; userAnswer: string | string[]; correct: boolean }>>> {
+    return d.request(`/api/quiz-progress?articleId=${articleId}`)
   },
 
   getQuestions(articleId: string): Promise<d.ApiRes<d.Question[]>> {
@@ -43,10 +57,14 @@ export const apiLearning = {
       : d.request(`/api/quiz?mode=${mode}&count=${count}`, { auth: false })
   },
 
-  submitAnswer(questionId: string, answer: string | string[]): Promise<d.ApiRes<d.AnswerResult>> {
+  submitAnswer(
+    questionId: string,
+    answer: string | string[],
+    practice = false,
+  ): Promise<d.ApiRes<d.AnswerResult>> {
     return d.isMock
       ? d.mockService.submitAnswer(questionId, answer)
-      : d.request('/api/answer', { method: 'POST', data: { questionId, answer } })
+      : d.request('/api/answer', { method: 'POST', data: { questionId, answer, practice } })
   },
 
   getWrongQuestions(

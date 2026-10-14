@@ -58,6 +58,38 @@ export interface Article {
   allowQuiz?: boolean
   isDaily?: boolean
   createdAt?: string
+  brief?: { summary: string; terms: string[]; expressions: string[] } | null
+  briefStatus?: string
+  quizReady?: boolean
+}
+
+export interface TheoryPointCard {
+  id: string
+  title: string
+  articleId: string
+  questionCount: number
+  isKey?: boolean
+  answered?: number
+  wrongLeft?: number
+}
+
+export interface DailyQuoteCard {
+  id: string
+  text: string
+  collectedDate: string
+  highlights: string[]
+  topics: string[]
+  examples: { topic?: string; text?: string; highlights?: string[] }[]
+  articleTitle: string
+  articleDate?: string
+  source: string
+  component?: string
+  quoteType?: string
+  use?: string
+  formula?: string
+  why?: string
+  guidance?: string
+  pitfall?: string
 }
 
 export type QuizMode = 'daily' | 'article' | 'random' | 'timeline' | 'key' | 'wrong'

@@ -1,5 +1,5 @@
 <template>
-  <view v-if="article" class="page-detail" :class="[themeClass, { 'is-html': isHtmlArticle }]">
+  <view v-if="article" class="page-detail" :class="themeClass">
     <text class="title">{{ article.title }}</text>
     <view class="meta">
       <nut-tag type="primary" plain size="small">{{ article.source }}</nut-tag>
@@ -9,8 +9,12 @@
       <nut-tag v-for="t in article.tags" :key="t" type="primary" plain size="small">{{ t }}</nut-tag>
     </view>
 
-    <ArticleHtml v-if="isHtmlArticle" :html="displayHtml" />
-    <text v-else class="full-text">{{ plainFullText }}</text>
+    <view v-if="article.brief" class="brief">
+      <text class="brief-summary">{{ article.brief.summary }}</text>
+      <text v-for="term in article.brief.terms" :key="term" class="brief-term">{{ term }}</text>
+      <text v-for="line in article.brief.expressions" :key="line" class="brief-line">{{ line }}</text>
+    </view>
+    <text v-else class="full-text">要点整理中</text>
 
     <view class="footer">
       <nut-button
@@ -25,41 +29,37 @@
         plain
         type="primary"
         block
+        :disabled="article.quizReady === false"
         @click="goQuiz"
       >
-        考点练习
+        {{ article.quizReady === false ? '题目整理中' : '去做题' }}
       </nut-button>
     </view>
   </view>
-  <nut-skeleton v-else rows="6" animated />
+  <nut-skeleton v-else-if="loading" rows="6" animated />
+  <view v-else class="page-detail" :class="themeClass">
+    <text class="full-text">要点尚未发布</text>
+  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import Taro from '@tarojs/taro'
 import { Button as NutButton, Skeleton as NutSkeleton, Tag as NutTag } from '@nutui/nutui-taro'
-import ArticleHtml from '@/components/ArticleHtml.vue'
 import { useArticleStore } from '@/store/article'
 import { useDailyTaskStore } from '@/store/dailyTask'
-import { articleDisplayHtml, getArticleFullContent } from '@/utils/articleContent'
 import { isLoggedIn, requireLogin } from '@/utils/auth'
 import { showConfirm, showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '文章详情' })
+definePageConfig({ navigationBarTitleText: '时政要点' })
 
 const { themeClass } = useThemeClass()
 const articleStore = useArticleStore()
 const dailyTaskStore = useDailyTaskStore()
 const readDone = ref(false)
+const loading = ref(true)
 const article = ref(articleStore.currentArticle)
-const displayHtml = computed(() => (article.value ? articleDisplayHtml(article.value) : ''))
-const isHtmlArticle = computed(() => !!displayHtml.value)
-const plainFullText = computed(() => {
-  if (!article.value) return ''
-  if (article.value.content?.trim()) return article.value.content
-  return getArticleFullContent(article.value)
-})
 
 const taskId = ref('')
 const dailyTask = computed(() => dailyTaskStore.tasks.find((item) => item.id === taskId.value) || null)
@@ -104,6 +104,7 @@ onMounted(async () => {
     article.value = data || null
     readDone.value = articleStore.isRead(id)
   }
+  loading.value = false
 })
 
 async function finishRead() {
@@ -159,6 +160,10 @@ async function goQuiz() {
     flex-wrap: wrap;
   }
   .tags { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .brief { display: flex; flex-direction: column; gap: 10px; }
+  .brief-summary { font-size: 16px; font-weight: 650; line-height: 1.6; color: $text-primary; }
+  .brief-term { font-size: 14px; color: $primary-color; }
+  .brief-line { font-size: 14px; line-height: 1.6; color: $text-secondary; }
   .full-text {
     display: block;
     font-size: 15px;

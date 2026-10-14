@@ -9,82 +9,72 @@
             <text class="banner-tagline">{{ APP_SLOGAN }}</text>
           </view>
         </view>
-        <PointsBadge
-          v-if="loggedIn"
-          :points="userStore.points"
-          show-label
-          tone="on-brand"
-          @tap="goPoints"
-        />
+        <view class="banner-side">
+          <text class="banner-sign" @tap="goSignIn">{{ userStore.hasSignedToday ? '已签到' : '签到' }}</text>
+          <PointsBadge
+            v-if="loggedIn"
+            :points="userStore.points"
+            show-label
+            tone="on-brand"
+            @tap="goPoints"
+          />
+        </view>
       </view>
     </view>
 
     <view class="quick-actions">
-      <view class="action-item" @tap="goSignIn">
-        <view class="action-icon-wrap">
-          <Date :color="brandColor" size="20" />
-        </view>
-        <text>{{ userStore.hasSignedToday ? '已签到' : '今日签到' }}</text>
-      </view>
       <view class="action-item" @tap="go('/pages/question/article-pick')">
         <view class="action-icon-wrap">
           <Edit :color="brandColor" size="20" />
         </view>
-        <text>时政练习</text>
+        <text>时政要点</text>
       </view>
-      <view class="action-item" @tap="go('/pages/question/xingce-hub')">
-        <view class="action-icon-wrap">
-          <Order :color="brandColor" size="20" />
-        </view>
-        <text>行测真题</text>
-      </view>
-      <view class="action-item" @tap="go('/pages/rmrb/article-list')">
+      <view class="action-item" @tap="go('/pages/quotes/index')">
         <view class="action-icon-wrap">
           <CheckChecked :color="brandColor" size="20" />
         </view>
-        <text>时评精拆</text>
+        <text>金句素材</text>
+      </view>
+      <view v-if="SHOW_KNOWLEDGE" class="action-item" @tap="go('/pages/knowledge/index')">
+        <view class="action-icon-wrap">
+          <Category :color="brandColor" size="20" />
+        </view>
+        <text>知识框架</text>
       </view>
     </view>
 
-    <view v-if="SHOW_HOME_DOMAINS" class="home-block">
+    <view v-if="loggedIn && dueWrongCount > 0" class="today-wrong" @tap="go('/pages/question/wrong')">
+      <text>今日错题</text>
+      <text class="today-wrong-n">{{ dueWrongCount }}</text>
+    </view>
+
+    <view class="home-block">
       <view class="home-block-title">
-        <text>学习入口</text>
-        <text class="home-block-meta">时政 / 申论</text>
+        <text>时政要点</text>
+        <text class="home-block-meta is-link" @tap="go('/pages/question/article-pick')">全部</text>
       </view>
-      <view class="domain-grid">
-        <view
-          v-for="item in examDomains"
-          :key="item.name"
-          class="domain-item"
-          @tap="onExamDomain(item)"
-        >
-          <view class="domain-icon" :class="item.tone">
-            <component :is="item.icon" :color="brandColor" size="22" />
-          </view>
-          <text class="domain-name">{{ item.name }}</text>
-          <text class="domain-desc">{{ item.desc }}</text>
-        </view>
+      <nut-skeleton v-if="loading && !points.length" rows="3" />
+      <template v-else-if="points.length">
+        <TheoryPointRow v-for="item in points" :key="item.id" :item="item" @tap="goQuizById" />
+      </template>
+      <view v-else class="empty-rmrb">
+        <text class="empty-title">暂无时政要点</text>
+        <text class="empty-desc">后台发布后会出现在这里</text>
       </view>
     </view>
 
     <view class="home-block">
       <view class="home-block-title">
-        <text>{{ usingDailyPicks ? '今日文章' : '最近文章' }}</text>
+        <text>金句素材</text>
+        <text class="home-block-meta is-link" @tap="go('/pages/quotes/index')">全部</text>
       </view>
-      <text v-if="usingFallbackFeed" class="home-block-note">今日精选暂未排期，先看最近发布</text>
-      <nut-skeleton v-if="todayLoading && !todayArticles.length" rows="3" />
-      <template v-else-if="todayArticles.length">
-        <ArticleCard
-          v-for="item in todayArticles"
-          :key="`${item.kind}-${item.article.id}`"
-          :article="item.article"
-          :type-label="item.kind === 'rmrb' ? '时评' : '时政'"
-          @tap="onTodayTap"
-        />
+      <nut-skeleton v-if="loading && !quotes.length" rows="2" />
+      <template v-else-if="quotes.length">
+        <QuoteRow v-for="item in quotes" :key="item.id" :item="item" @tap="goQuote" />
       </template>
       <view v-else class="empty-rmrb">
-        <text class="empty-title">暂无已发布文章</text>
-        <text class="empty-desc">发布后会出现在这里；也可从上方进入时政练习或时评精拆</text>
+        <text class="empty-title">暂无已确认金句</text>
+        <text class="empty-desc">后台确认后会出现在这里</text>
       </view>
     </view>
 
@@ -96,20 +86,21 @@
 import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { Skeleton as NutSkeleton } from '@nutui/nutui-taro'
-import { CheckChecked, Date, Edit, Order } from '@nutui/icons-vue-taro'
+import { Category, CheckChecked, Edit } from '@nutui/icons-vue-taro'
 import AppTabBar from '@/components/AppTabBar.vue'
-import ArticleCard from '@/components/ArticleCard.vue'
+import QuoteRow from '@/components/QuoteRow.vue'
+import TheoryPointRow from '@/components/TheoryPointRow.vue'
 import PointsBadge from '@/components/PointsBadge.vue'
-import { api } from '@/api'
 import logoSrc from '@/assets/logo/logo.png'
+import { api } from '@/api'
 import { APP_NAME, APP_SLOGAN } from '@/constants/brand'
-import { SHOW_CORPUS_MENU, SHOW_EVENTS, SHOW_HOME_DOMAINS } from '@/constants/featureVisibility'
+import { SHOW_KNOWLEDGE } from '@/constants/featureVisibility'
 import { useUserStore } from '@/store/user'
 import { useArticleStore } from '@/store/article'
-import type { Article, RmrbArticle } from '@/types'
-import { rmrbToCard } from '@/utils/rmrbCard'
-import { showToast } from '@/utils/platform'
-import { bumpAuthView, isLoggedIn } from '@/utils/auth'
+import { useQuestionStore } from '@/store/question'
+import { showConfirm, showToast } from '@/utils/platform'
+import { bumpAuthView, isLoggedIn, requireLogin } from '@/utils/auth'
+import type { DailyQuoteCard, TheoryPointCard } from '@/types'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 
@@ -118,93 +109,25 @@ definePageConfig({ navigationBarTitleText: '杜衡阁' })
 const { themeClass } = useThemeClass()
 const userStore = useUserStore()
 const articleStore = useArticleStore()
+const questionStore = useQuestionStore()
 const { brandColor } = useBrandColor()
 const loggedIn = computed(() => isLoggedIn() && !!userStore.userInfo?.id)
+const dueWrongCount = computed(() => (loggedIn.value ? questionStore.wrongCount : 0))
 
 const pageReady = ref(false)
-const todayRmrbLoading = ref(false)
-const todayRmrbList = ref<RmrbArticle[]>([])
-
-type TodayKind = 'rmrb' | 'theory'
-type TodayItem = { kind: TodayKind; article: Article }
-
-const todayLoading = computed(() => todayRmrbLoading.value || articleStore.dailyLoading)
-const todayArticles = computed(() => {
-  const items: TodayItem[] = [
-    ...todayRmrbList.value.map((row) => ({ kind: 'rmrb' as const, article: rmrbToCard(row) })),
-    ...articleStore.dailyArticles.map((row) => ({ kind: 'theory' as const, article: row })),
-  ]
-  items.sort((a, b) => {
-    const date = (b.article.publishDate || '').localeCompare(a.article.publishDate || '')
-    if (date) return date
-    return (b.article.createdAt || '').localeCompare(a.article.createdAt || '')
-  })
-  return items
-})
-
-const usingDailyPicks = computed(() => todayArticles.value.some((item) => item.article.isDaily))
-const usingFallbackFeed = computed(() => todayArticles.value.length > 0 && !usingDailyPicks.value)
-
-type DomainItem = {
-  name: string
-  desc: string
-  url: string
-  icon: typeof Order
-  tone: string
-  special?: 'featured'
-}
-
-const examDomains: DomainItem[] = [
-  {
-    name: '时政阅读',
-    desc: '读完再练',
-    url: '/pages/question/article-pick',
-    icon: Order,
-    tone: 'tone-red',
-  },
-  ...(SHOW_EVENTS
-    ? [
-        {
-          name: '时事印象',
-          desc: '事件挂框架',
-          url: '/pages/events/index',
-          icon: Date,
-          tone: 'tone-amber',
-        } as DomainItem,
-      ]
-    : []),
-  {
-    name: '时评精拆',
-    desc: '先读原文',
-    url: '/pages/rmrb/article-list',
-    icon: Edit,
-    tone: 'tone-amber',
-  },
-  ...(SHOW_CORPUS_MENU
-    ? [
-        {
-          name: '语料本',
-          desc: '专名成语金句',
-          url: '/pages/corpus/index',
-          icon: Edit,
-          tone: 'tone-blue',
-        } as DomainItem,
-      ]
-    : []),
-]
-
-async function fetchTodayRmrb() {
-  todayRmrbLoading.value = true
-  try {
-    const res = await api.listRmrbToday()
-    if (res.code === 0 && res.data) todayRmrbList.value = res.data
-  } finally {
-    todayRmrbLoading.value = false
-  }
-}
+const loading = ref(false)
+const points = ref<TheoryPointCard[]>([])
+const quotes = ref<DailyQuoteCard[]>([])
 
 async function fetchPageData() {
-  await Promise.all([articleStore.fetchDailyArticles(), fetchTodayRmrb()])
+  loading.value = true
+  try {
+    const [pointRes, quoteRes] = await Promise.all([api.getTheoryPoints(), api.getQuotes()])
+    if (pointRes.code === 0 && pointRes.data) points.value = pointRes.data.slice(0, 5)
+    if (quoteRes.code === 0 && quoteRes.data) quotes.value = quoteRes.data.slice(0, 5)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadInitial() {
@@ -215,9 +138,9 @@ async function loadInitial() {
 async function refreshOnShow() {
   const authed = isLoggedIn()
   await Promise.all([
-    articleStore.fetchDailyArticles(),
-    fetchTodayRmrb(),
+    fetchPageData(),
     authed ? articleStore.syncStudyData() : Promise.resolve(),
+    authed ? questionStore.loadWrongQuestions('review') : Promise.resolve(),
   ])
 }
 
@@ -251,38 +174,36 @@ function go(url: string) {
   Taro.navigateTo({ url })
 }
 
-function goArticle(id: string) {
-  Taro.navigateTo({ url: `/pages/article/detail?id=${id}` })
-}
-
 function goSignIn() {
   Taro.navigateTo({ url: '/pages/user/signin' })
 }
 
-function goRmrbArticle(id: string) {
-  Taro.navigateTo({ url: `/pages/rmrb/article-detail?id=${id}` })
+function goQuote(id: string) {
+  Taro.navigateTo({ url: `/pages/quotes/detail?id=${id}` })
 }
 
-function onTodayTap(id: string) {
-  const hit = todayArticles.value.find((item) => item.article.id === id)
-  if (hit?.kind === 'rmrb') goRmrbArticle(id)
-  else goArticle(id)
+function goQuizById(id: string) {
+  const item = points.value.find((row) => row.id === id)
+  if (item) void goQuiz(item)
 }
 
 function goPoints() {
   Taro.navigateTo({ url: '/pages/user/points' })
 }
 
-function onExamDomain(item: DomainItem) {
-  if (item.special === 'featured') {
-    const recentId = articleStore.lastStudyingArticleId
-    const fallback = articleStore.featuredArticles[0] || articleStore.recommendedList[0]
-    const targetId = recentId || fallback?.id
-    if (targetId) goArticle(targetId)
-    else showToast('暂无时政文章')
+async function goQuiz(item: TheoryPointCard) {
+  if (!item.articleId || !item.questionCount) {
+    showToast('这套要点还没有题目')
     return
   }
-  go(item.url)
+  const url = `/pages/question/taking?articleId=${item.articleId}`
+  if (!isLoggedIn()) {
+    const ok = await showConfirm('需要登录', '登录后才能保存练习进度与积分。', { confirmText: '去登录', cancelText: '再看看' })
+    if (!ok) return
+    requireLogin(url)
+    return
+  }
+  Taro.navigateTo({ url })
 }
 </script>
 
@@ -326,10 +247,31 @@ function onExamDomain(item: DomainItem) {
       font-weight: 700;
       line-height: 1.2;
       color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .banner-tagline {
       font-size: 12px;
       opacity: 0.78;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .banner-side {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .banner-sign {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.18);
     }
     .banner-today {
       margin-top: 14px;
@@ -353,6 +295,22 @@ function onExamDomain(item: DomainItem) {
         opacity: 0.8;
       }
     }
+  }
+  .today-wrong {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 16px 14px;
+    padding: 12px 14px;
+    background: $card-bg;
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    font-size: 14px;
+    color: $text-primary;
+  }
+  .today-wrong-n {
+    font-weight: 700;
+    color: $primary-color;
   }
   .quick-actions {
     display: flex;

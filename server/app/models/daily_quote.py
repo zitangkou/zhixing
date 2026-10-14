@@ -1,7 +1,7 @@
 """独立每日金句：不保存文章全文，不依赖旧采集档案。"""
 from datetime import date, datetime
 from sqlalchemy import Date
-from app.models.base import Base, Mapped, mapped_column, String, Text, Integer, DateTime, ForeignKey, UniqueConstraint, gen_id, utcnow
+from app.models.base import Base, Mapped, mapped_column, String, Text, Integer, Boolean, DateTime, ForeignKey, UniqueConstraint, gen_id, utcnow
 
 
 class DailyQuote(Base):
@@ -12,6 +12,8 @@ class DailyQuote(Base):
     text: Mapped[str] = mapped_column(Text)
     attributes_json: Mapped[str] = mapped_column(Text, default='{}')
     review_status: Mapped[str] = mapped_column(String(24), default='pending', index=True)
+    audit_status: Mapped[str] = mapped_column(String(16), default='pending')  # pending | passed | rejected
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     reviewed_by: Mapped[str] = mapped_column(String(128), default='')
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

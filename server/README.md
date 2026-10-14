@@ -41,6 +41,9 @@ uvicorn app.main:app --reload --port 8001
 ### 公开接口 `/api/*`（对接 Taro 前端）
 
 - `GET /api/articles/daily` — 今日推荐
+- `GET /api/theory-points` — 已发布时政要点及关联练习状态
+- `GET /api/quotes` — 已启用金句素材
+- `GET /api/quiz-progress?articleId=` — 已登录用户的时政套题进度
 - `GET /api/articles/{id}` — 文章详情
 - `GET /api/questions?articleId=` — 题目列表
 - `POST /api/answer` — 提交答案
@@ -54,7 +57,8 @@ uvicorn app.main:app --reload --port 8001
 ### 管理接口 `/admin/*`（需 Bearer Token）
 
 - `POST /admin/auth/login` — 登录
-- 文章 CRUD `/admin/articles`
+- 文章 CRUD `/admin/articles`；时政要点 `/admin/theory-briefs`
+- 金句素材审核和管理 `/admin/daily-quotes`
 - 试题 CRUD `/admin/questions`
 - 用户管理 `/admin/users`
 - 系统设置 `/admin/settings`

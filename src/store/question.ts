@@ -54,8 +54,8 @@ export const useQuestionStore = defineStore('question', {
       return []
     },
 
-    async submitAnswer(questionId: string, answer: string | string[], question?: Question) {
-      const res = await api.submitAnswer(questionId, answer)
+    async submitAnswer(questionId: string, answer: string | string[], question?: Question, practice = false) {
+      const res = await api.submitAnswer(questionId, answer, practice)
       const userStore = useUserStore()
 
       if (res.code !== 0 || !res.data) {
@@ -70,8 +70,9 @@ export const useQuestionStore = defineStore('question', {
 
       if (res.data.correct) {
         if (isMock) userStore.addPoints(res.data.pointsEarned)
-        else await userStore.fetchPoints()
-        this.answeredToday++
+        else if (!practice) await userStore.fetchPoints()
+        if (!practice) this.answeredToday++
+        if (practice) await this.loadWrongQuestions()
       } else {
         await this.loadWrongQuestions()
         if (question) {

@@ -1,71 +1,232 @@
 <template>
   <div class="page">
-    <header><div><h2>金句管理</h2><p>按天保存原句、证据和多主题仿写，核对后选入当天合集。</p></div><div class="actions"><el-button @click="load">刷新</el-button><el-button @click="exportData">导出</el-button><template v-if="canWrite"><el-button @click="openImport">导入JSON</el-button><el-button type="primary" @click="edit()">新增金句</el-button></template></div></header>
-    <div class="task"><el-date-picker v-model="issueDate" type="date" value-format="YYYY-MM-DD" :clearable="false" @change="selectDay" /><span>每日 {{ jobInfo?.schedule || '06:40（北京时间）' }}</span><el-tag>{{ jobInfo?.job ? jobLabel(jobInfo.job.status) : '尚未整理' }}</el-tag><el-button v-if="canWrite" :disabled="running || !jobInfo?.llmConfigured" :loading="submitting" @click="run">{{ jobInfo?.job?.status === 'partial' || jobInfo?.job?.status === 'failed' ? '重试失败项' : '立即整理' }}</el-button><span v-if="jobInfo && !jobInfo.llmConfigured">LLM未配置，仍可导入或人工录入。</span><span v-if="jobInfo && !jobInfo.enabled">定时任务已关闭</span></div>
-    <el-alert v-if="jobInfo?.job?.error" :title="jobInfo.job.error" type="warning" :closable="false" />
-    <el-collapse v-if="jobInfo?.job?.failures?.length"><el-collapse-item title="失败详情"><p v-for="f in jobInfo.job.failures" :key="f.url">{{ f.error }} · {{ f.url }}</p></el-collapse-item></el-collapse>
-    <section class="filters"><el-date-picker v-model="dates" type="daterange" value-format="YYYY-MM-DD" start-placeholder="整理开始日期" end-placeholder="结束日期" /><el-input v-model="search" clearable placeholder="原句、来源、仿写" /><el-input v-model="topic" clearable placeholder="主题" /><el-select v-model="status" clearable placeholder="核对状态"><el-option label="待核对" value="pending"/><el-option label="已确认" value="confirmed"/><el-option label="已归档" value="archived"/></el-select><el-select v-model="component" clearable placeholder="构件"><el-option v-for="c in components" :key="c" :label="c" :value="c"/></el-select><el-select v-model="selected" clearable placeholder="精选状态"><el-option label="已精选" value="yes"/><el-option label="未精选" value="no"/></el-select><el-button @click="filter">筛选</el-button><el-button @click="showAll">全部日期</el-button></section>
-    <div class="stats"><span>金句 <b>{{ stats.quotes || 0 }}</b></span><span>来源 <b>{{ stats.sources || 0 }}</b></span><span>仿写 <b>{{ stats.examples || 0 }}</b></span><span>{{ issueDate }}精选 <b>{{ stats.selected || 0 }}</b></span></div>
-    <div v-if="canWrite" class="bulk-actions"><span>已选 {{ checkedQuotes.length }} 条</span><el-button :disabled="!checkedQuotes.length" @click="exportMarkdown">导出所选 Markdown（短视频素材）</el-button><el-button :disabled="!checkedQuotes.length" @click="confirmSelected">批量复核通过</el-button><el-button type="danger" plain :disabled="!checkedQuotes.length" @click="deleteSelected">批量删除</el-button></div>
-    <el-table ref="tableRef" v-loading="loading" :data="items" stripe row-key="id" @selection-change="checkedQuotes=$event">
-      <el-table-column type="selection" width="48" reserve-selection :selectable="()=>canWrite" />
-      <el-table-column label="金句 / 仿写" min-width="420"><template #default="{row}"><blockquote><template v-for="(part,n) in highlight(row.text,row.highlights)" :key="n"><strong v-if="part.red" class="highlight">{{ part.text }}</strong><span v-else>{{ part.text }}</span></template></blockquote><el-tag size="small">{{ row.component }}</el-tag> <el-tag v-for="t in row.topics" :key="t" size="small" effect="plain">{{ t }}</el-tag><p v-if="row.examples.length">仿写 · {{ row.examples[0].topic }}：{{ row.examples[0].text }}</p><el-button link @click="detail=row">查看证据与全部 {{ row.examples.length }} 个仿写</el-button></template></el-table-column>
-      <el-table-column label="来源" min-width="210"><template #default="{row}"><a :href="row.sourceUrl" target="_blank" rel="noopener">{{ row.articleTitle }}</a><p>{{ row.articleDate }} · {{ row.source }}</p><small>整理于 {{ row.collectedDate }}</small></template></el-table-column>
-      <el-table-column label="用途 / 状态" min-width="150"><template #default="{row}"><p>{{ row.use }}</p><el-tag :type="row.reviewStatus==='confirmed'?'success':'info'">{{ statusLabel(row.reviewStatus) }}</el-tag><p v-if="row.selected">已精选</p></template></el-table-column>
-      <el-table-column v-if="canWrite" label="操作" width="250" fixed="right"><template #default="{row}"><el-button link @click="copyQuote(row)">复制</el-button><el-button link @click="edit(row)">编辑</el-button><el-button link type="success" :disabled="row.reviewStatus==='confirmed' || !row.evidence" @click="review(row)">复核通过</el-button><el-button link :disabled="row.reviewStatus!=='confirmed'" @click="toggleSelection(row)">{{ row.selected?'取消精选':'精选' }}</el-button><el-button link type="danger" @click="deleteOne(row)">删除</el-button></template></el-table-column>
-    </el-table><el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
-    <el-drawer v-model="detailOpen" title="金句详情" size="min(760px, 96vw)"><template v-if="detail"><h3>{{ detail.text }}</h3><p>{{ detail.component }} · {{ detail.use }}</p><p>结构公式：{{ detail.formula }}</p><p>好用之处：{{ detail.why }}</p><p>落笔：{{ detail.guidance }}</p><p>使用边界：{{ detail.pitfall }}</p><h3>原文证据摘录</h3><blockquote class="evidence">{{ detail.evidence || '证据待补，不能确认' }}</blockquote><p>{{ detail.evidenceLocation }}</p><a :href="detail.sourceUrl" target="_blank" rel="noopener">查看原文：{{ detail.articleTitle }}</a><section v-for="(e,n) in detail.examples" :key="n" class="example"><h3>{{ e.topic }} · 仿写示例（非原文）</h3><p><template v-for="(part,i) in highlight(e.text,e.highlights)" :key="i"><strong v-if="part.red" class="highlight">{{ part.text }}</strong><span v-else>{{ part.text }}</span></template></p></section><h3>最近变更</h3><p v-for="(h,n) in detail.history || []" :key="n">{{ h.at }} · {{ h.actor }} · {{ h.fields.join('、') }}</p></template></el-drawer>
-    <el-drawer v-model="editing" title="录入 / 编辑金句" size="min(800px, 96vw)"><el-form v-if="draft" label-position="top"><el-form-item label="整理日期"><el-date-picker v-model="draft.collectedDate" type="date" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="原句"><el-input v-model="draft.text" type="textarea" :rows="3" /></el-form-item><el-form-item label="原句类型"><el-select v-model="draft.quoteType"><el-option label="完整句" value="完整句"/><el-option label="句内节选" value="句内节选"/></el-select></el-form-item><el-form-item label="构件"><el-select v-model="draft.component"><el-option v-for="c in components" :key="c" :label="c" :value="c"/></el-select></el-form-item><el-form-item label="主题（逗号分隔）"><el-input v-model="topicsInput" /></el-form-item><el-form-item label="原句高亮（逗号分隔）"><el-input v-model="highlightsInput" /></el-form-item><el-form-item v-for="field in fields" :key="field.key" :label="field.label"><el-input v-model="draft[field.key]" :type="field.key==='evidence'?'textarea':'text'" :rows="4" /></el-form-item><el-form-item label="原文刊发日期"><el-date-picker v-model="draft.articleDate" type="date" value-format="YYYY-MM-DD" /></el-form-item><section v-for="(e,n) in draft.examples" :key="n" class="example"><el-input v-model="e.topic" placeholder="仿写主题"/><el-input v-model="e.text" type="textarea" :rows="4" placeholder="完整仿写"/><el-input :model-value="e.highlights.join('，')" @update:model-value="e.highlights=split($event)" placeholder="仿写高亮词，逗号分隔"/><el-button @click="draft.examples.splice(n,1)">移除示例</el-button></section><el-button @click="draft.examples.push({topic:'',text:'',shortText:'',highlights:[]})">增加主题仿写</el-button><el-form-item label="核对状态"><el-select v-model="draft.reviewStatus"><el-option label="待核对" value="pending"/><el-option label="已确认（须有证据）" value="confirmed"/><el-option label="归档" value="archived"/></el-select></el-form-item><el-button type="primary" :loading="saving" @click="save">保存</el-button></el-form></el-drawer>
-    <el-dialog v-model="importOpen" title="导入每日金句JSON" width="min(900px,96vw)"><p>支持每日汇编、四句精选或本库导出数组。重复原句跳过；导入后待核对，证据缺失须补齐。</p><input type="file" accept=".json,application/json" @change="readFile"/><el-input v-model="importText" type="textarea" :rows="10" placeholder="粘贴JSON数组" @input="checks=[]"/><el-date-picker v-model="importDate" type="date" value-format="YYYY-MM-DD"/><el-button :loading="saving" @click="preview">预览导入</el-button><el-table :data="checks"><el-table-column prop="index" label="序号" width="70"/><el-table-column prop="text" label="金句"/><el-table-column prop="status" label="结果" width="100"/><el-table-column label="说明"><template #default="{row}">{{ row.error || (row.evidenceMissing?'原文证据待补':'') }}</template></el-table-column></el-table><el-button type="primary" :disabled="!checks.length || checks.some(x=>x.status==='invalid')" :loading="saving" @click="commitImport">确认导入</el-button></el-dialog>
+    <header>
+      <div>
+        <h2>金句管理</h2>
+        <p>先审核是否符合金句素材，通过后再启用，学员端才会显示。</p>
+      </div>
+      <div class="actions">
+        <el-button v-if="canWrite" :loading="running" @click="run">整理今日</el-button>
+        <el-button type="primary" @click="edit()">新增</el-button>
+      </div>
+    </header>
+
+    <div class="filters">
+      <el-radio-group v-model="status" @change="filter">
+        <el-radio-button value="">全部</el-radio-button>
+        <el-radio-button value="pending">待确认</el-radio-button>
+        <el-radio-button value="confirmed">已启用</el-radio-button>
+      </el-radio-group>
+      <el-input v-model="search" clearable placeholder="搜索原句" @keyup.enter="filter" @clear="filter" />
+    </div>
+
+    <el-table v-loading="loading" :data="items">
+      <el-table-column label="金句" min-width="280">
+        <template #default="{ row }">
+          <div class="quote">{{ row.text }}</div>
+          <div class="meta">{{ row.topics.join('、') || row.component }} · {{ row.articleTitle }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="审核" width="90">
+        <template #default="{ row }">{{ auditLabel(row.auditStatus) }}</template>
+      </el-table-column>
+      <el-table-column label="启用" width="90">
+        <template #default="{ row }">{{ row.enabled ? '已启用' : '未启用' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="220">
+        <template #default="{ row }">
+          <el-button link @click="edit(row)">编辑</el-button>
+          <el-button link @click="audit(row)">审核</el-button>
+          <el-button v-if="!row.enabled" link type="primary" @click="enable(row)">启用</el-button>
+          <el-button v-else link @click="disable(row)">停用</el-button>
+          <el-button link type="danger" @click="remove(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
+
+    <el-drawer v-model="editing" title="金句" size="480px">
+      <el-form v-if="draft" label-position="top">
+        <el-form-item label="原句"><el-input v-model="draft.text" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="主题（逗号分隔）"><el-input v-model="topicsInput" /></el-form-item>
+        <el-form-item label="构件">
+          <el-select v-model="draft.component" style="width: 100%">
+            <el-option v-for="c in components" :key="c" :label="c" :value="c" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="重点词（逗号分隔）"><el-input v-model="highlightsInput" /></el-form-item>
+        <el-form-item label="句式"><el-input v-model="draft.formula" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="用法"><el-input v-model="draft.use" /></el-form-item>
+        <el-form-item label="为什么好"><el-input v-model="draft.why" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="怎么用"><el-input v-model="draft.guidance" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="注意"><el-input v-model="draft.pitfall" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="出处栏目"><el-input v-model="draft.source" /></el-form-item>
+        <el-form-item label="文章标题"><el-input v-model="draft.articleTitle" /></el-form-item>
+        <el-form-item label="原文链接"><el-input v-model="draft.sourceUrl" /></el-form-item>
+        <el-form-item label="证据摘录（须包含原句，确认前必填）"><el-input v-model="draft.evidence" type="textarea" :rows="4" /></el-form-item>
+        <div v-for="(ex, n) in draft.examples" :key="n" class="example">
+          <el-input v-model="ex.topic" placeholder="仿写主题" />
+          <el-input v-model="ex.text" type="textarea" :rows="3" placeholder="仿写" />
+          <el-button link type="danger" @click="draft.examples.splice(n, 1)">移除</el-button>
+        </div>
+        <el-button @click="draft.examples.push({ topic: '', text: '', shortText: '', highlights: [] })">加一条仿写</el-button>
+        <div class="save"><el-button type="primary" :loading="saving" @click="save">保存</el-button></div>
+      </el-form>
+    </el-drawer>
   </div>
 </template>
+
 <script setup lang="ts">
-import {computed,onMounted,onUnmounted,ref} from 'vue'
-import {ElMessage,ElMessageBox} from 'element-plus'
-import {useAuthStore} from '@/stores/auth'
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import * as api from '@/api/dailyQuotes'
-const auth=useAuthStore()
-const canWrite=computed(()=>auth.hasPermission('rmrb:write'))
-const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date())
-const issueDate=ref(today),dates=ref<string[]|null>([today,today]),search=ref(''),topic=ref(''),status=ref(''),selected=ref(''),component=ref(''),page=ref(1),total=ref(0),stats=ref<Record<string,number>>({}),items=ref<api.DailyQuote[]>([])
-const loading=ref(false),saving=ref(false),submitting=ref(false),jobInfo=ref<Awaited<ReturnType<typeof api.getQuoteJob>>|null>(null)
-const checkedQuotes=ref<api.DailyQuote[]>([]),tableRef=ref()
-const running=computed(()=>['queued','running'].includes(jobInfo.value?.job?.status||''))
-const detail=ref<api.DailyQuote|null>(null),detailOpen=computed({get:()=>!!detail.value,set:(v)=>{if(!v)detail.value=null}})
-const editing=ref(false),draft=ref<api.DailyQuote|null>(null),topicsInput=ref(''),highlightsInput=ref('')
-const components=['开头点题','分论点标题','论证句','结尾升华']
-const fields:{key:'articleTitle'|'sourceUrl'|'source'|'author'|'use'|'formula'|'why'|'guidance'|'pitfall'|'evidence'|'evidenceLocation';label:string}[]=[{key:'articleTitle',label:'来源标题'},{key:'sourceUrl',label:'原文链接'},{key:'source',label:'版次 / 栏目'},{key:'author',label:'作者'},{key:'use',label:'用途'},{key:'formula',label:'句式骨架'},{key:'why',label:'好用之处'},{key:'guidance',label:'落笔指引'},{key:'pitfall',label:'使用边界'},{key:'evidence',label:'连续原文证据摘录（包含原句，最长1800字）'},{key:'evidenceLocation',label:'段落位置'}]
-function statusLabel(s:string){return ({pending:'待核对',confirmed:'已确认',archived:'归档'} as Record<string,string>)[s]||s}
-function jobLabel(s:string){return ({queued:'已排队',running:'整理中',completed:'整理完成',partial:'部分失败',failed:'失败',empty:'无评论'} as Record<string,string>)[s]||s}
-function split(s:string){return s.split(/[，,]/).map(x=>x.trim()).filter(Boolean)}
-function highlight(text:string,words:string[]=[]){const keys=[...new Set(words)].filter(Boolean).sort((a,b)=>b.length-a.length);if(!keys.length)return [{text,red:false}];const pattern=new RegExp('('+keys.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')','g');return text.split(pattern).filter(Boolean).map(t=>({text:t,red:keys.includes(t)}))}
-function params(){return {start:dates.value?.[0],end:dates.value?.[1],q:search.value,topic:topic.value,status:status.value,selected:selected.value,component:component.value,selection_date:issueDate.value,page:page.value}}
-async function load(){loading.value=true;try{const r=await api.listQuotes(params());items.value=r.items;total.value=r.total;stats.value=r.stats}catch(e){ElMessage.error(String(e))}finally{loading.value=false}}
-async function loadJob(){try{jobInfo.value=await api.getQuoteJob(issueDate.value)}catch(e){ElMessage.error(String(e))}}
-async function selectDay(){dates.value=[issueDate.value,issueDate.value];page.value=1;await Promise.all([loadJob(),load()])}
-async function copyQuote(row:api.DailyQuote){try{await navigator.clipboard.writeText(row.text+'\n'+row.examples.map(e=>e.topic+'：'+e.text).join('\n')+'\n来源：'+row.articleTitle+' '+row.sourceUrl);ElMessage.success('已复制')}catch(e){ElMessage.error('复制失败，请在详情中手动复制')}}
-function filter(){page.value=1;void load()}
-function showAll(){dates.value=null;filter()}
-async function run(){submitting.value=true;try{await api.runQuoteJob(issueDate.value);await loadJob();ElMessage.success('任务已提交')}catch(e){ElMessage.error(String(e))}finally{submitting.value=false}}
-function edit(row?:api.DailyQuote){draft.value=row?JSON.parse(JSON.stringify(row)):{id:'',text:'',collectedDate:issueDate.value,articleDate:issueDate.value,articleTitle:'',sourceUrl:'',source:'',author:'',component:'论证句',quoteType:'完整句',topics:[],use:'',formula:'',why:'',guidance:'',pitfall:'',evidence:'',evidenceLocation:'',highlights:[],examples:[],reviewStatus:'pending',selected:false};topicsInput.value=draft.value!.topics.join('，');highlightsInput.value=draft.value!.highlights.join('，');editing.value=true}
-async function save(){if(!draft.value)return;saving.value=true;try{draft.value.topics=split(topicsInput.value);draft.value.highlights=split(highlightsInput.value);await api.saveQuote(draft.value);editing.value=false;await load();ElMessage.success('已保存')}catch(e){ElMessage.error(String(e))}finally{saving.value=false}}
-async function archive(row:api.DailyQuote){try{await ElMessageBox.confirm('归档后仍可按归档状态查询，是否继续？','归档金句');await api.saveQuote({...row,reviewStatus:'archived'});await load()}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(String(e))}}
-async function review(row:api.DailyQuote){try{await ElMessageBox.confirm('确认原句及原文证据准确，且适合申论写作？','复核金句');await api.saveQuote({...row,reviewStatus:'confirmed'});await load();ElMessage.success('复核通过')}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(String(e))}}
-async function confirmSelected(){const eligible=checkedQuotes.value.filter(x=>x.reviewStatus!=='confirmed'&&x.evidence);if(!eligible.length){ElMessage.warning('所选金句均已确认或缺少原文证据');return}try{await ElMessageBox.confirm(`将复核通过 ${eligible.length} 条金句，请确保原句及原文证据准确。`,'批量复核');for(const row of eligible)await api.saveQuote({...row,reviewStatus:'confirmed'});tableRef.value?.clearSelection();await load();ElMessage.success(`已复核 ${eligible.length} 条`)}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(String(e))}}
-async function deleteOne(row:api.DailyQuote){try{await ElMessageBox.confirm('删除后无法恢复，并会从每日精选中移除。','删除金句',{type:'warning'});await api.deleteQuote(row.id);await load();ElMessage.success('已删除')}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(String(e))}}
-async function deleteSelected(){const rows=[...checkedQuotes.value];try{await ElMessageBox.confirm(`将永久删除所选 ${rows.length} 条金句，并从每日精选中移除。`,'批量删除',{type:'warning'});for(const row of rows)await api.deleteQuote(row.id);tableRef.value?.clearSelection();await load();ElMessage.success(`已删除 ${rows.length} 条`)}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error(String(e))}}
-async function toggleSelection(row:api.DailyQuote){try{const ids=await api.getSelection(issueDate.value);await api.saveSelection(issueDate.value,row.selected?ids.filter(x=>x!==row.id):[...ids,row.id]);await load()}catch(e){ElMessage.error(String(e))}}
-const importOpen=ref(false),importText=ref(''),importDate=ref(today),checks=ref<Awaited<ReturnType<typeof api.previewQuotes>>>([])
-function openImport(){checks.value=[];importOpen.value=true;importDate.value=issueDate.value}
-async function readFile(event:Event){const file=(event.target as HTMLInputElement).files?.[0];if(file){if(file.size>3000000){ElMessage.error('文件不能超过3MB');return}importText.value=await file.text();checks.value=[]}}
-async function preview(){saving.value=true;try{checks.value=await api.previewQuotes(JSON.parse(importText.value),importDate.value)}catch(e){checks.value=[];ElMessage.error(String(e))}finally{saving.value=false}}
-async function commitImport(){saving.value=true;try{const r=await api.importQuotes(JSON.parse(importText.value),importDate.value);importOpen.value=false;await load();ElMessage.success(`新增${r.added}条，跳过${r.skipped}条重复`)}catch(e){ElMessage.error(String(e))}finally{saving.value=false}}
-async function exportData(){try{const data=await api.exportQuotes({start:dates.value?.[0],end:dates.value?.[1]});const u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='每日金句.json';a.click();URL.revokeObjectURL(u)}catch(e){ElMessage.error(String(e))}}
-function exportMarkdown(){const rows=checkedQuotes.value;if(!rows.length)return;const lines=['# 每日金句短视频素材', '', `整理日期：${today}`, `导出时间：${new Date().toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}`, `金句数量：${rows.length}`, '', '> 可据此挑选金句并制作短视频。引用证据用于人工核对；仿写内容为申论练笔示例，不属于原文。',''];rows.forEach((q,i)=>{lines.push(`## ${i+1}. ${q.text}`,'',`- 主题：${q.topics.join('、')||'待补充'}`,`- 用途：${q.use||q.component}`,`- 句式骨架：${q.formula||'待补充'}`,`- 亮点：${q.why||'待补充'}`,`- 短视频强调词：${q.highlights.join('、')||'可按画面节奏提炼'}`,'','### 原文证据',q.evidence?`> ${q.evidence}`:'> 待补充',`- 来源：《${q.articleTitle}》${q.author?`，${q.author}`:''}，${q.articleDate}`,`- 原文链接：${q.sourceUrl}`,'','### 申论仿写示例');if(q.examples.length)q.examples.forEach(e=>lines.push(`- **${e.topic}**：${e.text}`));else lines.push('- 待补充');lines.push('','### 短视频表达提示',`- 口播金句：${q.text}`,`- 结尾落点：${q.guidance||'联系主题回扣治理实践与群众获得感。'}`,'')});const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/markdown;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`申论金句短视频素材_${today}.md`;a.click();URL.revokeObjectURL(url)}
-let timer:ReturnType<typeof setInterval>|undefined
-onMounted(()=>{void load();void loadJob();timer=setInterval(()=>{if(running.value){void loadJob();void load()}},5000)})
-onUnmounted(()=>{if(timer)clearInterval(timer)})
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('rmrb:write'))
+const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date())
+const components = ['开头点题', '分论点标题', '论证句', '结尾升华']
+const status = ref('')
+const search = ref('')
+const page = ref(1)
+const total = ref(0)
+const items = ref<api.DailyQuote[]>([])
+const loading = ref(false)
+const saving = ref(false)
+const running = ref(false)
+const editing = ref(false)
+const draft = ref<api.DailyQuote | null>(null)
+const topicsInput = ref('')
+const highlightsInput = ref('')
+
+function split(s: string) {
+  return s.split(/[，,]/).map((x) => x.trim()).filter(Boolean)
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const data = await api.listQuotes({ q: search.value, status: status.value, page: page.value })
+    items.value = data.items
+    total.value = data.total
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function filter() {
+  page.value = 1
+  void load()
+}
+
+function edit(row?: api.DailyQuote) {
+  draft.value = row
+    ? JSON.parse(JSON.stringify(row))
+    : {
+        id: '', text: '', collectedDate: today, articleDate: today, articleTitle: '', sourceUrl: '',
+        source: '', author: '', component: '论证句', quoteType: '完整句', topics: [], use: '', formula: '',
+        why: '', guidance: '', pitfall: '', evidence: '', evidenceLocation: '', highlights: [], examples: [],
+        reviewStatus: 'pending', auditStatus: 'pending', enabled: false, selected: false,
+      }
+  topicsInput.value = draft.value!.topics.join('，')
+  highlightsInput.value = draft.value!.highlights.join('，')
+  editing.value = true
+}
+
+async function save() {
+  if (!draft.value) return
+  saving.value = true
+  try {
+    draft.value.topics = split(topicsInput.value)
+    draft.value.highlights = split(highlightsInput.value)
+    await api.saveQuote(draft.value)
+    editing.value = false
+    await load()
+    ElMessage.success('已保存')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+function auditLabel(s: string) {
+  return ({ pending: '待审核', passed: '符合', rejected: '不符合' } as Record<string, string>)[s] || '待审核'
+}
+
+async function audit(row: api.DailyQuote) {
+  try {
+    await ElMessageBox.confirm('这条是否符合金句素材？', '审核', {
+      confirmButtonText: '符合',
+      cancelButtonText: '不符合',
+      distinguishCancelAndClose: true,
+    })
+    await api.saveQuote({ ...row, auditStatus: 'passed', enabled: row.enabled })
+  } catch (e) {
+    if (e === 'cancel') {
+      await api.saveQuote({ ...row, auditStatus: 'rejected', enabled: false, reviewStatus: 'pending' })
+    } else if (e !== 'close') {
+      ElMessage.error(e instanceof Error ? e.message : '审核失败')
+      return
+    } else return
+  }
+  await load()
+}
+
+async function enable(row: api.DailyQuote) {
+  if (row.auditStatus !== 'passed') {
+    ElMessage.warning('请先审核通过')
+    return
+  }
+  try {
+    await api.saveQuote({ ...row, auditStatus: 'passed', enabled: true, reviewStatus: 'confirmed' })
+    await load()
+    ElMessage.success('已启用')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '启用失败')
+  }
+}
+
+async function disable(row: api.DailyQuote) {
+  await api.saveQuote({ ...row, enabled: false, reviewStatus: 'pending' })
+  await load()
+}
+
+async function remove(row: api.DailyQuote) {
+  try {
+    await ElMessageBox.confirm('删除后学员端不再显示。', '删除金句', { type: 'warning' })
+    await api.deleteQuote(row.id)
+    await load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+async function run() {
+  running.value = true
+  try {
+    await api.runQuoteJob(today)
+    ElMessage.success('已开始整理，完成后出现在待确认')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '整理失败')
+  } finally {
+    running.value = false
+  }
+}
+
+onMounted(load)
 </script>
+
 <style scoped>
-.page{padding:24px;display:flex;flex-direction:column;gap:18px;color:var(--el-text-color-primary);background:var(--el-bg-color-page);min-height:100%}header,.actions,.task,.filters,.stats{display:flex;gap:12px;align-items:center;flex-wrap:wrap}header{justify-content:space-between}p{line-height:1.7}header p,small{color:var(--el-text-color-secondary)}.filters .el-input,.filters .el-select{width:170px}.stats{padding:16px;background:var(--el-bg-color);border-radius:8px;justify-content:space-around}.stats b{font-size:24px;margin-left:10px}blockquote{margin:10px 0;line-height:1.8;font-size:17px}.highlight{color:var(--el-color-danger)}.evidence{background:var(--el-fill-color-light);padding:16px;white-space:pre-wrap}.example{border:1px solid var(--el-border-color);border-radius:8px;padding:16px;margin:16px 0;display:flex;flex-direction:column;gap:12px}a{color:var(--el-color-primary)}
+.page { display: flex; flex-direction: column; gap: 16px; }
+header, .actions, .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+header { justify-content: space-between; }
+header p { margin: 4px 0 0; color: var(--el-text-color-secondary); }
+.filters .el-input { width: 220px; }
+.quote { line-height: 1.6; }
+.meta { margin-top: 4px; color: var(--el-text-color-secondary); font-size: 12px; }
+.example { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.save { margin-top: 16px; }
 </style>

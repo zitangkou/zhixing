@@ -1,45 +1,37 @@
 <template>
   <view class="page-pick" :class="themeClass">
-    <text class="tip">置顶文章在前。先读原文，读完后再练习。</text>
-    <view v-if="loading && !articleStore.recommendedList.length" class="state-box">
+    <view v-if="loading" class="state-box">
       <text class="state-title">加载中…</text>
-      <text class="state-desc">正在获取时政文章</text>
     </view>
     <view v-else-if="loadError" class="state-box">
       <text class="state-title">加载失败</text>
       <text class="state-desc">{{ loadError }}</text>
       <view class="state-btn" @tap="load">点击重试</view>
     </view>
-    <view v-else-if="!articleStore.recommendedList.length" class="state-box">
-      <text class="state-title">暂无时政文章</text>
-      <text class="state-desc">请管理员在后台发布时政文章</text>
+    <view v-else-if="!items.length" class="state-box">
+      <text class="state-title">暂无时政要点</text>
+      <text class="state-desc">后台发布后会出现在这里</text>
     </view>
     <template v-else>
-      <ArticleCard
-        v-for="article in articleStore.recommendedList"
-        :key="article.id"
-        :article="article"
-        @tap="goDetail"
-      />
-      <view v-if="articleStore.recommendedLoading" class="list-status">加载中...</view>
-      <view v-else-if="articleStore.recommendedHasMore" class="list-status muted">上拉加载更多</view>
-      <view v-else class="list-status muted">已加载全部</view>
+      <TheoryPointRow v-for="item in items" :key="item.id" :item="item" @tap="goQuizById" />
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import Taro, { useReachBottom } from '@tarojs/taro'
-import ArticleCard from '@/components/ArticleCard.vue'
-import { useArticleStore } from '@/store/article'
-import { bootstrapApp } from '@/utils/bootstrap'
+import Taro from '@tarojs/taro'
+import { api } from '@/api'
+import TheoryPointRow from '@/components/TheoryPointRow.vue'
+import type { TheoryPointCard } from '@/types'
+import { requireLogin, isLoggedIn } from '@/utils/auth'
+import { showConfirm, showToast } from '@/utils/platform'
 import { useThemeClass } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '时政练习' })
+definePageConfig({ navigationBarTitleText: '时政要点' })
 
 const { themeClass } = useThemeClass()
-const articleStore = useArticleStore()
+const items = ref<TheoryPointCard[]>([])
 const loading = ref(true)
 const loadError = ref('')
 
@@ -47,8 +39,8 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    await bootstrapApp()
-    await articleStore.fetchRecommendedArticles(true)
+    const res = await api.getTheoryPoints()
+    if (res.code === 0 && res.data) items.value = res.data
   } catch {
     loadError.value = '网络异常，请稍后重试'
   } finally {
@@ -56,14 +48,27 @@ async function load() {
   }
 }
 
-function goDetail(articleId: string) {
-  Taro.navigateTo({ url: `/pages/article/detail?id=${articleId}` })
+function goQuizById(id: string) {
+  const item = items.value.find((row) => row.id === id)
+  if (item) void goQuiz(item)
+}
+
+async function goQuiz(item: TheoryPointCard) {
+  if (!item.articleId || !item.questionCount) {
+    showToast('这套要点还没有题目')
+    return
+  }
+  const url = `/pages/question/taking?articleId=${item.articleId}`
+  if (!isLoggedIn()) {
+    const ok = await showConfirm('需要登录', '登录后才能保存练习进度与积分。', { confirmText: '去登录', cancelText: '再看看' })
+    if (!ok) return
+    requireLogin(url)
+    return
+  }
+  Taro.navigateTo({ url })
 }
 
 onMounted(load)
-useReachBottom(() => {
-  articleStore.fetchRecommendedArticles(false)
-})
 </script>
 
 <style lang="scss" scoped>
@@ -72,20 +77,9 @@ useReachBottom(() => {
 .page-pick {
   @include page-padding;
   padding-bottom: 40px;
-  .tip {
-    display: block;
-    font-size: 12px;
-    color: $text-muted;
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
-  .state-box { @include page-state-box; margin-bottom: 12px; }
-  .list-status {
-    text-align: center;
-    padding: 12px 0 4px;
-    font-size: 13px;
-    color: $primary-color;
-    &.muted { color: $text-muted; }
-  }
 }
+.state-box { text-align: center; padding: 48px 0; }
+.state-title { display: block; font-size: 16px; color: $text-primary; }
+.state-desc { display: block; margin-top: 6px; font-size: 13px; color: $text-muted; }
+.state-btn { margin-top: 12px; color: $primary-color; }
 </style>

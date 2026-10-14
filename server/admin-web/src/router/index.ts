@@ -29,6 +29,12 @@ const router = createRouter({
           meta: { title: '文章管理', permissions: ['article:read'] },
         },
         {
+          path: 'theory-briefs',
+          name: 'theory-briefs',
+          component: () => import('@/views/articles/Briefs.vue'),
+          meta: { title: '时政要点', permissions: ['article:read'] },
+        },
+        {
           path: 'articles/new',
           name: 'article-new',
           component: () => import('@/views/articles/Edit.vue'),
