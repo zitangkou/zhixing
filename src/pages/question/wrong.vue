@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-wrong" :class="themeClass">
     <view class="srs-tip">间隔：1 → 2 → 4 → 7 → 15 → 30 天；今日只刷到期题</view>
 
@@ -88,11 +96,13 @@ import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import { useQuestionStore } from '@/store/question'
 import { showConfirm, showToast } from '@/utils/platform'
 import type { WrongQuestionRecord } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '错题本' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 type WrongStatus = 'review' | 'waiting' | 'all'
 
 const SESSION_CAP = 15

@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="zl-page" :class="themeClass">
     <view v-if="loading" class="zl-state-box"><text class="zl-state-title">加载中…</text></view>
     <view v-else class="zl-card-list">
@@ -19,11 +27,13 @@ import { onMounted, ref } from 'vue'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { api } from '@/api'
 import type { ZiliaoQuestionType } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '题型模型', enablePullDownRefresh: true })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const list = ref<ZiliaoQuestionType[]>([])
 const loading = ref(true)
 

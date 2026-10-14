@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-edit" :class="themeClass">
     <view class="status-bar">
       <text class="status-text">{{ statusLabel }}</text>
@@ -191,11 +199,13 @@ import {
 import { flushFormBeforeSave } from '@/utils/formFlush'
 import type { KnowledgePickValue } from '@/utils/knowledge'
 import { showConfirm, showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '语料编辑' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 type TabKey = 'capture' | 'clarify' | 'own' | 'use'
 
 const router = useRouter()

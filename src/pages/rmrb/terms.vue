@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-terms" :class="themeClass">
     <view class="filter-bar">
       <text
@@ -87,11 +95,13 @@ import { api } from '@/api'
 import { promptText, showConfirm, showToast } from '@/utils/platform'
 import { RMRB_TERM_CATEGORIES_FALLBACK, splitRmrbTerms } from '@/utils/rmrb'
 import type { ShenlunNormTerm } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '规范词库' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const loading = ref(false)
 const terms = ref<ShenlunNormTerm[]>([])
 const activeStatus = ref<'learning' | 'mastered'>('learning')

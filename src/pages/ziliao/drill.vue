@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="zl-page" v-if="detail" :class="themeClass">
     <view class="zl-top-bar">
       <text class="zl-progress">{{ currentIndex + 1 }} / {{ detail.questions.length }}</text>
@@ -62,11 +70,13 @@ import { Button as NutButton } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import type { ZiliaoDrillSetDetail } from '@/types'
 import { showConfirm, showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '专项练习' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const setId = decodeURIComponent(router.params?.setId || '')
 const typeCode = router.params?.typeCode || ''

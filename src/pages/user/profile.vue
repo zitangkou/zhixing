@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-profile" :class="themeClass">
     <button v-if="isWeapp" class="avatar-card avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
       <nut-avatar size="large" class="avatar">
@@ -95,11 +103,12 @@ import { useUserStore } from '@/store/user'
 import { enterAfterAuth } from '@/utils/auth'
 import { resolveMediaUrl } from '@/utils/media'
 import { getPlatform, showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '个人资料' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
 const userStore = useUserStore()
 const isWeapp = getPlatform() === 'weapp'
 const setup = ref(false)

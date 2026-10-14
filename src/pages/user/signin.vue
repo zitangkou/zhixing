@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-signin" :class="themeClass">
     <SignCalendar :sign-status="userStore.signStatus" :streak="userStore.signStreak" />
     <nut-button
@@ -22,11 +30,13 @@ import { Button as NutButton } from '@nutui/nutui-taro'
 import SignCalendar from '@/components/SignCalendar.vue'
 import { useUserStore } from '@/store/user'
 import { showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '每日签到' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const userStore = useUserStore()
 
 async function handleSignIn() {

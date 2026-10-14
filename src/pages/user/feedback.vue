@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-feedback" :class="themeClass">
     <nut-textarea
       v-model="content"
@@ -28,11 +36,13 @@ import { Button as NutButton, Textarea as NutTextarea } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import { useUserStore } from '@/store/user'
 import { showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '反馈建议' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const content = ref('')
 const submitting = ref(false)
 const userStore = useUserStore()

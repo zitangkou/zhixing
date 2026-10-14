@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-taking" :class="themeClass">
     <view v-if="loading" class="empty-tip">加载题目中...</view>
 
@@ -73,11 +81,13 @@ import QuestionItem from '@/components/QuestionItem.vue'
 import { api } from '@/api'
 import type { Question, QuizAnswerRecord } from '@/types'
 import { showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '行测刷题' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const CORRECT_AUTO_NEXT_MS = 2000
 const router = useRouter()
 

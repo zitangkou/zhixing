@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-mindmap" v-if="article" :class="themeClass">
     <text class="title">{{ article.mindMap.title }}</text>
     <scroll-view scroll-x scroll-y class="canvas-area" :scale-area="true">
@@ -21,11 +29,13 @@ import { Button as NutButton } from '@nutui/nutui-taro'
 import MindMap from '@/components/MindMap.vue'
 import { useArticleStore } from '@/store/article'
 import type { Article } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '知识框架' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const articleStore = useArticleStore()
 const article = ref<Article | null>(null)
 const scale = ref(1)

@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-mines" :class="themeClass">
     <view class="stats-card" v-if="stats">
       <view class="stat">
@@ -197,11 +205,13 @@ import { Button as NutButton } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import { splitRmrbTerms } from '@/utils/rmrb'
 import type { ShenlunMineLog, ShenlunStats } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '开采本' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const loading = ref(false)
 const list = ref<ShenlunMineLog[]>([])
 const stats = ref<ShenlunStats | null>(null)

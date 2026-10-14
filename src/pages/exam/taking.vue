@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-taking" v-if="started" :class="themeClass">
     <view class="top-bar">
       <view class="timer" :class="{ urgent: remainSec < 300 }">
@@ -72,11 +80,13 @@ import { Button as NutButton } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import { showConfirm, showToast } from '@/utils/platform'
 import type { ExamTakingQuestion } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '答题中' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const paperId = ref(router.params?.paperId || '')
 const started = ref(false)

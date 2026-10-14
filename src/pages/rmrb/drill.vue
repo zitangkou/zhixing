@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-drill" :class="themeClass">
     <view class="tip">阶梯训练：关键词串联 → 句式仿写 → 口述概括。每天任选一项，写满就算完成。</view>
 
@@ -46,11 +54,13 @@ import VoiceInputBtn from '@/components/VoiceInputBtn.vue'
 import { api } from '@/api'
 import { showToast } from '@/utils/platform'
 import type { ShenlunDrillLog, ShenlunMineLog, ShenlunNormTerm } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '阶梯训练' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const mode = ref<'sentence' | 'imitate' | 'oral'>('sentence')
 const content = ref('')
 const promptText = ref('')

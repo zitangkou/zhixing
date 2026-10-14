@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-quiz page-with-tabbar" :class="themeClass">
     <view class="quiz-header">
       <text class="task-title">今日练习</text>
@@ -133,11 +141,13 @@ import { useQuestionStore } from '@/store/question'
 import type { QuizMode } from '@/types'
 import { isLoggedIn } from '@/utils/auth'
 import { bootstrapApp } from '@/utils/bootstrap'
-import { useBrandColor, useThemeClass } from '@/utils/brandColor'
+import { useBrandColor, useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '练习' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const questionStore = useQuestionStore()
 const { brandColor } = useBrandColor()
 const quizModes = QUIZ_MODES

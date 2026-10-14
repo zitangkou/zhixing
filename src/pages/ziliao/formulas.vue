@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="zl-page" :class="themeClass">
     <view v-if="loading" class="zl-state-box"><text class="zl-state-title">加载中…</text></view>
     <view v-else-if="!list.length" class="zl-state-box"><text class="zl-state-title">暂无公式</text></view>
@@ -41,11 +49,13 @@ import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { api } from '@/api'
 import LatexBlock from '@/components/LatexBlock.vue'
 import type { ZiliaoFormula } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '公式库', enablePullDownRefresh: true })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const list = ref<ZiliaoFormula[]>([])
 const loading = ref(true)
 const activeCat = ref('全部')

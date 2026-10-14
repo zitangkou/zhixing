@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-training" :class="themeClass">
     <view v-if="loading" class="state-card">正在恢复训练…</view>
     <view v-else-if="!task" class="state-card">
@@ -96,7 +104,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { Button as NutButton, Textarea as NutTextarea } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import { useDailyTaskStore } from '@/store/dailyTask'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 import { showToast } from '@/utils/platform'
 
 definePageConfig({ navigationBarTitleText: '今日申论训练' })
@@ -117,6 +125,8 @@ const defaultQuestion: QuestionConfig = {
 
 const router = useRouter()
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const dailyTaskStore = useDailyTaskStore()
 const taskId = (router.params?.taskId || '').trim()
 const loading = ref(true)

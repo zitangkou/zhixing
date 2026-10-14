@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-packs" :class="themeClass">
     <text class="hint">纲要专项模拟套题。可练整卷 20 题，或按五题分辑作答。</text>
     <view v-if="loading" class="empty">加载中...</view>
@@ -29,7 +37,7 @@
 import { onMounted, ref } from 'vue'
 import Taro from '@tarojs/taro'
 import { api } from '@/api'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 import { showToast } from '@/utils/platform'
 
 definePageConfig({ navigationBarTitleText: '纲要专项' })
@@ -48,6 +56,8 @@ interface TheoryPack {
 }
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const loading = ref(true)
 const packs = ref<TheoryPack[]>([])
 

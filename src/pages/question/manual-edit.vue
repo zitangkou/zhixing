@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-edit" :class="themeClass">
     <view class="mode-tabs">
       <text class="mode" :class="{ on: mode === 'photo' }" @tap="mode = 'photo'">图片上传</text>
@@ -118,11 +126,13 @@ import { flushFormBeforeSave } from '@/utils/formFlush'
 import type { KnowledgePickValue } from '@/utils/knowledge'
 import { resolveMediaUrl } from '@/utils/media'
 import { showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '录入错题' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const editId = ref('')
 const isEdit = ref(false)

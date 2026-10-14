@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-review-hub" :class="themeClass">
     <view v-if="loading && !hub" class="state-box">
       <text class="state-title">加载中…</text>
@@ -138,11 +146,13 @@ import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { api } from '@/api'
 import type { ReviewHub } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '复习中心' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const hub = ref<ReviewHub | null>(null)
 const loading = ref(false)
 const error = ref('')

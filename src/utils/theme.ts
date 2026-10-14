@@ -43,7 +43,6 @@ function setNativeChrome(dark: boolean, brand: BrandThemeId) {
     Taro.setNavigationBarColor({
       frontColor: '#ffffff',
       backgroundColor: primary,
-      animation: { duration: 200, timingFunc: 'easeIn' },
     }),
   )
   // tabBar 激活色跟随品牌色（H5 无原生 tabBar，靠 callNative 吞 reject）
@@ -180,20 +179,22 @@ function installWeappPageThemeHook() {
   g.__zkPageThemeHook = true
   const raw = g.Page
   g.Page = (config) => {
-    const userLoad = config.onLoad as ((this: WxPage, ...args: unknown[]) => unknown) | undefined
-    const userShow = config.onShow as ((this: WxPage, ...args: unknown[]) => unknown) | undefined
-    const paint = function (this: WxPage) {
+    const userLoad = config.onLoad as ((this: unknown, ...args: unknown[]) => unknown) | undefined
+    const userShow = config.onShow as ((this: unknown, ...args: unknown[]) => unknown) | undefined
+    const paintPage = (page: WxPage) => {
       const settings = useSettingsStore()
-      this.setData?.({ zkTheme: buildWeappPageTheme(!!settings.darkMode, settings.brandTheme) })
-      return settings
+      const dark = !!settings.darkMode
+      const brand = settings.brandTheme
+      page.setData?.({ zkTheme: buildWeappPageTheme(dark, brand) })
+      // Match the native window/navigation before the page content becomes visible.
+      applyTheme(!!settings.darkMode, settings.brandTheme)
     }
     config.onLoad = function (this: WxPage, ...args: unknown[]) {
-      paint.call(this)
+      paintPage(this)
       return userLoad?.apply(this, args)
     }
     config.onShow = function (this: WxPage, ...args: unknown[]) {
-      const settings = paint.call(this)
-      applyTheme(!!settings.darkMode, settings.brandTheme)
+      paintPage(this)
       return userShow?.apply(this, args)
     }
     return raw(config)

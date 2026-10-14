@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="zl-page" :class="themeClass">
     <view class="zl-hero-card">
       <view v-if="showLoadSkeleton" class="zl-hero-row zl-hero-skeleton">
@@ -141,13 +149,15 @@ import { Category, Edit, Order, Star } from '@nutui/icons-vue-taro'
 import { api } from '@/api'
 import type { ZiliaoOverview, ZiliaoWeakType } from '@/types'
 import { showToast } from '@/utils/platform'
-import { useBrandColor, useThemeClass } from '@/utils/brandColor'
+import { useBrandColor, useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 const brandColor = useBrandColor()
 
 definePageConfig({ navigationBarTitleText: '资料分析', enablePullDownRefresh: true })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const overview = ref<ZiliaoOverview>({
   formulaCount: 0,
   typeCount: 0,

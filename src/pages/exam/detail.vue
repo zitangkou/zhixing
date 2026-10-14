@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-exam-detail" :class="themeClass">
     <view v-if="loading" class="state-box">
       <text class="state-title">加载中…</text>
@@ -73,11 +81,13 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { Button as NutButton } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import type { ExamPaperDetail, ExamAttempt } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '试卷详情' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const paperId = ref(router.params?.id || '')
 const loading = ref(true)

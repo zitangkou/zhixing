@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-mine-edit" :class="themeClass">
     <text class="hw-tip">平板手写：先点输入框，再切到手写输入法；多行框更适合长句手写。</text>
     <view class="meta-row">
@@ -339,11 +347,13 @@ import type {
   ShenlunTemplateItem,
   ShenlunVerbItem,
 } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '三刀解剖' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const dailyTaskStore = useDailyTaskStore()
 const taskId = computed(() => (router.params?.taskId || '').trim())

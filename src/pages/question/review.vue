@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-review" :class="themeClass">
     <view class="header-tip">
       <text>根据艾宾浩斯记忆曲线，在最佳时间点复习可巩固记忆</text>
@@ -45,11 +53,13 @@ import { Tag as NutTag } from '@nutui/nutui-taro'
 import { api } from '@/api'
 import { useQuestionStore } from '@/store/question'
 import { useArticleStore } from '@/store/article'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '记忆曲线复习' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const questionStore = useQuestionStore()
 const articleStore = useArticleStore()
 const loading = ref(false)

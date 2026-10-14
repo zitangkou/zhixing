@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="knowledge-page" :class="themeClass">
     <view class="hero">
       <text class="hero-kicker">杜衡阁 · 知识框架</text>
@@ -175,12 +183,14 @@ import LatexBlock from '@/components/LatexBlock.vue'
 import { useKnowledgeStore } from '@/store/knowledge'
 import { resolveMediaUrl } from '@/utils/media'
 import { showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 import type { KnowledgeContentBlock, KnowledgeMapNode } from '@/types'
 
 definePageConfig({ navigationBarTitleText: '知识框架', enablePullDownRefresh: true })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const store = useKnowledgeStore()
 const maps = computed(() => store.maps)

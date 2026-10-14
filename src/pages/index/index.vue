@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-index page-with-tabbar" :class="themeClass">
     <view class="banner">
       <view class="banner-top">
@@ -102,11 +110,13 @@ import { showConfirm, showToast } from '@/utils/platform'
 import { bumpAuthView, isLoggedIn, requireLogin } from '@/utils/auth'
 import type { DailyQuoteCard, TheoryPointCard } from '@/types'
 import { bootstrapApp } from '@/utils/bootstrap'
-import { useBrandColor, useThemeClass } from '@/utils/brandColor'
+import { useBrandColor, usePageMeta, useThemeClass } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '杜衡阁' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const userStore = useUserStore()
 const articleStore = useArticleStore()
 const questionStore = useQuestionStore()
@@ -212,6 +222,8 @@ async function goQuiz(item: TheoryPointCard) {
 @import '@/styles/variables.scss';
 
 .page-index {
+  min-height: 100vh;
+  background: $page-bg;
   padding-bottom: 20px;
   .banner {
     /* 略抬角度、加中间色阶，对比更柔和（结构不变） */

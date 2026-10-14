@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-corpus" :class="themeClass">
     <view class="hero">
       <view class="hero-text">
@@ -71,11 +79,13 @@ import { api } from '@/api'
 import { corpusStatusLabel } from '@/utils/corpus'
 import { formatKnowledgeLabel } from '@/utils/knowledge'
 import type { CorpusItem, CorpusStats } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '语料本' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const tabs = [
   { value: 'inbox', label: '待内化' },
   { value: 'clarified', label: '已澄清' },

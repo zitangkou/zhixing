@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-review" :class="themeClass">
     <view class="review-section">
       <text class="section-label">完成度（{{ form.completion }}%）</text>
@@ -49,13 +57,15 @@ import { reactive, ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Button as NutButton, Textarea as NutTextarea } from '@nutui/nutui-taro'
 import { usePlanStore } from '@/store/plan'
-import { useBrandColor, useThemeClass } from '@/utils/brandColor'
+import { useBrandColor, useThemeClass, usePageMeta } from '@/utils/brandColor'
 import { flushFormBeforeSave } from '@/utils/formFlush'
 import { showToast } from '@/utils/platform'
 
 definePageConfig({ navigationBarTitleText: '今日复盘' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const planStore = usePlanStore()
 const { brandColor } = useBrandColor()
 const saving = ref(false)

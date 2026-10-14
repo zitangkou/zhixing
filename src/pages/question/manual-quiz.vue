@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-manual-quiz" :class="themeClass">
     <view v-if="loading" class="state-box">
       <text class="state-title">准备题目中…</text>
@@ -77,11 +85,13 @@ import { api } from '@/api'
 import { resolveMediaUrl } from '@/utils/media'
 import { showToast } from '@/utils/platform'
 import type { ManualWrong } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '行测错题复习' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const SESSION_CAP = 15
 const loading = ref(true)
 const loadError = ref('')

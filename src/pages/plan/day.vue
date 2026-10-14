@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-day" :class="themeClass">
     <view v-if="loading && !plan" class="state-box">
       <text class="state-title">加载中…</text>
@@ -50,11 +58,13 @@ import { computed, ref } from 'vue'
 import { useDidShow, useRouter } from '@tarojs/taro'
 import { api } from '@/api'
 import type { DayPlan } from '@/types'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '日清单详情' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const router = useRouter()
 const date = ref(router.params?.date || new Date().toISOString().slice(0, 10))
 const dayPlan = ref<DayPlan | null>(null)

@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-auth" :class="themeClass">
     <view class="auth-header">
       <BrandLogo size="md" tagline="开启今日学习" />
@@ -28,11 +36,13 @@ import { useUserStore } from '@/store/user'
 import { bootstrapApp } from '@/utils/bootstrap'
 import { enterAfterAuth } from '@/utils/auth'
 import { showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '注册' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const userStore = useUserStore()
 const username = ref('')
 const password = ref('')

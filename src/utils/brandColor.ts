@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@/store/settings'
 import { brandPrimary, DEFAULT_BRAND_THEME } from '@/constants/theme'
+import { buildWeappPageTheme } from '@/utils/theme'
 
 /** 图标 / 组件 props 用的品牌色（跟 --zk-primary 一致，跟随品牌主题） */
 export function useBrandColor() {
@@ -25,6 +26,12 @@ export function useThemeClass() {
     return cls.join(' ')
   })
   return { themeClass }
+}
+
+/** 小程序 page 节点的底色。写到 page-meta，避免 tab 切换先闪出浅色窗口。 */
+export function usePageMeta() {
+  const { darkMode, brandTheme } = storeToRefs(useSettingsStore())
+  return computed(() => buildWeappPageTheme(!!darkMode.value, brandTheme.value))
 }
 
 /** hex 合成 rgba 字符串（供 swiper 指示点等只吃字符串的原生属性） */

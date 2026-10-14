@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-week" :class="themeClass">
     <view v-if="planStore.weekLoading && !week.length" class="state-box">
       <text class="state-title">加载中…</text>
@@ -54,11 +62,13 @@
 import { computed } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { usePlanStore } from '@/store/plan'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '本周计划' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const planStore = usePlanStore()
 const week = computed(() => planStore.week)
 

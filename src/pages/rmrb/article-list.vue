@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-rmrb-list" :class="themeClass">
     <text class="hint">先读原文，读完后在文末进入时评解析。</text>
 
@@ -42,11 +50,13 @@ import ArticleCard from '@/components/ArticleCard.vue'
 import { api } from '@/api'
 import type { RmrbArticle } from '@/types'
 import { rmrbToCard } from '@/utils/rmrbCard'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '时评精拆' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const loading = ref(false)
 const allList = ref<RmrbArticle[]>([])
 const activeTag = ref('')

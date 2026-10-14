@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-auth" :class="themeClass">
     <view class="auth-header">
       <BrandLogo size="lg" tagline="读得进，练得出" />
@@ -61,11 +69,12 @@ import { bootstrapApp } from '@/utils/bootstrap'
 import { enterAfterAuth, skipAuth } from '@/utils/auth'
 import { LOGIN_REDIRECT_KEY } from '@/constants/guestAccess'
 import { getPlatform, showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '登录' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
 const userStore = useUserStore()
 const isWeapp = getPlatform() === 'weapp'
 const username = ref('')

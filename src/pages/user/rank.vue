@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-rank" :class="themeClass">
     <view class="tabs">
       <view
@@ -20,11 +28,13 @@ import { ref, onMounted } from 'vue'
 import RankList from '@/components/RankList.vue'
 import { useQuestionStore } from '@/store/question'
 import { RANK_TYPE_LABELS, type RankType } from '@/constants'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '刷题排行榜' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const questionStore = useQuestionStore()
 const activeType = ref<RankType>('weekly')
 

@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-today page-with-tabbar" :class="themeClass">
     <view class="today-header">
       <view class="today-greet">
@@ -66,12 +74,14 @@ import AppTabBar from '@/components/AppTabBar.vue'
 import { APP_SLOGAN } from '@/constants/brand'
 import { useArticleStore } from '@/store/article'
 import { useUserStore } from '@/store/user'
-import { useBrandColor, useThemeClass } from '@/utils/brandColor'
+import { useBrandColor, useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 const userStore = useUserStore()
 const articleStore = useArticleStore()
 const { brandColor } = useBrandColor()
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 

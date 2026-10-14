@@ -1,4 +1,12 @@
 <template>
+  <page-meta
+    v-if="isWeapp"
+    :page-style="pageMeta.pageStyle"
+    :background-color="pageMeta.backgroundColor"
+    :background-color-top="pageMeta.backgroundColorTop"
+    :background-color-bottom="pageMeta.backgroundColorBottom"
+    :background-text-style="pageMeta.backgroundTextStyle"
+  />
   <view class="page-pick" :class="themeClass">
     <view v-if="loading" class="state-box">
       <text class="state-title">加载中…</text>
@@ -26,11 +34,13 @@ import TheoryPointRow from '@/components/TheoryPointRow.vue'
 import type { TheoryPointCard } from '@/types'
 import { requireLogin, isLoggedIn } from '@/utils/auth'
 import { showConfirm, showToast } from '@/utils/platform'
-import { useThemeClass } from '@/utils/brandColor'
+import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '时政要点' })
 
 const { themeClass } = useThemeClass()
+const pageMeta = usePageMeta()
+const isWeapp = process.env.TARO_ENV === 'weapp'
 const items = ref<TheoryPointCard[]>([])
 const loading = ref(true)
 const loadError = ref('')
