@@ -16,9 +16,12 @@ body,
     'Microsoft YaHei', sans-serif;
   color: $text-primary;
   font-size: 14px;
+  /* 小程序切 tab 时变量会晚一帧挂上。带过渡会把默认白底淡进深色，看起来像闪白。 */
+  /* #ifndef weapp */
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
+  /* #endif */
 }
 
 /* Taro H5 页面容器随主题变底 */

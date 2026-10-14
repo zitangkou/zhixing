@@ -44,8 +44,31 @@ function patchPageJson(file: string) {
   const rel = file.split(path.sep).join('/')
   if (!rel.includes('/pages/') || !file.endsWith('.json')) return
   const json = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>
-  if (json.enablePageMeta === true) return
-  json.enablePageMeta = true
+  let changed = false
+  if (json.enablePageMeta !== true) {
+    json.enablePageMeta = true
+    changed = true
+  }
+  // 页面容器默认纯白。切 tab 的那一帧 webview 还没画上，深色页会闪白。
+  // 运行时再按当前主题改 __wxConfig / page-meta；这里先铺上浅色页底，避免亮色模式闪纯白。
+  if (json.backgroundColorContent == null) {
+    json.backgroundColorContent = '#F3F4F6'
+    changed = true
+  }
+  if (!changed) return
+  fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
+}
+
+function patchAppJson(file: string) {
+  if (path.basename(file) !== 'app.json') return
+  const json = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+    window?: Record<string, unknown>
+  }
+  const window = (json.window ??= {})
+  if (window.backgroundColorContent != null) return
+  window.backgroundColorContent = '#F3F4F6'
+  window.backgroundColorTop ??= '#F3F4F6'
+  window.backgroundColorBottom ??= '#F3F4F6'
   fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
 }
 
@@ -92,6 +115,7 @@ function walkDist(dir: string) {
       importAppOrigin(full)
     } else if (entry.name.endsWith('.wxml')) patchPageWxml(full)
     else if (entry.name.endsWith('.json')) {
+      patchAppJson(full)
       patchPageJson(full)
       patchCompJson(full)
     }

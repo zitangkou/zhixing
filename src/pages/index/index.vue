@@ -291,6 +291,8 @@ function onExamDomain(item: DomainItem) {
 
 .page-index {
   padding-bottom: 20px;
+  min-height: 100vh;
+  background-color: $page-bg;
   .banner {
     /* 略抬角度、加中间色阶，对比更柔和（结构不变） */
     background: linear-gradient(168deg, $primary-color 0%, $primary-mid 48%, $primary-dark 100%);
