@@ -35,7 +35,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 
 学员端位于 `src/`，使用 Taro 跨端运行：
 
-- `src/app.config.ts`：声明全部页面路由、窗口样式和底部 Tab。
+- `src/app.config.ts`：声明全部页面路由、窗口样式；H5 保留原生路由 Tab 配置，微信端由单页容器承载两个主 Tab。
 - `src/app.ts`：创建 Vue 应用、安装 Pinia、接入持久化、本地主题初始化和应用启动 bootstrap。
 - `src/api/index.ts`：统一 API 客户端，负责真实 API / Mock 切换、Token 注入、401 处理、上传入口。
 - `src/pages/`：业务页面，按模块拆分。
@@ -44,7 +44,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `src/utils/`：跨模块工具，如鉴权、媒体 URL、上传、记忆曲线、语音输入、知识树等。
 - `src/mock/service.ts`：`USE_MOCK=true` 时的本地演示服务。
 
-底部 Tab 有两个主入口：
+底部 Tab 有两个主入口。微信端由 `pages/index/index` 挂载 `StudyHomePanel` 与 `StudyUserPanel`，`AppTabBar` 只切换面板状态，不调用 `switchTab`；H5 保留独立首页/个人页路由。`pages/user/index` 在微信端作为旧路径兼容跳转，登录回跳通过 `?tab=user` 恢复目标面板。
 
 | Tab | 页面 | 业务定位 |
 | --- | --- | --- |

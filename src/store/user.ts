@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
-import Taro from '@tarojs/taro'
 import { api, initUserFromMock, isMock } from '@/api'
-import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
+import { openProductTab } from '@/utils/productTab'
 import { clearToken, getToken, setToken } from '@/utils/auth'
 import { calcSignStreak, formatDate } from '@/utils/memoryCurve'
 import type { PointsLog, SignStatus, UserInfo } from '@/types'
@@ -124,7 +123,7 @@ export const useUserStore = defineStore('user', {
 
     logout() {
       this.clearSession()
-      Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+      openProductTab('home')
     },
 
     async signIn() {

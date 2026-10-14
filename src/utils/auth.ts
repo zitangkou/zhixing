@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { LOGIN_REDIRECT_KEY, normalizePagePath } from '@/constants/guestAccess'
 import { PRODUCT_HOME_ROUTE } from '@/constants/productNavigation'
 import { resolveAfterAuthTarget } from '@/utils/postAuthRoute'
+import { openProductTab } from '@/utils/productTab'
 
 const TOKEN_KEY = 'zhixing_token'
 
@@ -71,11 +72,15 @@ export function enterAfterAuth(): void {
     void Taro.switchTab({ url: target.url })
     return
   }
+  if (target.method === 'reLaunch') {
+    void Taro.reLaunch({ url: target.url })
+    return
+  }
   void Promise.resolve(Taro.redirectTo({ url: target.url })).catch(() => {
-    void Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+    openProductTab('home')
   })
 }
 
 export function skipAuth(): void {
-  Taro.switchTab({ url: PRODUCT_HOME_ROUTE })
+  openProductTab('home')
 }

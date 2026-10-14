@@ -162,6 +162,11 @@ export function buildWeappPageTheme(dark: boolean, brand: BrandThemeId = DEFAULT
 
 type WxPage = { setData?: (data: Record<string, unknown>) => void }
 
+let currentWeappPageTheme = buildWeappPageTheme(false, DEFAULT_BRAND_THEME)
+// Page 配置在页面首次打开前就可能已注册。只更新当前页面实例会让 tab 页
+// 在重新创建时仍以注册时的浅色 zkTheme 首帧渲染，随后 setData 才切暗色。
+const registeredWeappPageConfigs: Record<string, unknown>[] = []
+
 function pushWeappPageTheme(dark: boolean, brand: BrandThemeId) {
   if (process.env.TARO_ENV !== 'weapp') return
   const data = { zkTheme: buildWeappPageTheme(dark, brand) }
@@ -179,6 +184,9 @@ function installWeappPageThemeHook() {
   g.__zkPageThemeHook = true
   const raw = g.Page
   g.Page = (config) => {
+    const initialData = (config.data || {}) as Record<string, unknown>
+    config.data = { ...initialData, zkTheme: currentWeappPageTheme }
+    registeredWeappPageConfigs.push(config)
     const userLoad = config.onLoad as ((this: unknown, ...args: unknown[]) => unknown) | undefined
     const userShow = config.onShow as ((this: unknown, ...args: unknown[]) => unknown) | undefined
     const paintPage = (page: WxPage) => {
@@ -203,6 +211,13 @@ function installWeappPageThemeHook() {
 
 /** 应用「品牌主题 × 深色/浅色」到 DOM、页面根节点与原生壳 */
 export function applyTheme(dark: boolean, brand: BrandThemeId = DEFAULT_BRAND_THEME) {
+  currentWeappPageTheme = buildWeappPageTheme(dark, brand)
+  // 同步刷新已注册页面的模板初始数据。新建/重建页面时 page-meta 首帧就
+  // 使用当前主题，不必等页面 onLoad 后的异步 setData 才补上暗色背景。
+  for (const config of registeredWeappPageConfigs) {
+    const data = (config.data || {}) as Record<string, unknown>
+    config.data = { ...data, zkTheme: currentWeappPageTheme }
+  }
   setDomTheme(dark, brand)
   setNativeChrome(dark, brand)
   pushWeappPageTheme(dark, brand)

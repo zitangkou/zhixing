@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Home, My } from '@nutui/icons-vue-taro'
 import AppFeedback from '@/components/AppFeedback.vue'
@@ -34,17 +34,21 @@ import { CURRENT_PRODUCT_TABS, type ProductTabKey } from '@/constants/productNav
 import { useBrandColor } from '@/utils/brandColor'
 
 const inlineFeedback = process.env.TARO_ENV !== 'h5'
-const showCustomTabs = process.env.TARO_ENV === 'h5'
+const isH5 = process.env.TARO_ENV === 'h5'
 
 const props = withDefaults(
   defineProps<{
     /** 当前 tab：home | user */
     active?: ProductTabKey
+    /** 在学员端单页容器中只切换内容，不触发小程序页面路由 */
+    inPageShell?: boolean
   }>(),
-  { active: undefined },
+  { active: undefined, inPageShell: false },
 )
+const emit = defineEmits<{ select: [key: ProductTabKey] }>()
 
 const selected = ref<ProductTabKey>(props.active || 'home')
+const showCustomTabs = computed(() => isH5 || props.inPageShell)
 const { brandColor: activeColor, mutedColor } = useBrandColor()
 
 const iconMap = { home: Home, user: My }
@@ -63,11 +67,21 @@ function syncFromRoute() {
 function onSwitch(item: (typeof tabs)[number]) {
   if (selected.value === item.key) return
   selected.value = item.key
+  if (props.inPageShell) {
+    emit('select', item.key)
+    return
+  }
   Taro.switchTab({ url: item.path })
 }
 
+watch(
+  () => props.active,
+  (active) => {
+    if (active) selected.value = active
+  },
+)
 onMounted(syncFromRoute)
-useDidShow(syncFromRoute)
+if (!props.inPageShell) useDidShow(syncFromRoute)
 </script>
 
 <style lang="scss" scoped>

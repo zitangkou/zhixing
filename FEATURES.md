@@ -36,8 +36,10 @@
 
 | Tab | 页面 | 作用 |
 |-----|------|------|
-| **学习** | `pages/index/index` | 今日文章（时评 / 时政） |
-| **我的** | `pages/user/index` | 账号、签到、积分、排行、时评精拆、文章错题、设置 |
+| **学习** | 微信：`pages/index/index` 内的学习面板；H5：`pages/index/index` | 今日文章（时评 / 时政） |
+| **我的** | 微信：同一单页容器内的个人面板；H5：`pages/user/index` | 账号、签到、积分、排行、时评精拆、文章错题、设置 |
+
+微信端两个主 Tab 共用 `pages/index/index` 单页容器并通过自定义底栏切换，避免原生 `switchTab` 切换页面时出现内容空白帧。旧路径 `pages/user/index` 保留为兼容跳转入口。H5 继续使用独立页面路由与自定义底栏。
 
 今日（`pages/today/index`）、练习（`pages/question/index`）路由仍注册，不挂 Tab。
 

@@ -1,5 +1,6 @@
 export default defineAppConfig({
-  // 主包：启动页 + tabBar。pages/user 含 tab，不能整目录做分包根。
+  // 主包：微信端以 pages/index/index 承载两个主 Tab，避免 switchTab 页面切换白屏。
+  // H5 仍使用原有双页面路由 + 自定义 AppTabBar。
   pages: [
     'pages/index/index',
     'pages/user/index',
@@ -10,15 +11,13 @@ export default defineAppConfig({
     'pages/user/growth',
     'pages/user/feedback',
     'pages/user/data',
+    'pages/auth/login',
+    'pages/auth/register',
   ],
   subPackages: [
     {
       root: 'pages/today',
       pages: ['index'],
-    },
-    {
-      root: 'pages/auth',
-      pages: ['login', 'register'],
     },
     {
       root: 'pages/article',
@@ -85,15 +84,7 @@ export default defineAppConfig({
     },
     {
       root: 'pages/rmrb',
-      pages: [
-        'index',
-        'article-list',
-        'article-detail',
-        'mines',
-        'mine-edit',
-        'terms',
-        'drill',
-      ],
+      pages: ['index', 'article-list', 'article-detail', 'mines', 'mine-edit', 'terms', 'drill'],
     },
     {
       root: 'pages/shenlun',
@@ -108,26 +99,30 @@ export default defineAppConfig({
     navigationBarTextStyle: 'white',
     backgroundColor: '#F3F4F6',
   },
-  tabBar: {
-    color: '#999999',
-    selectedColor: '#D0021B',
-    backgroundColor: '#FFFFFF',
-    borderStyle: 'white',
-    list: [
-      // H5 开发态会误删 iconPath 首字符（assets → ssets），必须写 ./ 前缀；
-      // 生产构建会自动改写并打包到 /static/images/*.png
-      {
-        pagePath: 'pages/index/index',
-        text: '学习',
-        iconPath: './assets/icons/home.png',
-        selectedIconPath: './assets/icons/home-active.png',
-      },
-      {
-        pagePath: 'pages/user/index',
-        text: '我的',
-        iconPath: './assets/icons/user.png',
-        selectedIconPath: './assets/icons/user-active.png',
-      },
-    ],
-  },
+  ...(process.env.TARO_ENV === 'weapp'
+    ? {}
+    : {
+        tabBar: {
+          color: '#999999',
+          selectedColor: '#D0021B',
+          backgroundColor: '#FFFFFF',
+          borderStyle: 'white',
+          list: [
+            // H5 开发态会误删 iconPath 首字符（assets → ssets），必须写 ./ 前缀；
+            // 生产构建会自动改写并打包到 /static/images/*.png
+            {
+              pagePath: 'pages/index/index',
+              text: '学习',
+              iconPath: './assets/icons/home.png',
+              selectedIconPath: './assets/icons/home-active.png',
+            },
+            {
+              pagePath: 'pages/user/index',
+              text: '我的',
+              iconPath: './assets/icons/user.png',
+              selectedIconPath: './assets/icons/user-active.png',
+            },
+          ],
+        },
+      }),
 })

@@ -11,7 +11,9 @@
     <view v-if="loading" class="empty-tip">加载题目中...</view>
 
     <view v-else-if="finished && !reviewFromResults" class="result-panel">
-      <text class="result-title">{{ wrongLeft ? `还有 ${wrongLeft} 题没掌握` : '这套题已掌握' }}</text>
+      <text class="result-title">{{
+        wrongLeft ? `还有 ${wrongLeft} 题没掌握` : '这套题已掌握'
+      }}</text>
       <text class="result-score">{{ totalCount }} 题对了 {{ correctCount }}</text>
       <nut-button
         v-if="articleWrongIds.length"
@@ -32,13 +34,7 @@
       >
         再练一遍
       </nut-button>
-      <nut-button
-        plain
-        type="primary"
-        block
-        class="primary-btn"
-        @click="leavePage"
-      >
+      <nut-button plain type="primary" block class="primary-btn" @click="leavePage">
         回列表
       </nut-button>
       <text v-if="earnedPoints" class="result-points">积分 +{{ earnedPoints }}</text>
@@ -75,7 +71,10 @@
         {{ resultActionText }}
       </nut-button>
       <view v-if="isWrongSession && sessionSummary" class="wrong-session-summary">
-        <text>掌握 {{ sessionSummary.mastered }} · 已安排下次 {{ sessionSummary.scheduled }} · 仍需复习 {{ sessionSummary.reset }}</text>
+        <text
+          >掌握 {{ sessionSummary.mastered }} · 已安排下次 {{ sessionSummary.scheduled }} · 仍需复习
+          {{ sessionSummary.reset }}</text
+        >
       </view>
     </view>
 
@@ -108,12 +107,7 @@
         >
           上一题
         </nut-button>
-        <nut-button
-          type="primary"
-          class="nav-btn"
-          :disabled="nextDisabled"
-          @click="goNext"
-        >
+        <nut-button type="primary" class="nav-btn" :disabled="nextDisabled" @click="goNext">
           {{ nextLabel }}
         </nut-button>
       </view>
@@ -133,6 +127,7 @@ import { useQuestionStore } from '@/store/question'
 import { useDailyTaskStore } from '@/store/dailyTask'
 import type { QuizAnswerRecord, Question, QuizMode } from '@/types'
 import { showConfirm, showToast } from '@/utils/platform'
+import { openProductTab } from '@/utils/productTab'
 import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
 definePageConfig({ navigationBarTitleText: '刷题' })
@@ -174,7 +169,9 @@ const currentQuestion = computed(() => questions.value[currentIndex.value])
 const isLast = computed(() => currentIndex.value >= questions.value.length - 1)
 const totalCount = computed(() => questions.value.length)
 const progress = computed(() =>
-  questions.value.length ? Math.round(((currentIndex.value + 1) / questions.value.length) * 100) : 0,
+  questions.value.length
+    ? Math.round(((currentIndex.value + 1) / questions.value.length) * 100)
+    : 0,
 )
 const currentSelectedAnswer = computed(() => {
   const q = currentQuestion.value
@@ -203,7 +200,9 @@ const nextLabel = computed(() => {
 const isArticleSession = computed(() => quizSession.value?.kind === 'article')
 const isWrongRedo = computed(() => quizSession.value?.kind === 'wrong')
 const articleWrongIds = computed(() =>
-  questions.value.filter((q) => answerRecords.value[q.id] && !answerRecords.value[q.id].correct).map((q) => q.id),
+  questions.value
+    .filter((q) => answerRecords.value[q.id] && !answerRecords.value[q.id].correct)
+    .map((q) => q.id),
 )
 const wrongLeft = computed(() => articleWrongIds.value.length)
 const isWrongSession = computed(() => quizSession.value?.kind === 'wrong-session')
@@ -285,7 +284,7 @@ function leavePage() {
   if (pages.length > 1) {
     Taro.navigateBack()
   } else {
-    Taro.switchTab({ url: '/pages/index/index' })
+    openProductTab('home')
   }
 }
 
@@ -333,8 +332,18 @@ async function startModeQuiz(mode: QuizMode) {
   }
 }
 
-async function startQuiz(articleId: string, wrongOnly = false, practice = false, theoryPointId = '') {
-  quizSession.value = { kind: 'article', articleId: theoryPointId || articleId, theoryPointId, practice }
+async function startQuiz(
+  articleId: string,
+  wrongOnly = false,
+  practice = false,
+  theoryPointId = '',
+) {
+  quizSession.value = {
+    kind: 'article',
+    articleId: theoryPointId || articleId,
+    theoryPointId,
+    practice,
+  }
   loading.value = true
   resetQuizState()
   try {
@@ -347,7 +356,12 @@ async function startQuiz(articleId: string, wrongOnly = false, practice = false,
     const part = Number(router.params?.part || 0)
     let list = part >= 1 && part <= 4 ? qs.slice((part - 1) * 5, part * 5) : qs
     const progress = await api.getQuizProgress(articleId, theoryPointId)
-    const saved = new Map((progress.code === 0 && progress.data ? progress.data : []).map((row) => [row.questionId, row]))
+    const saved = new Map(
+      (progress.code === 0 && progress.data ? progress.data : []).map((row) => [
+        row.questionId,
+        row,
+      ]),
+    )
     if (wrongOnly) list = list.filter((q) => saved.get(q.id) && !saved.get(q.id)!.correct)
     if (!list.length) {
       showToast(wrongOnly ? '这套没有待订正的题' : '该文章暂无题目', 'error')
@@ -383,18 +397,22 @@ function redoArticleWrongs() {
   const session = quizSession.value
   if (session?.kind !== 'article') return
   const id = session.theoryPointId
-  Taro.redirectTo({ url: id
-    ? `/pages/question/taking?theoryPointId=${id}&wrongOnly=1`
-    : `/pages/question/taking?articleId=${session.articleId}&wrongOnly=1` })
+  Taro.redirectTo({
+    url: id
+      ? `/pages/question/taking?theoryPointId=${id}&wrongOnly=1`
+      : `/pages/question/taking?articleId=${session.articleId}&wrongOnly=1`,
+  })
 }
 
 function practiceAgain() {
   const session = quizSession.value
   if (session?.kind !== 'article') return
   const id = session.theoryPointId
-  Taro.redirectTo({ url: id
-    ? `/pages/question/taking?theoryPointId=${id}&practice=1`
-    : `/pages/question/taking?articleId=${session.articleId}&practice=1` })
+  Taro.redirectTo({
+    url: id
+      ? `/pages/question/taking?theoryPointId=${id}&practice=1`
+      : `/pages/question/taking?articleId=${session.articleId}&practice=1`,
+  })
 }
 
 async function startWrongRedo(questionId: string) {
@@ -429,8 +447,7 @@ async function startWrongSession() {
     }
     const due = [...questionStore.wrongQuestions].sort(
       (a, b) =>
-        (a.reviewStage || 0) - (b.reviewStage || 0)
-        || (b.wrongCount || 0) - (a.wrongCount || 0),
+        (a.reviewStage || 0) - (b.reviewStage || 0) || (b.wrongCount || 0) - (a.wrongCount || 0),
     )
     const picked = due.slice(0, WRONG_SESSION_CAP)
     if (!picked.length) {
@@ -463,22 +480,22 @@ async function onAnswer(answer: string | string[]) {
     userAnswer: answer,
   }
   pendingMulti.value = []
-    if (result.correct) {
-        correctCount.value++
-        earnedPoints.value += result.pointsEarned
-        if (wrongRedo) {
-          if (result.pointsEarned >= 5) {
-            sessionSummary.value.mastered += 1
-            showToast('这题已掌握', 'success')
-          } else {
-            sessionSummary.value.scheduled += 1
-            showToast('这题过几天再出现', 'success')
-          }
-        }
-      } else if (wrongRedo) {
-        sessionSummary.value.reset += 1
-        showToast('明天还会再见到这题')
+  if (result.correct) {
+    correctCount.value++
+    earnedPoints.value += result.pointsEarned
+    if (wrongRedo) {
+      if (result.pointsEarned >= 5) {
+        sessionSummary.value.mastered += 1
+        showToast('这题已掌握', 'success')
+      } else {
+        sessionSummary.value.scheduled += 1
+        showToast('这题过几天再出现', 'success')
       }
+    }
+  } else if (wrongRedo) {
+    sessionSummary.value.reset += 1
+    showToast('明天还会再见到这题')
+  }
 }
 
 function goPrev() {
@@ -604,7 +621,9 @@ function backToResults() {
       font-size: 13px;
       color: $text-muted;
       padding: 4px 0;
-      &.primary { color: $primary-color; }
+      &.primary {
+        color: $primary-color;
+      }
     }
   }
   .progress-header {
@@ -617,18 +636,30 @@ function backToResults() {
       border-radius: 2px;
       margin-top: 8px;
       overflow: hidden;
-      .fill { height: 100%; background: $primary-color; transition: width 0.3s; }
+      .fill {
+        height: 100%;
+        background: $primary-color;
+        transition: width 0.3s;
+      }
     }
   }
   .nav-buttons {
     display: flex;
     gap: 12px;
     margin-top: 20px;
-    .nav-btn { flex: 1; }
+    .nav-btn {
+      flex: 1;
+    }
   }
   .result-panel {
     padding: 24px 0 40px;
-    .result-title { display: block; text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .result-title {
+      display: block;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
     .result-score,
     .result-accuracy,
     .result-rank,
@@ -637,12 +668,28 @@ function backToResults() {
       text-align: center;
       margin-bottom: 8px;
     }
-    .result-score { font-size: 16px; color: $text-secondary; }
-    .result-accuracy { font-size: 18px; font-weight: 600; color: $primary-color; }
-    .result-rank { font-size: 14px; color: $text-secondary;
-      .rank-meta { color: $text-muted; font-size: 12px; }
+    .result-score {
+      font-size: 16px;
+      color: $text-secondary;
     }
-    .result-points { font-size: 15px; color: $text-secondary; margin-bottom: 12px; }
+    .result-accuracy {
+      font-size: 18px;
+      font-weight: 600;
+      color: $primary-color;
+    }
+    .result-rank {
+      font-size: 14px;
+      color: $text-secondary;
+      .rank-meta {
+        color: $text-muted;
+        font-size: 12px;
+      }
+    }
+    .result-points {
+      font-size: 15px;
+      color: $text-secondary;
+      margin-bottom: 12px;
+    }
     .wrong-session-summary {
       text-align: center;
       font-size: 13px;
@@ -697,9 +744,15 @@ function backToResults() {
           flex-shrink: 0;
           font-size: 16px;
           font-weight: 700;
-          &.ok { color: var(--zk-success); }
-          &.bad { color: #ee0a24; }
-          &.skip { color: $text-muted; }
+          &.ok {
+            color: var(--zk-success);
+          }
+          &.bad {
+            color: #ee0a24;
+          }
+          &.skip {
+            color: $text-muted;
+          }
         }
       }
     }
