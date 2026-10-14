@@ -19,10 +19,12 @@ class PointBody(BaseModel):
     isPublished: bool = False
     isKey: bool = False
     sortOrder: int = 0
+    parentId: str | None = None
 
 
 def _row(db: Session, row: TheoryPoint) -> dict:
     article = db.get(Article, row.article_id) if row.article_id else None
+    parent = db.get(TheoryPoint, row.parent_id) if row.parent_id else None
     return {
         "id": row.id,
         "title": row.title,
@@ -33,6 +35,8 @@ def _row(db: Session, row: TheoryPoint) -> dict:
         "isKey": bool(row.is_key),
         "sortOrder": row.sort_order,
         "questionCount": approved_count(db, row.article_id) if row.article_id else 0,
+        "parentId": row.parent_id or "",
+        "parentTitle": parent.title if parent else "",
     }
 
 
@@ -42,12 +46,22 @@ def _apply(row: TheoryPoint, body: PointBody, db: Session) -> None:
         raise HTTPException(400, "请填写标题")
     if body.articleId and not db.get(Article, body.articleId):
         raise HTTPException(400, "原文不存在")
+    parent_id = (body.parentId or "").strip() or None
+    if parent_id:
+        if row.id and parent_id == row.id:
+            raise HTTPException(400, "不能挂到自己下面")
+        parent = db.get(TheoryPoint, parent_id)
+        if not parent or parent.parent_id:
+            raise HTTPException(400, "只能挂到一级要点下面")
+        if row.id and db.query(TheoryPoint).filter(TheoryPoint.parent_id == row.id).first():
+            raise HTTPException(400, "已有小节的要点不能再挂到别的要点下面")
     row.title = title
     row.article_id = body.articleId or None
     row.highlights = body.highlights.strip()
     row.is_published = body.isPublished
     row.is_key = body.isKey
     row.sort_order = body.sortOrder
+    row.parent_id = parent_id
 
 
 @router.get("")
@@ -96,6 +110,8 @@ def delete_point(
 ):
     row = db.get(TheoryPoint, point_id)
     if row:
+        if db.query(TheoryPoint).filter(TheoryPoint.parent_id == row.id).first():
+            raise HTTPException(400, "请先删除下面的小节")
         db.delete(row)
         db.commit()
     return ApiResponse.ok(True)

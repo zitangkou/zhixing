@@ -76,6 +76,7 @@ class TheoryPoint(Base):
     highlights: Mapped[str] = mapped_column(Text, default="")
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     is_key: Mapped[bool] = mapped_column(Boolean, default=False)
+    parent_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("theory_points.id"), nullable=True, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

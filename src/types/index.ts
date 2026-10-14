@@ -71,6 +71,8 @@ export interface TheoryPointCard {
   isKey?: boolean
   answered?: number
   wrongLeft?: number
+  summary?: string
+  sections?: TheoryPointCard[]
 }
 
 export interface DailyQuoteCard {

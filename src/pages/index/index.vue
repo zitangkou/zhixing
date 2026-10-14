@@ -184,6 +184,7 @@ function goQuote(id: string) {
 
 function goQuizById(id: string) {
   const item = points.value.find((row) => row.id === id)
+    || points.value.flatMap((row) => row.sections || []).find((row) => row.id === id)
   if (item) void goQuiz(item)
 }
 

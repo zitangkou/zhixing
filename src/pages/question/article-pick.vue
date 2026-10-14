@@ -50,6 +50,7 @@ async function load() {
 
 function goQuizById(id: string) {
   const item = items.value.find((row) => row.id === id)
+    || items.value.flatMap((row) => row.sections || []).find((row) => row.id === id)
   if (item) void goQuiz(item)
 }
 

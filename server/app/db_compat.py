@@ -383,6 +383,9 @@ def _ensure_theory_point_key_column() -> None:
     if "is_key" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE theory_points ADD COLUMN is_key BOOLEAN DEFAULT 0"))
+    if "parent_id" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE theory_points ADD COLUMN parent_id VARCHAR(32)"))
 
 
 def _ensure_daily_quote_audit_columns() -> None:

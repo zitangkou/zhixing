@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import http, { getData } from '@/api/http'
 
@@ -13,6 +13,8 @@ interface Point {
   isKey: boolean
   sortOrder: number
   questionCount: number
+  parentId: string
+  parentTitle: string
 }
 interface ArticleOpt {
   id: string
@@ -31,7 +33,10 @@ const form = ref({
   isPublished: false,
   isKey: false,
   sortOrder: 0,
+  parentId: '',
 })
+
+const parents = computed(() => items.value.filter((row) => !row.parentId && row.id !== form.value.id))
 
 async function load() {
   loading.value = true
@@ -49,7 +54,7 @@ async function loadArticles() {
 }
 
 function blank() {
-  form.value = { id: '', title: '', articleId: '', highlights: '', isPublished: false, sortOrder: 0 }
+  form.value = { id: '', title: '', articleId: '', highlights: '', isPublished: false, isKey: false, sortOrder: 0, parentId: '' }
   open.value = true
 }
 
@@ -62,6 +67,7 @@ function edit(row: Point) {
     isPublished: row.isPublished,
     isKey: row.isKey,
     sortOrder: row.sortOrder,
+    parentId: row.parentId || '',
   }
   open.value = true
 }
@@ -74,6 +80,7 @@ function payload() {
     isPublished: form.value.isPublished,
     isKey: form.value.isKey,
     sortOrder: form.value.sortOrder,
+    parentId: form.value.parentId || null,
   }
 }
 
@@ -104,6 +111,7 @@ onMounted(() => {
     </div>
     <el-table v-loading="loading" :data="items">
       <el-table-column prop="title" label="标题" min-width="180" />
+      <el-table-column prop="parentTitle" label="所属要点" min-width="140" />
       <el-table-column prop="articleTitle" label="原文" min-width="180" />
       <el-table-column prop="questionCount" label="套题" width="80" />
       <el-table-column label="重点" width="70">
@@ -124,6 +132,12 @@ onMounted(() => {
       <el-form label-position="top">
         <el-form-item label="标题">
           <el-input v-model="form.title" />
+        </el-form-item>
+        <el-form-item label="所属要点">
+          <el-select v-model="form.parentId" filterable clearable placeholder="留空则是一级要点" style="width: 100%">
+            <el-option v-for="p in parents" :key="p.id" :label="p.title" :value="p.id" />
+          </el-select>
+          <div class="hint">选了所属要点，这条就是它的小节。小节不能再挂小节。</div>
         </el-form-item>
         <el-form-item label="时政要点原文">
           <el-select v-model="form.articleId" filterable clearable placeholder="选择文章" style="width: 100%">

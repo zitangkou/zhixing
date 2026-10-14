@@ -63,8 +63,9 @@ def public_theory_points(db: Session = Depends(get_db), user: AppUser | None = D
             answered[item.article_id] = answered.get(item.article_id, 0) + 1
             if item.question_id in wrong_ids:
                 wrong_left[item.article_id] = wrong_left.get(item.article_id, 0) + 1
-    return ApiResponse.ok([
-        {
+
+    def card(row: TheoryPoint, sections: list | None = None) -> dict:
+        data = {
             "id": row.id,
             "title": row.title,
             "articleId": row.article_id or "",
@@ -74,7 +75,18 @@ def public_theory_points(db: Session = Depends(get_db), user: AppUser | None = D
             "isKey": bool(row.is_key),
             "summary": (row.highlights or "").strip(),
         }
-        for row in rows
+        if sections is not None:
+            data["sections"] = sections
+        return data
+
+    tops = [row for row in rows if not row.parent_id]
+    by_parent: dict[str, list[TheoryPoint]] = {}
+    for row in rows:
+        if row.parent_id:
+            by_parent.setdefault(row.parent_id, []).append(row)
+    return ApiResponse.ok([
+        card(row, [card(child) for child in by_parent.get(row.id, [])])
+        for row in tops
     ])
 
 
