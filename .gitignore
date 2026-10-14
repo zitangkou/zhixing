@@ -22,6 +22,9 @@ server/tests/_ops_alignment.db-wal
 server/tests/_vocab_inbox.db
 server/tests/_vocab_inbox.db-shm
 server/tests/_vocab_inbox.db-wal
+server/tests/_rmrb_source.db
+server/tests/_rmrb_source.db-shm
+server/tests/_rmrb_source.db-wal
 server/.env
 zhishiku/.env
 sheying/.env

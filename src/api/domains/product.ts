@@ -1,10 +1,11 @@
 import * as d from '../_shared'
 import { CURRENT_PRODUCT_KEY } from '@/constants/product'
+import { todayBJ } from '@/utils/date'
 
 export const apiProduct = {
   getDailyTasks(date?: string): Promise<d.ApiRes<d.DailyTaskList>> {
     if (d.isMock) {
-      const taskDate = date || new Date().toISOString().slice(0, 10)
+      const taskDate = date || todayBJ()
       return Promise.resolve({
         code: 0,
         message: 'ok',

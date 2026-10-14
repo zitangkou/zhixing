@@ -282,6 +282,20 @@ def published_example_for_article(db: Session, article_id: str) -> dict | None:
     return None
 
 
+def _ensure_teaching_article_rmrb(article: RmrbArticle, display_html: str = "", source_url: str = "") -> None:
+    """三刀解析只挂人民日报时评：文章来源/原文链接/解析里的「查看原文」任一明确非人民日报即拒绝。"""
+    from app.services.article_import import display_html_source_rejection, rmrb_source_rejection
+
+    reason = (
+        rmrb_source_rejection(article.source or "", article.source_url or "")
+        or rmrb_source_rejection("", article.source_url or "")
+        or rmrb_source_rejection("", source_url or "")
+        or display_html_source_rejection(display_html)
+    )
+    if reason:
+        raise ValueError(reason)
+
+
 def upsert_teaching_html(db: Session, *, article_id: str, display_html: str) -> tuple:
     from app.models.base import gen_id
     from app.services.html_sanitize import sanitize_display_html
@@ -289,6 +303,7 @@ def upsert_teaching_html(db: Session, *, article_id: str, display_html: str) -> 
     article = db.get(RmrbArticle, (article_id or "").strip())
     if not article:
         raise ValueError("请先新建时评文章，再导入解析")
+    _ensure_teaching_article_rmrb(article, display_html)
     cleaned = sanitize_display_html(display_html)
     if not cleaned:
         raise ValueError("请粘贴解析 HTML")
@@ -341,6 +356,7 @@ def upsert_teaching_from_parsed(
     article = db.get(RmrbArticle, article_id.strip())
     if not article:
         raise ValueError("请先新建时评文章，再导入三刀解析")
+    _ensure_teaching_article_rmrb(article, display_html, source_url)
 
     theme_tags = theme_tags_from_anchor(parsed.examAnchor.theme)
     existing_tags: list[str] = []

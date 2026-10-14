@@ -5,6 +5,7 @@ import { mockService } from '@/mock/service'
 import type { Question, RankItem, ReviewTask, WrongQuestionRecord } from '@/types'
 import type { RankType } from '@/constants'
 import { showToast } from '@/utils/platform'
+import { todayBJ } from '@/utils/date'
 import { useUserStore } from './user'
 import { useArticleStore } from './article'
 
@@ -146,7 +147,7 @@ export const useQuestionStore = defineStore('question', {
         const record = articleStore.studyRecords.find((r) => r.articleId === articleId)
         if (record) {
           record.reviewCount++
-          record.lastReviewDate = new Date().toISOString().slice(0, 10)
+          record.lastReviewDate = todayBJ()
         }
       } else {
         await articleStore.syncStudyData()
@@ -209,7 +210,7 @@ export const useQuestionStore = defineStore('question', {
     },
 
     checkDailyWrongReview() {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayBJ()
       const key = `wrongReview_${today}`
       const done = Taro.getStorageSync(key)
       if (!done && this.wrongQuestions.length > 0) {
@@ -218,7 +219,7 @@ export const useQuestionStore = defineStore('question', {
     },
 
     completeDailyWrongReview() {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayBJ()
       this.dailyWrongReviewDone = true
       this.showDailyWrongReview = false
       Taro.setStorageSync(`wrongReview_${today}`, true)

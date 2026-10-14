@@ -52,6 +52,7 @@ import { usePlanStore } from '@/store/plan'
 import { useBrandColor, useThemeClass } from '@/utils/brandColor'
 import { flushFormBeforeSave } from '@/utils/formFlush'
 import { showToast } from '@/utils/platform'
+import { todayBJ } from '@/utils/date'
 
 definePageConfig({ navigationBarTitleText: '今日复盘' })
 
@@ -62,7 +63,7 @@ const saving = ref(false)
 const loaded = ref(false)
 
 const form = reactive({
-  reviewDate: new Date().toISOString().slice(0, 10),
+  reviewDate: todayBJ(),
   completion: 0,
   totalMinutes: 0,
   mood: '' as '' | 'good' | 'ok' | 'bad',

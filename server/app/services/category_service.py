@@ -47,9 +47,56 @@ def build_category_tree(db: Session, active_only: bool = True) -> list[dict]:
     return walk(None)
 
 
+THEORY_ROOT = "政治理论"
+# 政治理论下的二级分类（顺序即默认排序）；后五个与运营 HTML「分类：」取值一致
+THEORY_CHILDREN = (
+    "时政要闻",
+    "思想理论",
+    "政策法规",
+    "大国外交",
+    "经济发展",
+    "生态文明",
+    "民生保障",
+    "科技自立自强",
+)
+
+
+def ensure_theory_categories(db: Session) -> list[str]:
+    """幂等补齐政治理论二级分类：按名称判断，已存在（含已停用）的不动，缺的追加到末尾。返回新增名称。"""
+    root = (
+        db.query(Category)
+        .filter(Category.name == THEORY_ROOT, Category.parent_id.is_(None))
+        .order_by(Category.sort_order)
+        .first()
+    )
+    added: list[str] = []
+    if not root:
+        max_root = max((c.sort_order or 0 for c in db.query(Category).filter(Category.parent_id.is_(None))), default=0)
+        root = Category(id=gen_id("cat"), name=THEORY_ROOT, parent_id=None, sort_order=max_root + 1)
+        db.add(root)
+        db.flush()
+        added.append(THEORY_ROOT)
+    existing = {c.name for c in db.query(Category).all()}
+    next_order = max(
+        (c.sort_order or 0 for c in db.query(Category).filter(Category.parent_id == root.id)),
+        default=0,
+    )
+    for name in THEORY_CHILDREN:
+        if name in existing:
+            continue
+        next_order += 1
+        db.add(Category(id=gen_id("cat"), name=name, parent_id=root.id, sort_order=next_order))
+        existing.add(name)
+        added.append(name)
+    if added:
+        db.flush()
+    return added
+
+
 def seed_default_categories(db: Session) -> dict[str, str]:
-    """返回 slug-like 名称 -> id 映射"""
+    """空表时写入默认分类；非空时只幂等补齐政治理论二级分类。返回 名称 -> id 映射"""
     if db.query(Category).count() > 0:
+        ensure_theory_categories(db)
         return {c.name: c.id for c in db.query(Category).all()}
 
     ids: dict[str, str] = {}
@@ -61,10 +108,9 @@ def seed_default_categories(db: Session) -> dict[str, str]:
         ids[name] = cat.id
         return cat.id
 
-    theory = add("政治理论", sort_order=1)
-    add("时政要闻", theory, 1)
-    add("思想理论", theory, 2)
-    add("政策法规", theory, 3)
+    theory = add(THEORY_ROOT, sort_order=1)
+    for idx, name in enumerate(THEORY_CHILDREN, start=1):
+        add(name, theory, idx)
     history = add("党史学习", sort_order=2)
     add("党史事件", history, 1)
     add("人物事迹", history, 2)

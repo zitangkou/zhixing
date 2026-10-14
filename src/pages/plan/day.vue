@@ -51,12 +51,13 @@ import { useDidShow, useRouter } from '@tarojs/taro'
 import { api } from '@/api'
 import type { DayPlan } from '@/types'
 import { useThemeClass } from '@/utils/brandColor'
+import { todayBJ } from '@/utils/date'
 
 definePageConfig({ navigationBarTitleText: '日清单详情' })
 
 const { themeClass } = useThemeClass()
 const router = useRouter()
-const date = ref(router.params?.date || new Date().toISOString().slice(0, 10))
+const date = ref(router.params?.date || todayBJ())
 const dayPlan = ref<DayPlan | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -64,7 +65,7 @@ const error = ref('')
 const plan = computed(() => dayPlan.value)
 
 async function load() {
-  date.value = router.params?.date || new Date().toISOString().slice(0, 10)
+  date.value = router.params?.date || todayBJ()
   loading.value = true
   error.value = ''
   try {
