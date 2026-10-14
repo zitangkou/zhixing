@@ -1,5 +1,5 @@
 """时政要点：一条要点一套题，题目直接挂在要点上。"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -68,11 +68,23 @@ def _apply(row: TheoryPoint, body: PointBody, db: Session) -> None:
 
 @router.get("")
 def list_points(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     _admin=Depends(require_permission("article:read")),
     db: Session = Depends(get_db),
 ):
-    rows = db.query(TheoryPoint).order_by(TheoryPoint.sort_order, TheoryPoint.created_at.desc()).all()
-    return ApiResponse.ok({"items": [_row(db, row) for row in rows]})
+    query = db.query(TheoryPoint)
+    total = query.count()
+    ordering = (TheoryPoint.sort_order, TheoryPoint.created_at.desc())
+    rows = query.order_by(*ordering).offset((page - 1) * page_size).limit(page_size).all()
+    parents = db.query(TheoryPoint).filter(TheoryPoint.parent_id.is_(None)).order_by(*ordering).all()
+    return ApiResponse.ok({
+        "items": [_row(db, row) for row in rows],
+        "parents": [{"id": row.id, "title": row.title} for row in parents],
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+    })
 
 
 @router.post("")

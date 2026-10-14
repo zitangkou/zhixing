@@ -16,7 +16,11 @@ interface Point {
 }
 
 const items = ref<Point[]>([])
+const parentItems = ref<Pick<Point, 'id' | 'title'>[]>([])
 const loading = ref(false)
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const open = ref(false)
 const saving = ref(false)
 const importMarkdown = ref('')
@@ -35,13 +39,19 @@ const form = ref({
   parentId: '',
 })
 
-const parents = computed(() => items.value.filter((row) => !row.parentId && row.id !== form.value.id))
+const parents = computed(() => parentItems.value.filter((row) => row.id !== form.value.id))
 
 async function load() {
   loading.value = true
   try {
-    const data = await getData<{ items: Point[] }>(http.get('/admin/theory-briefs'))
+    const data = await getData<{
+      items: Point[]
+      parents: Pick<Point, 'id' | 'title'>[]
+      total: number
+    }>(http.get('/admin/theory-briefs', { params: { page: page.value, page_size: pageSize.value } }))
     items.value = data.items
+    parentItems.value = data.parents
+    total.value = data.total
   } finally {
     loading.value = false
   }
@@ -108,11 +118,13 @@ async function save() {
   }
   saving.value = true
   try {
+    const creating = !form.value.id
     const body = payload()
     const saved = form.value.id
       ? await getData<Point>(http.put(`/admin/theory-briefs/${form.value.id}`, body))
       : await getData<Point>(http.post('/admin/theory-briefs', body))
     form.value.id = saved.id
+    if (creating) page.value = 1
     if (!markdown) {
       ElMessage.success('已保存')
       open.value = false
@@ -138,7 +150,14 @@ async function save() {
 
 async function remove(id: string) {
   await getData(http.delete(`/admin/theory-briefs/${id}`))
+  if (items.value.length === 1 && page.value > 1) page.value -= 1
   await load()
+}
+
+function changePageSize(value: number) {
+  pageSize.value = value
+  page.value = 1
+  void load()
 }
 
 async function openQuestions() {
@@ -235,6 +254,15 @@ onMounted(load)
         </template>
       </el-table-column>
     </el-table>
+    <el-pagination
+      v-model:current-page="page"
+      :page-size="pageSize"
+      :page-sizes="[20, 50, 100]"
+      :total="total"
+      layout="total, sizes, prev, pager, next, jumper"
+      @current-change="load"
+      @size-change="changePageSize"
+    />
 
     <el-drawer v-model="open" title="时政要点" size="640px">
       <el-form label-position="top">

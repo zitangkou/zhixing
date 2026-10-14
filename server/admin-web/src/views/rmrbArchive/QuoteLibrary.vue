@@ -27,6 +27,12 @@
           <div class="meta">{{ row.topics.join('、') || row.component }} · {{ row.articleTitle }}</div>
         </template>
       </el-table-column>
+      <el-table-column label="日期" width="170">
+        <template #default="{ row }">
+          <div>文章：{{ row.articleDate || '—' }}</div>
+          <div class="meta">采集：{{ row.collectedDate || '—' }}</div>
+        </template>
+      </el-table-column>
       <el-table-column label="审核" width="90">
         <template #default="{ row }">{{ auditLabel(row.auditStatus) }}</template>
       </el-table-column>

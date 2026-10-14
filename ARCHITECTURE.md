@@ -91,8 +91,8 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 时政考点 · 文章管理 | 文章 CRUD、Markdown/HTML 导入、审核发布、分类、题目管理、AI 出题 |
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
-| 时政要点 | TheoryPoint 编排已发布原文及题目；Article 保存 brief_json / brief_status，学员端仅取已发布要点。时政套题用 ArticleQuizProgress 保存用户进度与最近作答。 |
-| 人民日报 | 独立每日金句库：DailyQuote、DailyQuoteSelection、DailyQuoteJob；每句结构化属性包含来源、证据、句式、高亮和多个主题仿写。全文只在任务内存中使用，旧档案采集与评估API退役 |
+| 时政要点 | TheoryPoint 编排已发布原文及题目；管理接口支持分页查询，Article 保存 brief_json / brief_status，学员端仅取已发布要点。时政套题用 ArticleQuizProgress 保存用户进度与最近作答。 |
+| 人民日报 | 独立每日金句库：DailyQuote、DailyQuoteSelection、DailyQuoteJob；每句结构化属性包含来源、来源文章日期、采集日期、证据、句式、高亮和多个主题仿写。全文只在任务内存中使用，旧档案采集与评估API退役 |
 | 用户管理 | 学员账号、积分、状态管理 |
 | 知识框架 | Markdown 上传、树同步、节点维护；工作台可将当前已保存结构化草稿导出为 Markdown、阅读版 HTML（图片引用原资源地址）或 Markmap 渲染 PNG（长边上限 4096 像素） |
 | 学习计划 | 周计划模板维护、同步到待办 |
