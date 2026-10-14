@@ -7,7 +7,7 @@ from app.models import DailyQuote, Feedback, TheoryPoint, ArticleQuizProgress, W
 from app.product import ProductContext
 from app.services.daily_quote_service import out as quote_out
 from app.services.serializers import student_article_dict
-from app.services.theory_brief_service import approved_count
+from app.services.theory_brief_service import approved_count, approved_count_for_point
 router = APIRouter()
 
 def _with_brief():
@@ -46,32 +46,42 @@ def public_theory_points(db: Session = Depends(get_db), user: AppUser | None = D
         .order_by(TheoryPoint.sort_order, TheoryPoint.created_at.desc())
         .all()
     )
-    article_ids = [row.article_id for row in rows if row.article_id]
+    point_ids = [row.id for row in rows]
     answered: dict[str, int] = {}
     wrong_left: dict[str, int] = {}
-    if user and article_ids:
-        progress_rows = (
-            db.query(ArticleQuizProgress)
-            .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.article_id.in_(article_ids))
+    if user and point_ids:
+        q_rows = (
+            db.query(Question.id, Question.theory_point_id)
+            .filter(Question.theory_point_id.in_(point_ids), Question.status == "approved", Question.is_active.is_(True))
             .all()
         )
-        wrong_ids = {
-            item.question_id
-            for item in db.query(WrongAnswer).filter(WrongAnswer.user_id == user.id).all()
-        }
-        for item in progress_rows:
-            answered[item.article_id] = answered.get(item.article_id, 0) + 1
-            if item.question_id in wrong_ids:
-                wrong_left[item.article_id] = wrong_left.get(item.article_id, 0) + 1
+        q_point = {item.id: item.theory_point_id for item in q_rows}
+        if q_point:
+            progress_rows = (
+                db.query(ArticleQuizProgress)
+                .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.question_id.in_(list(q_point)))
+                .all()
+            )
+            wrong_ids = {
+                item.question_id
+                for item in db.query(WrongAnswer).filter(WrongAnswer.user_id == user.id).all()
+            }
+            for item in progress_rows:
+                pid = q_point.get(item.question_id)
+                if not pid:
+                    continue
+                answered[pid] = answered.get(pid, 0) + 1
+                if item.question_id in wrong_ids:
+                    wrong_left[pid] = wrong_left.get(pid, 0) + 1
 
     def card(row: TheoryPoint, sections: list | None = None) -> dict:
         data = {
             "id": row.id,
             "title": row.title,
-            "articleId": row.article_id or "",
-            "questionCount": approved_count(db, row.article_id) if row.article_id else 0,
-            "answered": answered.get(row.article_id or "", 0),
-            "wrongLeft": wrong_left.get(row.article_id or "", 0),
+            "articleId": "",
+            "questionCount": approved_count_for_point(db, row.id),
+            "answered": answered.get(row.id, 0),
+            "wrongLeft": wrong_left.get(row.id, 0),
             "isKey": bool(row.is_key),
             "summary": (row.highlights or "").strip(),
         }
@@ -213,11 +223,24 @@ def mark_read(
 
 @router.get("/questions")
 def list_questions(
-    articleId: str = Query(...),
+    articleId: str = Query(""),
+    theoryPointId: str = Query(""),
     product: ProductContext = Depends(get_product_context),
     db: Session = Depends(get_db),
 ):
-    article = db.get(Article, articleId)
+    if theoryPointId:
+        rows = (
+            db.query(Question)
+            .filter(
+                Question.theory_point_id == theoryPointId,
+                Question.is_active.is_(True),
+                Question.status == "approved",
+            )
+            .order_by(Question.created_at.asc(), Question.id.asc())
+            .all()
+        )
+        return ApiResponse.ok([question_to_out(q).model_dump() for q in rows])
+    article = db.get(Article, articleId) if articleId else None
     if not article or not article.allow_quiz or article.status != "published":
         return ApiResponse.ok([])
     query = (
@@ -308,7 +331,7 @@ def submit_answer(body: AnswerSubmit, user: AppUser = Depends(get_app_user), db:
         record_wrong(db, user.id, q.id, body.answer)
     db.add(ArticleQuizProgress(
         user_id=user.id,
-        article_id=q.article_id,
+        article_id=q.theory_point_id or q.article_id or "",
         question_id=q.id,
         user_answer=json.dumps(body.answer, ensure_ascii=False),
         is_correct=correct,
@@ -327,15 +350,22 @@ def submit_answer(body: AnswerSubmit, user: AppUser = Depends(get_app_user), db:
 
 @router.get("/quiz-progress")
 def quiz_progress(
-    articleId: str = Query(...),
+    articleId: str = Query(""),
+    theoryPointId: str = Query(""),
     user: AppUser = Depends(get_app_user),
     db: Session = Depends(get_db),
 ):
-    rows = (
-        db.query(ArticleQuizProgress)
-        .filter(ArticleQuizProgress.user_id == user.id, ArticleQuizProgress.article_id == articleId)
-        .all()
-    )
+    query = db.query(ArticleQuizProgress).filter(ArticleQuizProgress.user_id == user.id)
+    if theoryPointId:
+        qids = [
+            item.id for item in db.query(Question.id).filter(Question.theory_point_id == theoryPointId).all()
+        ]
+        query = query.filter(ArticleQuizProgress.question_id.in_(qids or [""]))
+    elif articleId:
+        query = query.filter(ArticleQuizProgress.article_id == articleId)
+    else:
+        return ApiResponse.ok([])
+    rows = query.all()
     return ApiResponse.ok([
         {
             "questionId": row.question_id,

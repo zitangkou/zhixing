@@ -17,6 +17,14 @@ terms 3到7个。expressions 2到4条。若 user 要求 questions 为空数组�
 题只能是 single 或 judge。judge 的 options 为 ["正确","错误"]，answer 为「正确」或「错误」。"""
 
 
+def approved_count_for_point(db: Session, point_id: str) -> int:
+    return (
+        db.query(Question)
+        .filter(Question.theory_point_id == point_id, Question.status == "approved", Question.is_active.is_(True))
+        .count()
+    )
+
+
 def approved_count(db: Session, article_id: str) -> int:
     return (
         db.query(Question)

@@ -127,6 +127,7 @@ def test_create_user_then_reuse_openid(monkeypatch, configured, client, db_sessi
     user = body["data"]["user"]
     assert user["nickname"] == "杜衡阁学员"
     assert user["username"] is None
+    assert body["data"]["needsProfile"] is True
     _assert_no_secret(first.text)
     assert fake.calls[0][0] == "https://api.weixin.qq.com/sns/jscode2session"
     assert fake.calls[0][1]["appid"] == APP_ID

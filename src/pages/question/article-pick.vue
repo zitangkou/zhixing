@@ -55,11 +55,11 @@ function goQuizById(id: string) {
 }
 
 async function goQuiz(item: TheoryPointCard) {
-  if (!item.articleId || !item.questionCount) {
+  if (!item.questionCount) {
     showToast('这套要点还没有题目')
     return
   }
-  const url = `/pages/question/taking?articleId=${item.articleId}`
+  const url = `/pages/question/taking?theoryPointId=${item.id}`
   if (!isLoggedIn()) {
     const ok = await showConfirm('需要登录', '登录后才能保存练习进度与积分。', { confirmText: '去登录', cancelText: '再看看' })
     if (!ok) return

@@ -5,6 +5,7 @@ router = APIRouter()
 @router.get("/questions")
 def list_questions_admin(
     article_id: str | None = None,
+    theory_point_id: str | None = None,
     page: int = 1,
     page_size: int = Query(20, ge=1, le=200),
     _admin=Depends(require_permission("question:read")),
@@ -13,6 +14,8 @@ def list_questions_admin(
     q = db.query(Question)
     if article_id:
         q = q.filter(Question.article_id == article_id)
+    if theory_point_id:
+        q = q.filter(Question.theory_point_id == theory_point_id)
     total = q.count()
     pending_total = 0
     if article_id:

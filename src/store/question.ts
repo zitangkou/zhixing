@@ -32,8 +32,8 @@ export const useQuestionStore = defineStore('question', {
   },
 
   actions: {
-    async generateQuestions(articleId: string) {
-      const res = await api.getQuestions(articleId)
+    async generateQuestions(articleId: string, theoryPointId = '') {
+      const res = await api.getQuestions(articleId, theoryPointId)
       if (res.code === 0 && res.data) {
         this.currentQuestions = res.data
         this.currentIndex = 0

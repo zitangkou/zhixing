@@ -55,6 +55,7 @@ export const mockAuth = {
       access_token: 'mock-token',
       token_type: 'bearer',
       user: user.data,
+      needsProfile: true,
     })
   },
 

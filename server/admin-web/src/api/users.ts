@@ -1,7 +1,7 @@
 import http, { getData } from './http'
 import type { AppUser, PageResult } from '@/types'
 
-export function fetchUsers(params?: { page?: number; page_size?: number }) {
+export function fetchUsers(params?: { page?: number; page_size?: number; keyword?: string }) {
   return getData<PageResult<AppUser>>(http.get('/admin/users', { params }))
 }
 

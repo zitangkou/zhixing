@@ -6,10 +6,14 @@ router = APIRouter()
 def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    keyword: str = "",
     _admin=Depends(require_permission("user:read")),
     db: Session = Depends(get_db),
 ):
     q = db.query(AppUser).order_by(AppUser.created_at.desc())
+    word = keyword.strip()
+    if word:
+        q = q.filter(AppUser.nickname.contains(word))
     total = q.count()
     rows = q.offset((page - 1) * page_size).limit(page_size).all()
     return ApiResponse.ok({
@@ -18,6 +22,7 @@ def list_users(
             AppUserOut(
                 id=u.id, nickname=u.nickname, avatar=u.avatar, points=u.points,
                 is_member=u.is_member, is_active=u.is_active, created_at=u.created_at,
+                loginLabel=(u.username or "").strip() or ("微信" if u.openid else "—"),
             ).model_dump()
             for u in rows
         ],
@@ -35,6 +40,7 @@ def update_user(user_id: str, body: AppUserUpdate, _admin=Depends(require_permis
     return ApiResponse.ok(AppUserOut(
         id=user.id, nickname=user.nickname, avatar=user.avatar, points=user.points,
         is_member=user.is_member, is_active=user.is_active, created_at=user.created_at,
+        loginLabel=(user.username or "").strip() or ("微信" if user.openid else "—"),
     ).model_dump())
 
 

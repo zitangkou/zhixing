@@ -388,6 +388,46 @@ def _ensure_theory_point_key_column() -> None:
             conn.execute(text("ALTER TABLE theory_points ADD COLUMN parent_id VARCHAR(32)"))
 
 
+def _ensure_question_theory_point() -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("questions"):
+        return
+    cols = {c["name"]: c for c in insp.get_columns("questions")}
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        if "theory_point_id" not in cols:
+            conn.execute(text("ALTER TABLE questions ADD COLUMN theory_point_id VARCHAR(32)"))
+        if insp.has_table("theory_points"):
+            conn.execute(text(
+                "UPDATE questions SET theory_point_id = ("
+                "SELECT tp.id FROM theory_points tp WHERE tp.article_id = questions.article_id"
+                ") WHERE theory_point_id IS NULL AND article_id IS NOT NULL"
+            ))
+        article_col = next((c for c in insp.get_columns("questions") if c["name"] == "article_id"), None)
+        if article_col and article_col.get("nullable"):
+            return
+        conn.execute(text("DROP TABLE IF EXISTS questions_tp_mig"))
+        conn.execute(text(
+            "CREATE TABLE questions_tp_mig ("
+            "id VARCHAR(32) PRIMARY KEY, article_id VARCHAR(32), theory_point_id VARCHAR(32), "
+            "type VARCHAR(16), stem TEXT, options TEXT, correct_answer TEXT, analysis TEXT, "
+            "source_sentence TEXT, status VARCHAR(16), origin VARCHAR(16), is_active BOOLEAN, created_at DATETIME)"
+        ))
+        conn.execute(text(
+            "INSERT INTO questions_tp_mig (id, article_id, theory_point_id, type, stem, options, "
+            "correct_answer, analysis, source_sentence, status, origin, is_active, created_at) "
+            "SELECT id, article_id, theory_point_id, type, stem, options, correct_answer, analysis, "
+            "source_sentence, status, origin, is_active, created_at FROM questions"
+        ))
+        conn.execute(text("DROP TABLE questions"))
+        conn.execute(text("ALTER TABLE questions_tp_mig RENAME TO questions"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_questions_article_id ON questions (article_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_questions_theory_point_id ON questions (theory_point_id)"))
+        conn.execute(text("PRAGMA foreign_keys=ON"))
+
+
 def _ensure_daily_quote_audit_columns() -> None:
     from sqlalchemy import inspect, text
 
@@ -418,6 +458,7 @@ def run_compat_migrations() -> None:
     _ensure_knowledge_node_columns()
     _ensure_knowledge_tree_draft_column()
     _ensure_theory_point_key_column()
+    _ensure_question_theory_point()
     _ensure_daily_quote_audit_columns()
     _ensure_exam_question_knowledge_columns()
     _ensure_corpus_knowledge_columns()

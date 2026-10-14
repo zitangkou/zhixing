@@ -19,7 +19,10 @@ _ANALYSIS_RE = re.compile(
 _TIP_RE = re.compile(
     r"^>\s*\*\*技巧点拨[：:]?\*\*[：:]?\s*(.+?)(?:\*\*)?\s*$"
 )
-_STEM_RE = re.compile(r"^\*\*(\d+)\.\s*(.+?)\*\*\s*$", re.S)
+_PLAIN_ANSWER_RE = re.compile(r"^>\s*答案[：:]\s*(.+?)\s*$")
+_PLAIN_SOURCE_RE = re.compile(r"^>\s*原文依据[：:]\s*(.+?)\s*$")
+_PLAIN_ANALYSIS_RE = re.compile(r"^>\s*解析[：:]\s*(.+?)\s*$")
+_STEM_START_RE = re.compile(r"^\*\*(\d+)\.\s*(.*)$")
 _QUESTION_SPLIT_RE = re.compile(r"(?=\n\*\*\d+\.)")
 
 
@@ -75,38 +78,60 @@ def _resolve_answer(
     return None
 
 
+def _stem_is_closed(line: str) -> bool:
+    return bool(re.match(r"^\*\*\d+\..*\*\*\s*$", line))
+
+
 def _parse_block(block: str, default_type: str) -> tuple[dict[str, Any] | None, str | None]:
     lines = [ln.rstrip() for ln in block.strip().splitlines() if ln.strip()]
     if not lines:
         return None, None
 
-    stem_match = _STEM_RE.match(lines[0])
+    stem_match = _STEM_START_RE.match(lines[0])
     if not stem_match:
         return None, None
 
     qnum = stem_match.group(1)
-    stem = stem_match.group(2).strip()
+    stem_parts = [stem_match.group(2)]
+    cursor = 1
+    if _stem_is_closed(lines[0]):
+        stem_parts[0] = re.sub(r"\*\*\s*$", "", stem_parts[0]).strip()
+    else:
+        closed = False
+        while cursor < len(lines):
+            line = lines[cursor]
+            if _OPTION_RE.match(line) or line.startswith(">"):
+                break
+            stem_parts.append(line)
+            cursor += 1
+            if line.endswith("**"):
+                stem_parts[-1] = line[:-2].rstrip()
+                closed = True
+                break
+        if not closed:
+            return None, f"第{qnum}题未识别"
+    stem = "\n".join(part.strip() for part in stem_parts if part.strip())
 
-    options: list[str] = []
+    paired: list[tuple[str, str]] = []
     answer_raw = ""
     source_sentence = ""
     analysis = ""
     tip = ""
 
-    for line in lines[1:]:
+    for line in lines[cursor:]:
         opt_m = _OPTION_RE.match(line)
         if opt_m:
-            options.append(opt_m.group(2).strip())
+            paired.append((opt_m.group(1), opt_m.group(2).strip()))
             continue
-        ans_m = _ANSWER_RE.match(line) or _ANSWER_ALT_RE.match(line)
+        ans_m = _ANSWER_RE.match(line) or _ANSWER_ALT_RE.match(line) or _PLAIN_ANSWER_RE.match(line)
         if ans_m:
             answer_raw = ans_m.group(1).strip()
             continue
-        src_m = _SOURCE_RE.match(line)
+        src_m = _SOURCE_RE.match(line) or _PLAIN_SOURCE_RE.match(line)
         if src_m:
             source_sentence = _strip_wrapping_quotes(src_m.group(1).strip())
             continue
-        ana_m = _ANALYSIS_RE.match(line)
+        ana_m = _ANALYSIS_RE.match(line) or _PLAIN_ANALYSIS_RE.match(line)
         if ana_m:
             analysis = ana_m.group(1).strip()
             continue
@@ -114,6 +139,11 @@ def _parse_block(block: str, default_type: str) -> tuple[dict[str, Any] | None, 
         if tip_m:
             tip = tip_m.group(1).strip()
             continue
+
+    letters = [letter for letter, _text in paired]
+    if len(paired) == 4 and sorted(letters) == ["A", "B", "C", "D"] and len(set(letters)) == 4:
+        paired.sort(key=lambda item: item[0])
+    options = [text for _letter, text in paired]
 
     qtype = default_type
     if len(options) == 2 and options == ["正确", "错误"]:

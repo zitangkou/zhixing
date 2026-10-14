@@ -67,8 +67,9 @@ def app_wechat_login(
         )
     token = issue_app_token(user)
     me = build_user_me_out(db, user)
+    needs_profile = (user.nickname or "") == "杜衡阁学员" and not (user.avatar or "").strip()
     return ApiResponse.ok(
-        AppAuthToken(access_token=token, user=me).model_dump()
+        AppAuthToken(access_token=token, user=me, needsProfile=needs_profile).model_dump()
     )
 
 

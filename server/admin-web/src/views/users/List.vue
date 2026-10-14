@@ -1,5 +1,9 @@
 <template>
-  <div class="page">
+    <div class="page">
+    <div class="toolbar">
+      <el-input v-model="keyword" clearable placeholder="按昵称搜索" style="width: 220px" @keyup.enter="search" @clear="search" />
+      <el-button type="primary" @click="search">搜索</el-button>
+    </div>
     <ListState
       :loading="loading"
       :error="loadError"
@@ -10,6 +14,7 @@
       <el-table v-loading="loading && users.length > 0" :data="users" stripe>
         <el-table-column prop="id" label="ID" width="140" />
         <el-table-column prop="nickname" label="昵称" width="140" />
+        <el-table-column prop="loginLabel" label="登录方式" min-width="140" />
         <el-table-column prop="points" label="积分" width="100" />
         <el-table-column label="会员" width="80">
           <template #default="{ row }">{{ row.is_member ? '是' : '否' }}</template>
@@ -50,13 +55,19 @@ const users = ref<AppUser[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const keyword = ref('')
 
 async function load() {
   await runLoad(async () => {
-    const data = await fetchUsers({ page: page.value, page_size: pageSize.value })
+    const data = await fetchUsers({ page: page.value, page_size: pageSize.value, keyword: keyword.value.trim() })
     users.value = data.items
     total.value = data.total
   })
+}
+
+function search() {
+  page.value = 1
+  load()
 }
 
 function onPageSizeChange() {
@@ -69,4 +80,5 @@ onMounted(load)
 
 <style scoped>
 .pager { margin-top: 16px; justify-content: flex-end; }
+.toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
 </style>

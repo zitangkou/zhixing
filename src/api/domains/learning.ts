@@ -29,14 +29,16 @@ export const apiLearning = {
       : d.request(`/api/articles/${id}`, { auth: false })
   },
 
-  getQuizProgress(articleId: string): Promise<d.ApiRes<Array<{ questionId: string; userAnswer: string | string[]; correct: boolean }>>> {
-    return d.request(`/api/quiz-progress?articleId=${articleId}`)
+  getQuizProgress(articleId: string, theoryPointId = ''): Promise<d.ApiRes<Array<{ questionId: string; userAnswer: string | string[]; correct: boolean }>>> {
+    const q = theoryPointId ? `theoryPointId=${theoryPointId}` : `articleId=${articleId}`
+    return d.request(`/api/quiz-progress?${q}`)
   },
 
-  getQuestions(articleId: string): Promise<d.ApiRes<d.Question[]>> {
+  getQuestions(articleId: string, theoryPointId = ''): Promise<d.ApiRes<d.Question[]>> {
+    const q = theoryPointId ? `theoryPointId=${theoryPointId}` : `articleId=${articleId}`
     return d.isMock
       ? d.mockService.getQuestions(articleId)
-      : d.request(`/api/questions?articleId=${articleId}`, { auth: false })
+      : d.request(`/api/questions?${q}`, { auth: false })
   },
 
   getTheoryPacks(): Promise<d.ApiRes<Array<{

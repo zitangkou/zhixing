@@ -50,6 +50,7 @@ class AppAuthToken(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserMeOut
+    needsProfile: bool = False
 
 
 class FeedbackOut(BaseModel):

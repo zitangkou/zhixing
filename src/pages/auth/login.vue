@@ -7,7 +7,10 @@
 
     <view class="form-card">
       <text v-if="hasRedirect" class="resume-tip">登录后回到刚才的页面</text>
-      <template v-if="isWeapp">
+      <template v-if="isWeapp && !wechatFailed">
+        <text class="resume-tip">正在使用微信登录…</text>
+      </template>
+      <template v-else-if="isWeapp">
         <nut-button
           type="primary"
           block
@@ -49,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import Taro from '@tarojs/taro'
 import { Button as NutButton, Input as NutInput } from '@nutui/nutui-taro'
 import BrandLogo from '@/components/BrandLogo.vue'
@@ -69,12 +72,17 @@ const username = ref('')
 const password = ref('')
 const passwordLoading = ref(false)
 const wechatLoading = ref(false)
+const wechatFailed = ref(false)
 const showPasswordForm = ref(false)
 const hasRedirect = ref(!!Taro.getStorageSync(LOGIN_REDIRECT_KEY))
 
-async function finishLogin(run: () => Promise<unknown>) {
-  await run()
+async function finishLogin(run: () => Promise<{ needsProfile?: boolean } | void>) {
+  const data = await run()
   await bootstrapApp(true)
+  if (data?.needsProfile) {
+    Taro.redirectTo({ url: '/pages/user/profile?setup=1' })
+    return
+  }
   enterAfterAuth()
 }
 
@@ -100,16 +108,22 @@ async function onWechatLogin() {
     const loginRes = await Taro.login()
     const code = loginRes?.code?.trim()
     if (!code) {
+      wechatFailed.value = true
       showToast('微信登录失败，请重试', 'error')
       return
     }
     await finishLogin(() => userStore.loginWithWechat(code))
   } catch (e) {
+    wechatFailed.value = true
     showToast(e instanceof Error ? e.message : '微信登录失败', 'error')
   } finally {
     wechatLoading.value = false
   }
 }
+
+onMounted(() => {
+  if (isWeapp) void onWechatLogin()
+})
 
 function goRegister() {
   Taro.navigateTo({ url: '/pages/auth/register' })

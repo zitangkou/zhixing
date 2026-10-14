@@ -121,7 +121,7 @@ def question_to_out(q: Question) -> QuestionOut:
     correct = parse_correct_answer(q.correct_answer or "")
     return QuestionOut(
         id=q.id,
-        articleId=q.article_id,
+        articleId=q.article_id or "",
         type=q.type,
         stem=q.stem,
         options=options if options else None,

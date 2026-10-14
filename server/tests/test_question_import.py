@@ -86,3 +86,49 @@ D. 丁
     assert len(errs) == 0
     assert qs[0]["source_sentence"] == "原文摘录"
     assert qs[0]["analysis"] == "解析内容"
+
+
+def test_parse_multiline_stem():
+    text = """
+**6. 《纲要》提出“十五五”时期经济社会发展主要目标。下列各项属于原文所列目标的有：
+①高质量发展取得显著成效
+②科技自立自强水平大幅提高
+③进一步全面深化改革取得新突破
+④经济总量跃居世界第一
+⑤社会文明程度明显提升**
+
+A．①②③④
+B．②③④⑤
+C．①②③⑤
+D．①③④⑤
+
+> **答案：** C
+> **解析：** 【正确项】C：①②③⑤。
+"""
+    qs, errs = parse_questions_markdown(text)
+    assert errs == []
+    assert len(qs) == 1
+    assert "①高质量发展取得显著成效" in qs[0]["stem"]
+    assert qs[0]["correct_answer"] == "①②③⑤"
+
+
+def test_parse_plain_answer_and_shuffled_options():
+    text = """
+**2. 《纲要》关于人口发展战略的部署，下列表述正确的是：**
+
+B．生育支持融入经济社会发展各项政策
+A．将生育支持限定为一次性现金补贴
+C．取消托育服务供给
+D．以提高家庭教育成本作为政策方向
+
+> 答案：B
+> 原文依据：第三十七章导语
+> 解析：【正确项】B。
+"""
+    qs, errs = parse_questions_markdown(text)
+    assert errs == []
+    assert qs[0]["options"][0] == "将生育支持限定为一次性现金补贴"
+    assert qs[0]["options"][1] == "生育支持融入经济社会发展各项政策"
+    assert qs[0]["correct_answer"] == "生育支持融入经济社会发展各项政策"
+    assert qs[0]["source_sentence"] == "第三十七章导语"
+    assert qs[0]["analysis"] == "【正确项】B。"

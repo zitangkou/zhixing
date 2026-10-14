@@ -49,6 +49,7 @@ class AppUserOut(BaseModel):
     is_member: bool
     is_active: bool
     created_at: datetime
+    loginLabel: str = ""
 
 
 class AppUserUpdate(BaseModel):

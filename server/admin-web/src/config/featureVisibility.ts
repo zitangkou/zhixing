@@ -1,35 +1,15 @@
-/** 管理端侧栏露出。路由仍注册，直链可进。与学员端 featureVisibility 对齐。 */
+/** 管理端侧栏露出。路由仍注册，直链可进。隐藏项见项目功能与操作手册。 */
 
 const VISIBLE_PATHS = new Set([
-  '/today',
-  '/articles',
   '/theory-briefs',
-  '/categories',
-  '/wechat-replies',
-  '/rmrb/articles',
   '/rmrb-archive/quotes',
-  '/rmrb/term-categories',
-  '/rmrb/skeletons',
-  '/rmrb/argument-methods',
-  '/rmrb/sentence-types',
+  '/knowledge',
   '/users',
   '/feedbacks',
-  '/xingce',
-  '/tool-config/copy',
-  '/tool-config/images',
-  '/tool-config/models',
-  '/tool-config/image-generation-jobs',
-  '/knowledge',
-  '/knowledge-library',
   '/settings',
+  '/wechat-replies',
   '/roles',
   '/project-manual',
-  '/english/overview',
-  '/english/courses',
-  '/english/records',
-  '/photography/courses',
-  '/photography/map',
-  '/photography/cases',
 ])
 
 export function isAdminNavVisible(path: string): boolean {

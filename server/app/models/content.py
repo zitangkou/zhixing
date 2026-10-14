@@ -86,7 +86,8 @@ class Question(Base):
     __tablename__ = "questions"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("q"))
-    article_id: Mapped[str] = mapped_column(ForeignKey("articles.id"), index=True)
+    article_id: Mapped[str | None] = mapped_column(ForeignKey("articles.id"), nullable=True, index=True)
+    theory_point_id: Mapped[str | None] = mapped_column(ForeignKey("theory_points.id"), nullable=True, index=True)
     type: Mapped[str] = mapped_column(String(16))  # single | multiple | judge
     stem: Mapped[str] = mapped_column(Text)
     options: Mapped[str] = mapped_column(Text, default="[]")  # JSON
@@ -98,6 +99,6 @@ class Question(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
-    article: Mapped[Article] = relationship(back_populates="questions")
+    article: Mapped[Article | None] = relationship(back_populates="questions")
 
 

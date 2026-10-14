@@ -150,7 +150,7 @@ const answerRecords = ref<Record<string, QuizAnswerRecord>>({})
 const pendingMulti = ref<string[]>([])
 const quizStats = ref({ rank: 0, totalParticipants: 0, accuracy: 0, bestAccuracy: 0 })
 const quizSession = ref<
-  | { kind: 'article'; articleId: string; practice?: boolean }
+  | { kind: 'article'; articleId: string; theoryPointId?: string; practice?: boolean }
   | { kind: 'mode'; mode: QuizMode }
   | { kind: 'wrong'; questionId: string }
   | { kind: 'wrong-session' }
@@ -214,11 +214,13 @@ onUnmounted(() => {
 
 async function boot() {
   if (taskId && !dailyTask.value) await dailyTaskStore.load()
-  const { mode, articleId, wrongId, wrongSession, wrongOnly } = router.params || {}
+  const { mode, articleId, theoryPointId, wrongId, wrongSession, wrongOnly } = router.params || {}
   if (wrongSession === '1' || wrongSession === 'true') {
     await startWrongSession()
   } else if (wrongId) {
     await startWrongRedo(String(wrongId))
+  } else if (theoryPointId) {
+    await startQuiz('', wrongOnly === '1', router.params?.practice === '1', String(theoryPointId))
   } else if (articleId) {
     await startQuiz(String(articleId), wrongOnly === '1', router.params?.practice === '1')
   } else if (mode) {
@@ -321,12 +323,12 @@ async function startModeQuiz(mode: QuizMode) {
   }
 }
 
-async function startQuiz(articleId: string, wrongOnly = false, practice = false) {
-  quizSession.value = { kind: 'article', articleId, practice }
+async function startQuiz(articleId: string, wrongOnly = false, practice = false, theoryPointId = '') {
+  quizSession.value = { kind: 'article', articleId: theoryPointId || articleId, theoryPointId, practice }
   loading.value = true
   resetQuizState()
   try {
-    const qs = await questionStore.generateQuestions(articleId)
+    const qs = await questionStore.generateQuestions(articleId, theoryPointId)
     if (!qs?.length) {
       showToast('该文章暂无题目', 'error')
       leavePage()
@@ -334,7 +336,7 @@ async function startQuiz(articleId: string, wrongOnly = false, practice = false)
     }
     const part = Number(router.params?.part || 0)
     let list = part >= 1 && part <= 4 ? qs.slice((part - 1) * 5, part * 5) : qs
-    const progress = await api.getQuizProgress(articleId)
+    const progress = await api.getQuizProgress(articleId, theoryPointId)
     const saved = new Map((progress.code === 0 && progress.data ? progress.data : []).map((row) => [row.questionId, row]))
     if (wrongOnly) list = list.filter((q) => saved.get(q.id) && !saved.get(q.id)!.correct)
     if (!list.length) {
@@ -370,13 +372,19 @@ async function startQuiz(articleId: string, wrongOnly = false, practice = false)
 function redoArticleWrongs() {
   const session = quizSession.value
   if (session?.kind !== 'article') return
-  Taro.redirectTo({ url: `/pages/question/taking?articleId=${session.articleId}&wrongOnly=1` })
+  const id = session.theoryPointId
+  Taro.redirectTo({ url: id
+    ? `/pages/question/taking?theoryPointId=${id}&wrongOnly=1`
+    : `/pages/question/taking?articleId=${session.articleId}&wrongOnly=1` })
 }
 
 function practiceAgain() {
   const session = quizSession.value
   if (session?.kind !== 'article') return
-  Taro.redirectTo({ url: `/pages/question/taking?articleId=${session.articleId}&practice=1` })
+  const id = session.theoryPointId
+  Taro.redirectTo({ url: id
+    ? `/pages/question/taking?theoryPointId=${id}&practice=1`
+    : `/pages/question/taking?articleId=${session.articleId}&practice=1` })
 }
 
 async function startWrongRedo(questionId: string) {
@@ -509,7 +517,7 @@ async function finishQuiz() {
   }
   const mode = session?.kind === 'mode' ? session.mode : 'article'
   const articleId = session?.kind === 'article' ? session.articleId : undefined
-  if (session?.kind === 'article' && session.practice) {
+  if (session?.kind === 'article' && (session.practice || session.theoryPointId)) {
     syncingResult.value = false
     return
   }

@@ -92,3 +92,27 @@ def add_imported_questions(
         )
         count += 1
     return count
+
+
+def add_point_questions(db: Session, point_id: str, questions: list[dict], *, pending: bool = False) -> int:
+    status = "pending" if pending else "approved"
+    count = 0
+    for qdata in questions:
+        db.add(
+            Question(
+                id=gen_id("q"),
+                article_id=None,
+                theory_point_id=point_id,
+                type=qdata["type"],
+                stem=qdata["stem"],
+                options=json.dumps(qdata.get("options", []), ensure_ascii=False),
+                correct_answer=encode_correct_answer(qdata["correct_answer"]),
+                analysis=qdata["analysis"],
+                source_sentence=qdata.get("source_sentence", ""),
+                status=status,
+                origin="import",
+                is_active=not pending,
+            )
+        )
+        count += 1
+    return count

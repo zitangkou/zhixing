@@ -80,6 +80,7 @@ export interface AppUser {
   is_member: boolean
   is_active: boolean
   created_at: string
+  loginLabel: string
 }
 
 
