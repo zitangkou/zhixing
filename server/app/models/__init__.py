@@ -20,7 +20,10 @@ from app.models.rmrb import (
 )
 from app.models.events import EventImpression
 from app.models.corpus import CorpusItem
-from app.models.ziliao import ZiliaoFormula, ZiliaoPracticeLog, ZiliaoQuestionType, ZiliaoTrick
+from app.models.ziliao import (
+    ZiliaoFormula, ZiliaoPracticeLog, ZiliaoQuestionType, ZiliaoTrick,
+    ZiliaoQuickMethod, ZiliaoQuickSession, ZiliaoQuickMethodVersion,
+)
 from app.models.misc import ActivityEvent, ExamCountdown, Feedback
 from app.models.product import DailyLearningTask, TheoryLearningEntry, UserDailyTaskProgress, UserGuestLearningRecord
 from app.models.content_ops import ContentOperationTemplate, ContentPublishPackage, ContentReviewRecord, EntryAttributionEvent
@@ -42,3 +45,8 @@ from app.models.rmrb_archive import RmrbArchiveArticle, RmrbArchiveBatch, RmrbAr
 from app.models.english import EnglishScene, EnglishStudyRecord, EnglishUnit
 from app.models.photography import PhotographyCase, PhotographyLesson, PhotographyStage
 from app.models.daily_quote import DailyQuote, DailyQuoteSelection, DailyQuoteJob
+from app.models.shenlun_material import ShenlunMaterial
+
+from app.models.rmrb_vocabulary import RmrbVocabulary, RmrbVocabularyJob
+from app.models.llm_usage import LlmUsageLog
+from app.models.rmrb_daily_pool import RmrbDailyPoolIssue, RmrbDailyPoolArticle

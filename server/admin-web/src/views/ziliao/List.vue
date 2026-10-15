@@ -21,6 +21,9 @@
       <el-tab-pane label="速算技巧" name="tricks">
         <TricksTab />
       </el-tab-pane>
+      <el-tab-pane label="速算训练" name="quick-calc">
+        <QuickCalcTab />
+      </el-tab-pane>
     </el-tabs>
 
     <el-drawer v-model="showGuide" title="资料分析真题导入规范" size="50%">
@@ -36,6 +39,7 @@ import { fetchImportGuide, seedZiliao } from '@/api/ziliao'
 import FormulasTab from './FormulasTab.vue'
 import TypesTab from './TypesTab.vue'
 import TricksTab from './TricksTab.vue'
+import QuickCalcTab from './QuickCalcTab.vue'
 
 const activeTab = ref('formulas')
 const showGuide = ref(false)

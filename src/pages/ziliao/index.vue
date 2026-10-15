@@ -35,6 +35,16 @@
       </view>
     </view>
 
+    <view class="zl-block">
+      <view class="zl-entry-row" @tap="go('/pages/ziliao/quick-calc')">
+        <view class="zl-entry-text">
+          <text class="zl-entry-name">速算训练 · 随机出题</text>
+          <text class="zl-entry-desc">分数比较 / 增长量 / 增长率 / 基期量 · 离线可练</text>
+        </view>
+        <text class="zl-entry-arrow">练 ›</text>
+      </view>
+    </view>
+
     <view v-if="loadError && !ready" class="zl-state-box">
       <text class="zl-state-title">加载失败</text>
       <text class="zl-state-desc">{{ loadError }}</text>

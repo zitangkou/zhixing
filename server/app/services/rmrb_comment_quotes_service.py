@@ -215,7 +215,7 @@ def collect_ai_quotes(db: Session, comment_article_id: str) -> list[dict]:
             result = chat_json(QUOTE_SYSTEM, f'''为下列已由原文网页加粗标注的完整句补充申论标签。必须逐条返回所有编号，不得筛除；不得输出或修改句子原文。主题标签要具体，场景从大作文立意、分论点论证、提出对策、结尾升华、综合分析、素材积累中选择；仿写示例必须标明“仿写示例”，且不得伪装成原文。只输出 JSON：{{"items":[{{"id":"S001","quoteType":"论证","topics":["主题"],"useCases":["分论点论证"],"applicationExample":"仿写示例：……"}}]}}
 标题：{record.article.display_title}
 句子：
-{candidate_lines}''')
+{candidate_lines}''', purpose='rmrb_comment_quote_enrichment')
         except Exception:
             # Editorial emphasis itself is useful provenance; keep the candidates even
             # when metadata enrichment is temporarily unavailable.
@@ -226,7 +226,7 @@ def collect_ai_quotes(db: Session, comment_article_id: str) -> list[dict]:
 为每个入选编号补充主题标签、申论使用场景和明确标注“仿写示例”的应用示例。场景从大作文立意、分论点论证、提出对策、结尾升华、综合分析、素材积累中选择。返回 JSON：{{"items":[{{"id":"S001","quoteType":"论证","topics":["主题"],"useCases":["分论点论证"],"applicationExample":"仿写示例：……"}}]}}
 标题：{record.article.display_title}
 候选完整句（句号及引号均为原文的一部分）：
-{candidate_lines}''')
+{candidate_lines}''', purpose='rmrb_comment_quote_selection')
     metadata = {str(item.get("id")): item for item in result.get("items", [])
                 if isinstance(item, dict) and item.get("id")}
     selected_ids = {str(value) for value in result.get("selectedIds", [])} | set(metadata)

@@ -27,8 +27,10 @@ def test_evidence_highlight_validation(db):
     x=item();x['highlights']=['不存在']
     with pytest.raises(ValueError,match='高亮'):normalize(x,DAY)
     x=item();x['evidence']='';x['reviewStatus']='confirmed'
+    row=save(s,x,DAY)
+    assert row.review_status=='pending' and row.enabled is False
+    x=item();x['evidence']='';x['auditStatus']='passed';x['enabled']=True
     with pytest.raises(ValueError,match='证据'):save(s,x,DAY)
-    x['reviewStatus']='pending';save(s,x,DAY)
 def test_exact_topic_and_global_stats(db):
     s,_=db;import_items(s,[item(),item('坚持长期投入。')],DAY)
     r=listing(s,start=DAY,end=DAY,topic='民生服务',page_size=1)
@@ -48,18 +50,19 @@ def test_atomic_invalid_import(db):
 def test_partial_retry_no_fulltext(db,monkeypatch):
     s,f=db;monkeypatch.setattr(jobs,'SessionLocal',f)
     monkeypatch.setattr(jobs,'get_settings',lambda:SimpleNamespace(llm_enabled=True,llm_api_key='test'))
-    articles=[{'url':item()['url']},{'url':item()['url'].replace('_1.html','_2.html')}]
+    articles=[{'url':item()['url'],'scope':'core'},{'url':item()['url'].replace('_1.html','_2.html'),'scope':'core'}]
     monkeypatch.setattr(jobs,'discover',lambda _: (articles,[]))
     full='全文标记不应持久化'*30
     monkeypatch.setattr(jobs,'original',lambda a: ([item()['text'],full],{'sourceUrl':a['url'],'articleTitle':'文章','source':'人民日报'}))
     calls=[]
-    def ai(*_):
+    def ai(*_, **__):
         calls.append(1)
         if len(calls)==2:raise RuntimeError(full)
-        return {'items':[item()]}
+        candidate=item();candidate['scores']={'memory':4,'logic':4,'transfer':4,'spark':4}
+        return {'isComment':True,'items':[candidate]}
     monkeypatch.setattr(jobs,'chat_json',ai)
     j=jobs.enqueue(s,DAY);jid=j.id;jobs.worker(jid);s.expire_all();j=s.get(DailyQuoteJob,jid)
-    assert j.status=='partial' and s.query(DailyQuote).count()==1
+    assert j.status=='partial' and s.query(DailyQuote).count()==1, j.progress_json
     assert full not in j.progress_json and full not in j.error
     assert full not in s.query(DailyQuote).one().attributes_json
     jobs.enqueue(s,DAY);jobs.worker(jid);s.expire_all()

@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import type { Plugin } from 'vite'
+import { writeWeappMathStyles } from './weappMathStyles'
 
 /**
  * Vue scoped 编译成 `[data-v-hash]` 属性选择器。Taro 的 base.wxml 只绑定
@@ -115,6 +116,7 @@ export function weappScopedCss(): Plugin {
       const dir = options.dir || path.resolve('dist')
       walkDist(dir)
       writeIconWxss(dir)
+      writeWeappMathStyles(dir)
     },
   }
 }

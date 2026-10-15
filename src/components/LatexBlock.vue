@@ -1,13 +1,16 @@
 <template>
   <view class="latex-block" :class="[`size-${size}`]">
-    <view v-if="html" class="latex-render">
+    <view v-if="nodes.length" class="latex-render">
+      <rich-text :nodes="nodes" :selectable="true" />
+    </view>
+    <view v-else-if="html" class="latex-render">
       <!-- eslint-disable-next-line vue/no-v-html, vue/no-v-text-v-html-on-component -->
       <view v-html="html" />
     </view>
     <text v-else class="latex-fallback">
       {{ fallbackText }}
     </text>
-    <text v-if="showPlain && plain && html" class="latex-plain">
+    <text v-if="showPlain && plain && (html || nodes.length)" class="latex-plain">
       {{ plain }}
     </text>
   </view>
@@ -15,6 +18,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useBrandColor } from '@/utils/brandColor'
+import { normalizeLatex } from '@/utils/mathText'
+import { themeTextColor } from '@/utils/theme'
+import { renderFormula } from '@/utils/formulaRenderer'
+import type { FormulaNode } from '@/utils/latexMini'
 
 const props = withDefaults(
   defineProps<{
@@ -34,17 +42,23 @@ const props = withDefaults(
 )
 
 const html = ref('')
-let renderToken = 0
+const nodes = ref<FormulaNode[]>([])
+const { darkMode } = useBrandColor()
+// 与主题正文 token 一致；SVG 图片不能继承 CSS currentColor。
+const formulaColor = computed(() => themeTextColor(!!darkMode.value))
 watch(
-  () => [props.latex, props.displayMode],
-  async () => {
-    const token = ++renderToken
+  () => [props.latex, props.displayMode, formulaColor.value],
+  () => {
     html.value = ''
-    // 微信原生组件无法可靠还原 KaTeX 的 HTML/CSS，优先显示后台维护的可读式。
-    if (process.env.TARO_ENV === 'h5') {
-      const { renderLatex } = await import('@/utils/latex')
-      if (token === renderToken)
-        html.value = renderLatex(props.latex || '', { displayMode: props.displayMode })
+    nodes.value = []
+    const source = normalizeLatex(props.latex || '')
+    if (!source) return
+    try {
+      const rendered = renderFormula(source, props.displayMode, formulaColor.value)
+      html.value = rendered.html
+      nodes.value = rendered.nodes
+    } catch {
+      // 不支持或不合法的公式保留可读式，避免整页中断。
     }
   },
   { immediate: true },

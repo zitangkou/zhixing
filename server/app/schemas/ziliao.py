@@ -249,5 +249,37 @@ class ZiliaoDrillSubmitOut(BaseModel):
     savedWrongCount: int = 0
 
 
+class ZiliaoQuickMethodUpsert(BaseModel):
+    code: str
+    name: str
+    category: str = "比较"
+    scene: str = ""
+    knowledgePath: str = ""
+    nodeTitle: str = ""
+    nodeParent: str = ""
+    config: dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = True
+    sortOrder: int = 0
+
+
+class ZiliaoQuickSessionCreate(BaseModel):
+    mode: str = "mixed"
+    count: int = Field(default=10, ge=1, le=30)
+
+
+class ZiliaoQuickAnswerIn(BaseModel):
+    questionId: str
+    selected: int = Field(ge=0, le=3)
+    seconds: int = Field(default=0, ge=0, le=3600)
+
+
+class ZiliaoQuickCompleteIn(BaseModel):
+    totalSeconds: int = Field(default=0, ge=0, le=86400)
+
+
+class ZiliaoQuickRetryIn(BaseModel):
+    questionIds: list[str] = Field(min_length=1, max_length=30)
+
+
 # ===== 考试倒计时 =====
 

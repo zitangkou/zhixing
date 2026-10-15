@@ -3,10 +3,13 @@
 const VISIBLE_PATHS = new Set([
   '/theory-briefs',
   '/rmrb-archive/quotes',
+  '/rmrb-archive/shenlun-materials',
+  '/rmrb-archive/vocabulary',
   '/knowledge',
   '/users',
   '/feedbacks',
   '/settings',
+  '/tool-config/llm-usage',
   '/wechat-replies',
   '/roles',
   '/project-manual',

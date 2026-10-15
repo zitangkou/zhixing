@@ -11,7 +11,7 @@ from app.models.base import utcnow
 from app.models import DailyQuote, DailyQuoteJob, DailyQuoteSelection
 from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest
 from app.services.daily_quote_service import listing, out, save, preview_import, import_items
-from app.services.daily_quote_jobs import enqueue, worker, job_out
+from app.services.daily_quote_jobs import enqueue, worker, job_out, generate_selected_examples
 
 router = APIRouter(prefix='/daily-quotes', tags=['每日金句'])
 
@@ -73,13 +73,36 @@ def get_selection(issue_date: date, admin=Depends(require_permission('rmrb:read'
 
 
 @router.put('/selection')
-def selection(body: QuoteSelectionRequest, admin=Depends(require_permission('rmrb:write')), db: Session = Depends(get_db)):
+def selection(body: QuoteSelectionRequest, background: BackgroundTasks, admin=Depends(require_permission('rmrb:write')), db: Session = Depends(get_db)):
     ids = list(dict.fromkeys(body.quote_ids))
     if len(ids) != db.query(DailyQuote).filter(DailyQuote.id.in_(ids), DailyQuote.review_status == 'confirmed').count():
         return ApiResponse.fail('精选只能选择已确认且存在的金句', code=400)
     db.query(DailyQuoteSelection).filter_by(issue_date=body.issue_date).delete()
     for n, qid in enumerate(ids): db.add(DailyQuoteSelection(issue_date=body.issue_date, quote_id=qid, position=n))
-    db.commit(); return ApiResponse.ok({'selected': len(ids)})
+    db.commit()
+    can_generate = bool(get_settings().llm_enabled and get_settings().llm_api_key)
+    if ids and can_generate: background.add_task(generate_selected_examples, ids)
+    message = '精选已保存；仅为已选金句补充仿写示例' if can_generate else '精选已保存；服务端模型未启用，仿写暂未生成'
+    return ApiResponse.ok({'selected': len(ids), 'examplesQueued': len(ids) if can_generate else 0}, message=message)
+
+
+@router.post('/{quote_id}/examples')
+def generate_examples(quote_id: str, background: BackgroundTasks,
+                      admin=Depends(require_permission('rmrb:write')), db: Session = Depends(get_db)):
+    row = db.get(DailyQuote, quote_id)
+    if row is None: return ApiResponse.fail('金句不存在', code=404)
+    if not row.enabled or row.audit_status != 'passed':
+        return ApiResponse.fail('请先审核通过并启用金句，再生成仿写', code=400)
+    cfg = get_settings()
+    if not cfg.llm_enabled or not cfg.llm_api_key:
+        return ApiResponse.fail('服务端模型未启用，暂不能生成仿写', code=400)
+    attrs = parse(row.attributes_json)
+    if attrs.get('examples'):
+        return ApiResponse.ok({'generated': False, 'existing': True}, message='该金句已有仿写示例')
+    if attrs.get('examplesStatus') == 'generating':
+        return ApiResponse.ok({'generated': False, 'queued': True}, message='仿写正在生成')
+    background.add_task(generate_selected_examples, [quote_id])
+    return ApiResponse.ok({'generated': False, 'queued': True}, message='已提交仿写生成任务')
 
 
 @router.get('/{quote_id}')

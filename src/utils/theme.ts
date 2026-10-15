@@ -118,6 +118,11 @@ function hexRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+/** 供 SVG 等不能继承 CSS 变量的原生内容读取主题正文色。 */
+export function themeTextColor(dark: boolean): string {
+  return (dark ? DARK_SURFACE : LIGHT_SURFACE)['--zk-text-primary']
+}
+
 export type WeappPageTheme = {
   pageStyle: string
   backgroundColor: string

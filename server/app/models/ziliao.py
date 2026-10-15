@@ -99,3 +99,52 @@ class ZiliaoPracticeLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class ZiliaoQuickMethod(Base):
+    """资料分析速算训练方法及其已发布规则。"""
+    __tablename__ = "ziliao_quick_methods"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("zqm"))
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(64))
+    category: Mapped[str] = mapped_column(String(32), default="比较")
+    scene: Mapped[str] = mapped_column(Text, default="")
+    knowledge_path: Mapped[str] = mapped_column(Text, default="")
+    node_title: Mapped[str] = mapped_column(String(64), default="")
+    node_parent: Mapped[str] = mapped_column(String(64), default="")
+    config_json: Mapped[str] = mapped_column(Text, default="{}")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    status: Mapped[str] = mapped_column(String(16), default="draft")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class ZiliaoQuickSession(Base):
+    """速算训练会话；问题快照保证规则更新后历史记录仍可复现。"""
+    __tablename__ = "ziliao_quick_sessions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("zqs"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_users.id"), index=True)
+    mode: Mapped[str] = mapped_column(String(32), default="mixed")
+    method_versions_json: Mapped[str] = mapped_column(Text, default="{}")
+    questions_json: Mapped[str] = mapped_column(Text, default="[]")
+    answers_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    total_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ZiliaoQuickMethodVersion(Base):
+    """不可变的已发布规则快照；回滚会以新版本重新发布。"""
+    __tablename__ = "ziliao_quick_method_versions"
+    __table_args__ = (UniqueConstraint("method_id", "version", name="uq_ziliao_quick_method_version"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("zqv"))
+    method_id: Mapped[str] = mapped_column(ForeignKey("ziliao_quick_methods.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    snapshot_json: Mapped[str] = mapped_column(Text, default="{}")
+    published_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+

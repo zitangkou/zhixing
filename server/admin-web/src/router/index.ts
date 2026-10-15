@@ -209,6 +209,18 @@ const router = createRouter({
           meta: { title: '金句管理', permissions: ['rmrb:read'] },
         },
         {
+          path: 'rmrb-archive/vocabulary',
+          name: 'rmrb-vocabulary',
+          component: () => import('@/views/rmrbArchive/VocabularyMaterials.vue'),
+          meta: { title: '词汇素材', permissions: ['rmrb:read'] },
+        },
+        {
+          path: 'rmrb-archive/shenlun-materials',
+          name: 'rmrb-archive-shenlun-materials',
+          component: () => import('@/views/rmrbArchive/ShenlunMaterials.vue'),
+          meta: { title: '申论素材', permissions: ['rmrb:read'] },
+        },
+        {
           path: 'rmrb-archive/batches',
           name: 'rmrb-archive-batches',
           redirect: '/rmrb-archive/quotes',
@@ -339,6 +351,12 @@ const router = createRouter({
           name: 'image-model-config',
           component: () => import('@/views/toolConfig/ImageModels.vue'),
           meta: { title: '模型配置', permissions: ['setting:read'] },
+        },
+        {
+          path: 'tool-config/llm-usage',
+          name: 'llm-usage',
+          component: () => import('@/views/toolConfig/LlmUsage.vue'),
+          meta: { title: '大模型用量', permissions: ['setting:read'] },
         },
         {
           path: 'tool-config/image-generation-jobs',

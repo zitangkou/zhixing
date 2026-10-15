@@ -3,6 +3,30 @@ import * as d from '../_shared'
 export const apiZiliao = {
   // ===== 资料分析 =====
 
+  listQuickCalcMethods() {
+    return d.request<Array<{ id: string; code: string; name: string; category: string; scene: string; knowledgePath: string; nodeTitle: string; nodeParent: string; config: Record<string, number>; version: number }>>('/api/ziliao/quick-calc/methods')
+  },
+
+  getQuickCalcHistory(limit = 10) {
+    return d.request<{ sessions: Array<{ id: string; mode: string; date: string; correct: number; total: number; seconds: number }>; recommendations: Array<{ code: string; name: string; accuracy: number; attempts: number }> }>(`/api/ziliao/quick-calc/history?limit=${limit}`)
+  },
+
+  retryQuickCalcWrong(sessionId: string, questionIds: string[]) {
+    return d.request<{ id: string; mode: string; questions: Array<Omit<import('@/utils/quickCalc').QuickQuestion, 'answer' | 'check' | 'steps' | 'pitfall'> & { id: string }> }>(`/api/ziliao/quick-calc/sessions/${encodeURIComponent(sessionId)}/retry-wrong`, { method: 'POST', data: { questionIds } })
+  },
+
+  createQuickCalcSession(data: { mode: string; count: number }) {
+    return d.request<{ id: string; mode: string; questions: Array<Omit<import('@/utils/quickCalc').QuickQuestion, 'answer' | 'check' | 'steps' | 'pitfall'> & { id: string }> }>('/api/ziliao/quick-calc/sessions', { method: 'POST', data })
+  },
+
+  answerQuickCalcQuestion(sessionId: string, data: { questionId: string; selected: number; seconds: number }) {
+    return d.request<{ correct: boolean; correctOption: string; steps: import('@/utils/quickCalc').QuickStep[]; pitfall: string }>(`/api/ziliao/quick-calc/sessions/${encodeURIComponent(sessionId)}/answers`, { method: 'POST', data })
+  },
+
+  completeQuickCalcSession(sessionId: string, data: { totalSeconds: number }) {
+    return d.request<{ sessionId: string; total: number; correct: number; seconds: number; completed: boolean }>(`/api/ziliao/quick-calc/sessions/${encodeURIComponent(sessionId)}/complete`, { method: 'POST', data })
+  },
+
   getZiliaoOverview(): Promise<d.ApiRes<d.ZiliaoOverview>> {
     return d.isMock ? d.mockService.getZiliaoOverview() : d.request('/api/ziliao/overview')
   },

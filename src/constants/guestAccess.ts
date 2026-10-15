@@ -15,6 +15,7 @@ const GUEST_EXACT = new Set([
   '/pages/today/index',
   '/pages/index/index',
   '/pages/question/index',
+  '/pages/ziliao/quick-calc',
   '/pages/question/theory-packs',
   '/pages/question/article-pick',
   '/pages/user/index',

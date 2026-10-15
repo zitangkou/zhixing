@@ -92,7 +92,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
 | 时政要点 | TheoryPoint 编排已发布原文及题目；管理接口支持分页查询，Article 保存 brief_json / brief_status，学员端仅取已发布要点。时政套题用 ArticleQuizProgress 保存用户进度与最近作答。 |
-| 人民日报 | 独立每日金句库：DailyQuote、DailyQuoteSelection、DailyQuoteJob；每句结构化属性包含来源、来源文章日期、采集日期、证据、句式、高亮和多个主题仿写。全文只在任务内存中使用，旧档案采集与评估API退役 |
+| 人民日报 | 每日金句库（DailyQuote 等）、词汇素材库（RmrbVocabulary / RmrbVocabularyJob）与申论素材库（ShenlunMaterial）分开管理。词汇素材按刊期和词条指纹去重，JSON 保存主题/使用场景/仿写/逐字原文证据及多来源，采集批次保存进度与错误；候选必须通过原文硬校验且人工审核后采用。申论素材保存来源日期/版面/标题/链接、类型、主题要素、使用场景、事实摘要、原创示例、使用边界、质量分与审核状态；闭集、8/10质量门、案例/语录专属校验由 `services/shenlun_materials.py` 统一实施，首批10月15日筛选结果以待审核状态幂等初始化。 |
 | 用户管理 | 学员账号、积分、状态管理 |
 | 知识框架 | Markdown 上传、树同步、节点维护；工作台可将当前已保存结构化草稿导出为 Markdown、阅读版 HTML（图片引用原资源地址）或 Markmap 渲染 PNG（长边上限 4096 像素） |
 | 学习计划 | 周计划模板维护、同步到待办 |
@@ -157,7 +157,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 知识框架 | `pages/knowledge/index` | `knowledge_service.py`、`knowledge_review_service.py` | Markdown 同步、树状知识点、笔记、星标、掌握度、复习 |
 | 真题套卷 | `pages/exam/*` | `exam_service.py`、`exam_import.py` | 试卷列表、开考、答题、交卷、成绩和历史记录 |
 | 人民日报/申论 | `pages/rmrb/*` | `rmrb_service.py`、`rmrb_meta_service.py`、`shenlun_service.py`、`vocab_inbox_service.py` | 时评 HTML、开采本、词表待收录、骨架模板、阶梯训练 |
-| 资料分析 | `pages/ziliao/*` | `ziliao_service.py` | 公式库、题型库、技巧库、专项练习、结果统计 |
+| 资料分析 | `pages/ziliao/*` | `ziliao_service.py`, `ziliao_quick_calc_service.py` | 公式/题型/技巧、材料练习、速算训练与结果统计 |
 
 ### 4.2 素材积累与能力辅助
 
@@ -201,10 +201,10 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 真题套卷 | `ExamPaper`、`ExamQuestion`、`ExamAttempt`、`ExamAnswer` |
 | 倒计时与行为 | `ExamCountdown`、`ActivityEvent` |
 | 时政 | `TheoryPoint`、`ArticleQuizProgress`；`Article.brief_json` / `brief_status` |
-| 人民日报/申论 | `RmrbArticle`、`DailyQuote`、`DailyQuoteSelection`、`DailyQuoteJob`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
+| 人民日报/申论 | `RmrbArticle`、`DailyQuote`、`DailyQuoteSelection`、`DailyQuoteJob`、`ShenlunMaterial`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
 | 时政/时评 HTML | `Article.content_html`；`RmrbArticle.content_html`；示范 `ShenlunTeachingExample.display_html` |
 | 事件复盘 | `EventImpression` |
-| 语料与资料分析 | `CorpusItem`、`ZiliaoFormula`、`ZiliaoQuestionType`、`ZiliaoTrick`、`ZiliaoPracticeLog` |
+| 语料与资料分析 | `CorpusItem`、`ZiliaoFormula`、`ZiliaoQuestionType`、`ZiliaoTrick`、`ZiliaoPracticeLog`、`ZiliaoQuickMethod`、`ZiliaoQuickMethodVersion`、`ZiliaoQuickSession` |
 | 摄影学习 | `PhotographyStage`、`PhotographyLesson`、`PhotographyCase`（含授权信息、观察/推断、EXIF 和练习任务） |
 
 ## 6. 接口分层
@@ -227,6 +227,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `/api/countdown`：目标考试倒计时（GET/PUT/DELETE）。
 - `/api/rmrb/*`：人民日报/申论。
 - `/api/ziliao/*`：资料分析。
+- `/api/ziliao/quick-calc/*`：速算方法、训练会话、逐题答题、会话完成、个人历史及错题重练。
 - `/api/events/*`、`/api/corpus/*`：事件复盘、语料本。
 
 ### 6.2 管理端 API
@@ -244,6 +245,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 - `/admin/daily-quotes*`：金句列表/详情、录入编辑、JSON导入预检/提交/导出、日期精选、任务状态与手动整理；包含审核与客户端启用状态。读写分别要求rmrb:read / rmrb:write；后台调度独立于已退役全量档案。
 - `/admin/rmrb/*`：时评文章、词表 CRUD、待收录 `/admin/rmrb/vocab-inbox*`、三刀导入。
 - `/admin/ziliao/*`：资料分析资源。
+- `/admin/ziliao/quick-calc/*`：速算规则维护、样题校验/发布和训练效果统计（`ziliao:read` / `ziliao:write`）。
 
 ## 7. 运行与部署
 
@@ -371,5 +373,23 @@ Obsidian Markdown / 管理端上传
 
 
 ### 每日金句部署状态与数据生命周期（2026-10-13）
-新代码已于2026-10-13部署（提交`f641895`）。默认北京时间06:40每日整理，08:00停止自动重试。运行状态用数据库唯一刊期与CAS领取，多进程不重复执行；中断超过2小时可重试。全文不进入业务表、附件或任务日志；仅每句附近必要连续文本作为证据。生产LLM凭据尚未配置，自动任务暂不运行，页面明确提示。
+截至2026-10-13部署版本（提交`f641895`），默认北京时间06:40每日整理，08:00停止自动重试。运行状态用数据库唯一刊期与CAS领取，多进程不重复执行；中断超过2小时可重试。该版本全文不进入业务表、附件或任务日志；仅每句附近必要连续文本作为证据。10月13日时生产LLM凭据尚未配置；10月15日已启用，之后的本地流程变更见下文。
 旧表定义仅留作迁移兼容，当前管理API不再访问。生产旧档案已停服后备份清理；快照位于`data/backups/rmrb-retirement-20261013-214526/`。生产已导入36条金句、72个仿写，全部待核对。
+
+
+### 人民日报素材采集与模型成本优化（2026-10-15，本地实现）
+
+- 金句、词汇和申论素材共用 `RmrbDailyPoolIssue` / `RmrbDailyPoolArticle` 发现纸版版面目录、合并跨版重复链接并缓存正文；正文与完整联合分析结果最长48小时，目录元数据保留7天，由后台小时清理。正式文章档案仍由档案模块负责。
+- 词汇任务默认06:40启动，按不超过24,000字的完整文章批次每篇调用一次联合分析，输出评论类别、最多3条金句、词汇及申论素材候选。三类结果分别执行来源校验、去重与入库；申论素材按闭集、原文证据、8/10质量门和类型规则校验后仅保存为待审核，人工确认前不可用或发布。候选和正文指纹一起缓存，重试时优先复用，金句任务07:10复用评论类别和金句候选；缺失或旧规则缓存才重新分析。金句任务等待联合批次结束，窗口延长至10:00。若生产环境显式设置调度变量，部署时需同步调整为先联合分析、后金句。
+- 金句初筛只生成原句、主题、结构和质量说明，不生成仿写；通过人工审核并进入当天运营精选后，后台按需为已精选金句生成两种主题的作文示例。重复选择不会重复生成已有示例。
+- 明确评论栏目和常见评论栏目直接识别，普通非评论标题不进入金句筛选；少量含评论特征的未知栏目才调用小批量目录分类。`DAILY_QUOTES_INCLUDE_EXTENDED=false` 默认关闭理论/建言/文艺扩展池，可按需开启。联合分析通过原文逐字证据、长度、质量分和直接引语规则后仍须人工审核。
+- `LlmUsageLog` 记录调用模块、模型、状态、token和耗时，不保存提示词/文章正文/模型原始响应；管理端“大模型用量”按中国日期汇总，按配置的每百万token输入/输出单价估算费用。价格为零时只显示token与调用，不伪造费用。
+- 采集失败可重试，已完成词汇文章按进度跳过；内容按刊期及来源去重，不覆盖人工审核结论。新流程只影响后续任务，不自动重算旧记录；生产环境尚待部署。
+
+### 2026-10-15 · 本地速算生成与双端公式渲染
+
+- `src/utils/quickCalc.ts` 是无网络的教学模拟题生成器，按七类方法场景构造数据；`QuickQuestion.check` 保留精确校验参数。四选项去重，比较用整数交叉乘积，计算题按题干指定精度设置唯一答案。
+- `src/pages/ziliao/quick-calc.vue` 承载方法选择、训练、解析与结果；路由位于资料分析分包。服务端 `ziliao_quick_calc_service.py` 按已发布规则生成题目并在逐题提交时判分；`ZiliaoQuickSession` 保存题目快照、规则版本、答案与耗时，支持账号历史和错题重练。统计通过 `activity_service.record_event()` 写 `quick_calc_done`，禁止直接写 `activity_events`。速算训练不进入材料题积分或排行。
+- `LatexBlock` 静态依赖 `formulaRenderer`，由 Taro 解析 `.weapp.ts` / `.h5.ts`；禁止在小程序中动态 import 源码 alias，否则可能留下未解析 require。微信端通过 `@rojer/katex-mini` 和既有 KaTeX 转换为 rich-text nodes，H5 使用 HTML；`MathText` 识别显式行内/块公式及 latex/math/tex 围栏。
+- 依赖覆盖将 katex-mini 的旧 peer 范围绑定至根项目锁定的 KaTeX；该库依赖 KaTeX 内部 DOM API，升级任一依赖后须运行数学/渲染验证脚本。`weappMathChunk` 固定共享引擎在主包，防止主包同步引用资料分包。`weappMathStyles` 读取依赖样式，将字体替换为本地 woff2 data URL 并注入 Taro comp.wxss，不依赖字体 CDN。
+- `scripts/check-quick-calc.mjs` 验证生成答案、条件、选项、公式与暗色根号；`scripts/check-weapp-math.mjs` 检查主包 2MB 限制、同步依赖边界、字体、公式引擎和路由。实现状态为本地，未部署发布；真机视觉验收待做。

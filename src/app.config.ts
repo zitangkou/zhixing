@@ -72,6 +72,7 @@ export default defineAppConfig({
       root: 'pages/ziliao',
       pages: [
         'index',
+        'quick-calc',
         'formulas',
         'formula-detail',
         'types',

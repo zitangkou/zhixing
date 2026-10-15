@@ -57,6 +57,29 @@ export interface ZiliaoTrick {
   isPublished: boolean
 }
 
+export interface QuickCalcMethod {
+  id: string; code: string; name: string; category: string; scene: string
+  knowledgePath: string; nodeTitle: string; nodeParent: string
+  config: { min?: number; max?: number; difficulty?: number }; enabled: boolean
+  status: 'draft' | 'published'; version: number; sortOrder: number
+}
+
+export const listQuickMethods = () => getData<QuickCalcMethod[]>(http.get('/admin/ziliao/quick-calc/methods'))
+export const saveQuickMethod = (data: Partial<QuickCalcMethod>, id?: string) =>
+  getData<QuickCalcMethod>(id
+    ? http.put(`/admin/ziliao/quick-calc/methods/${id}`, data)
+    : http.post('/admin/ziliao/quick-calc/methods', data))
+export const previewQuickMethod = (id: string) =>
+  getData<{ valid: boolean; mathValid: boolean; knowledgeResolved: boolean; validationMessage: string; method: QuickCalcMethod; questions: Record<string, any>[] }>(http.post(`/admin/ziliao/quick-calc/methods/${id}/preview`))
+export const publishQuickMethod = (id: string) =>
+  getData<QuickCalcMethod>(http.post(`/admin/ziliao/quick-calc/methods/${id}/publish`))
+export const listQuickMethodVersions = (id: string) =>
+  getData<Array<{ version: number; publishedAt: string; snapshot: Partial<QuickCalcMethod> }>>(http.get(`/admin/ziliao/quick-calc/methods/${id}/versions`))
+export const rollbackQuickMethod = (id: string, version: number) =>
+  getData<QuickCalcMethod>(http.post(`/admin/ziliao/quick-calc/methods/${id}/rollback/${version}`))
+export const getQuickAnalytics = (days = 30) =>
+  getData<{ days: number; sessions: number; attempts: number; methods: Array<{ method: string; name: string; attempts: number; correct: number; accuracy: number; averageSeconds: number; wrongOptions: Record<string, number> }> }>(http.get(`/admin/ziliao/quick-calc/analytics?days=${days}`))
+
 export const listFormulas = () => getData<ZiliaoFormula[]>(http.get('/admin/ziliao/formulas'))
 export const createFormula = (data: Partial<ZiliaoFormula>) =>
   getData<ZiliaoFormula>(http.post('/admin/ziliao/formulas', data))

@@ -40,7 +40,10 @@ def build_items(db):
         attrs={'text':old.text,'sourceUrl':art.primary_source_url,'articleTitle':art.display_title,'articleDate':art.issue_date.isoformat(),'source':f'人民日报 第{art.page_no}版 · {art.column_label}','author':art.author_line,'evidence':evidence if verified else '',
                'component':component,'topics':parse(old.topics_json,[]),'use':'、'.join(parse(old.use_cases_json,[])),
                'examples':[{'topic':'原有仿写（主题待补）','text':old.application_example}] if old.application_example else [],
-               'reviewStatus':'confirmed' if verified else 'pending'}
+               # 旧系统的 approved 是人工审核通过；只有原文逐字核验通过的记录，
+               # 才能迁移为新库中已审核且可运营的状态。
+               'reviewStatus':'confirmed' if verified else 'pending',
+               'auditStatus':'passed' if verified else 'pending','enabled':verified}
         collected=old.created_at.date()
         normalize(attrs,collected)  # 无法迁移时阻止整个清理，不能悄悄丢金句。
         items.append((attrs,collected,old.reviewed_by,old.reviewed_at))

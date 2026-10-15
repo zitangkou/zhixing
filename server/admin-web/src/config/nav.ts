@@ -51,6 +51,8 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Reading,
     children: [
       { path: '/rmrb-archive/quotes', title: '金句管理', icon: Tickets, permissions: ['rmrb:read'] },
+      { path: '/rmrb-archive/vocabulary', title: '词汇素材', icon: Reading, permissions: ['rmrb:read'] },
+      { path: '/rmrb-archive/shenlun-materials', title: '申论素材', icon: Reading, permissions: ['rmrb:read'] },
     ],
   },
   {
@@ -128,6 +130,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/tool-config/copy', title: '文案配置', icon: Document, permissions: ['setting:read'] },
       { path: '/tool-config/images', title: '图片配置', icon: Collection, permissions: ['setting:read'] },
       { path: '/tool-config/models', title: '模型配置', icon: Cpu, permissions: ['setting:read'] },
+      { path: '/tool-config/llm-usage', title: '大模型用量', icon: DataAnalysis, permissions: ['setting:read'] },
       { path: '/tool-config/image-generation-jobs', title: '图片生成记录', icon: Tickets, permissions: ['setting:read'] },
     ],
   },
@@ -168,6 +171,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/tool-config/copy': '文案配置',
   '/tool-config/images': '图片配置',
   '/tool-config/models': '模型配置',
+  '/tool-config/llm-usage': '大模型用量',
   '/tool-config/image-generation-jobs': '图片生成记录',
   '/knowledge': '知识框架',
   '/knowledge-library': '知库文档',
@@ -187,6 +191,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/rmrb-archive/peopleapp-opinions': '客户端评论 / 金句',
   '/rmrb-archive/quote-operations': '金句运营库',
   '/rmrb-archive/quotes': '金句管理',
+  '/rmrb-archive/vocabulary': '词汇素材',
+  '/rmrb-archive/shenlun-materials': '申论素材',
   '/rmrb-archive/batches': '采集批次',
   '/rmrb/import': '三刀导入',
   '/rmrb/term-categories': '规范词分类',

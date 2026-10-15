@@ -146,7 +146,7 @@ JSON 字段：classification={{primaryType,secondaryTypes,confidence,reason}}；
 <article>
 {body}
 </article>"""
-    result = _validate_result(chat_json(SYSTEM_PROMPT, prompt))
+    result = _validate_result(chat_json(SYSTEM_PROMPT, prompt, purpose='rmrb_archive_article_evaluation'))
     source_compact = re.sub(r"\s+", "", body)
     evidence = result["evidence"]
     if len(evidence) < 2:

@@ -6,11 +6,9 @@ import 'katex/dist/katex.min.css'
 export function renderLatex(tex: string, opts?: { displayMode?: boolean }): string {
   const src = (tex || '').trim()
   if (!src) return ''
-  // 旧数据：中文可读式写在 latex 字段，无 TeX 命令
-  if (!src.includes('\\') && !/[$_^]/.test(src)) return ''
   try {
     return katex.renderToString(src, {
-      throwOnError: false,
+      throwOnError: true,
       strict: 'ignore',
       displayMode: opts?.displayMode !== false,
       output: 'html',

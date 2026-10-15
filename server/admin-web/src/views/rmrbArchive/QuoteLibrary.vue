@@ -3,7 +3,7 @@
     <header>
       <div>
         <h2>金句管理</h2>
-        <p>先审核是否符合金句素材，通过后再启用，学员端才会显示。</p>
+        <p>先审核是否符合金句素材，通过后再启用；仿写可在确认运营用途时按需生成。</p>
       </div>
       <div class="actions">
         <el-button v-if="canWrite" :loading="running" @click="run">整理今日</el-button>
@@ -39,12 +39,13 @@
       <el-table-column label="启用" width="90">
         <template #default="{ row }">{{ row.enabled ? '已启用' : '未启用' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="220">
+      <el-table-column label="操作" width="340">
         <template #default="{ row }">
           <el-button link @click="edit(row)">编辑</el-button>
           <el-button link @click="audit(row)">审核</el-button>
           <el-button v-if="!row.enabled" link type="primary" @click="enable(row)">启用</el-button>
-          <el-button v-else link @click="disable(row)">停用</el-button>
+          <el-button v-if="canWrite && row.enabled && !row.examples.length" link type="primary" :disabled="row.examplesStatus === 'generating'" @click="generateExamples(row)">{{ row.examplesStatus === 'generating' ? '生成中' : row.examplesStatus === 'failed' ? '重试仿写' : '生成仿写' }}</el-button>
+          <el-button v-if="row.enabled" link @click="disable(row)">停用</el-button>
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -155,6 +156,16 @@ async function save() {
     ElMessage.error(e instanceof Error ? e.message : '保存失败')
   } finally {
     saving.value = false
+  }
+}
+
+async function generateExamples(row: api.DailyQuote) {
+  try {
+    await api.generateExamples(row.id)
+    ElMessage.success('已提交仿写生成；稍后刷新查看')
+    await load()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '提交失败')
   }
 }
 

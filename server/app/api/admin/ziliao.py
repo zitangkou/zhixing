@@ -1,7 +1,84 @@
 from app.api.admin._deps import *  # noqa: F401,F403
+from app.schemas import ZiliaoQuickMethodUpsert
 
 router = APIRouter()
 # ===== 资料分析管理 =====
+
+
+@router.get("/ziliao/quick-calc/methods")
+def admin_quick_methods(_admin=Depends(require_permission("ziliao:read")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import list_methods
+    return ApiResponse.ok(list_methods(db))
+
+
+@router.post("/ziliao/quick-calc/methods")
+def admin_quick_method_create(body: ZiliaoQuickMethodUpsert, _admin=Depends(require_permission("ziliao:write")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import upsert_method
+    try:
+        return ApiResponse.ok(upsert_method(db, body))
+    except ValueError as exc:
+        return ApiResponse.fail(str(exc), code=400)
+
+
+@router.put("/ziliao/quick-calc/methods/{method_id}")
+def admin_quick_method_update(method_id: str, body: ZiliaoQuickMethodUpsert, _admin=Depends(require_permission("ziliao:write")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import upsert_method
+    try:
+        result = upsert_method(db, body, method_id)
+        return ApiResponse.ok(result) if result else ApiResponse.fail("训练方法不存在", code=404)
+    except ValueError as exc:
+        return ApiResponse.fail(str(exc), code=400)
+
+
+@router.post("/ziliao/quick-calc/methods/{method_id}/preview")
+def admin_quick_method_preview(method_id: str, _admin=Depends(require_permission("ziliao:read")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import preview
+    methods = {x["id"]: x["code"] for x in list_ziliao_quick_methods(db)}
+    code = methods.get(method_id)
+    if not code:
+        return ApiResponse.fail("训练方法不存在", code=404)
+    try:
+        return ApiResponse.ok(preview(db, code))
+    except (ValueError, AssertionError) as exc:
+        return ApiResponse.fail(f"规则校验失败：{exc}", code=400)
+
+
+@router.post("/ziliao/quick-calc/methods/{method_id}/publish")
+def admin_quick_method_publish(method_id: str, _admin=Depends(require_permission("ziliao:write")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import publish_method
+    try:
+        result = publish_method(db, method_id)
+        return ApiResponse.ok(result) if result else ApiResponse.fail("训练方法不存在", code=404)
+    except (ValueError, AssertionError) as exc:
+        return ApiResponse.fail(f"发布校验失败：{exc}", code=400)
+
+
+@router.get("/ziliao/quick-calc/methods/{method_id}/versions")
+def admin_quick_method_versions(method_id: str, _admin=Depends(require_permission("ziliao:read")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import list_method_versions
+    result = list_method_versions(db, method_id)
+    return ApiResponse.ok(result) if result is not None else ApiResponse.fail("训练方法不存在", code=404)
+
+
+@router.post("/ziliao/quick-calc/methods/{method_id}/rollback/{version_number}")
+def admin_quick_method_rollback(method_id: str, version_number: int, _admin=Depends(require_permission("ziliao:write")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import rollback_method
+    try:
+        result = rollback_method(db, method_id, version_number)
+        return ApiResponse.ok(result) if result else ApiResponse.fail("训练方法或版本不存在", code=404)
+    except (ValueError, AssertionError) as exc:
+        return ApiResponse.fail(f"回滚发布失败：{exc}", code=400)
+
+
+@router.get("/ziliao/quick-calc/analytics")
+def admin_quick_analytics(days: int = Query(30, ge=1, le=365), _admin=Depends(require_permission("ziliao:read")), db: Session = Depends(get_db)):
+    from app.services.ziliao_quick_calc_service import analytics
+    return ApiResponse.ok(analytics(db, days))
+
+
+def list_ziliao_quick_methods(db: Session):
+    from app.services.ziliao_quick_calc_service import list_methods
+    return list_methods(db)
 
 
 @router.get("/ziliao/formulas")

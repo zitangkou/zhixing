@@ -30,6 +30,14 @@ async def lifespan(_app: FastAPI):
     db = SessionLocal()
     try:
         seed_if_empty(db)
+        from app.services.rmrb_vocabulary_service import seed_vocabulary, recover_jobs
+        recover_jobs(db)
+        seed_vocabulary(db)
+        try:
+            from app.services.shenlun_materials import seed_curated_materials
+            seed_curated_materials(db)
+        except Exception as e:
+            print(f"[shenlun-materials] 首批素材初始化失败: {e}")
         try:
             from app.services.image_style_service import ensure_image_style_setting
 
@@ -68,19 +76,24 @@ async def lifespan(_app: FastAPI):
         while True:
             cleanup_expired_image_results()
             prune_old_image_jobs()
+            from app.services.rmrb_daily_pool import prune_expired_bodies
+            prune_expired_bodies()
             await asyncio.sleep(60 * 60)
 
     cleanup_task = asyncio.create_task(cleanup_image_results_loop())
     from app.services.daily_quote_jobs import scheduler
 
     rmrb_scheduler_task = asyncio.create_task(scheduler())
+    from app.services.rmrb_vocabulary_service import scheduler as vocabulary_scheduler
+    rmrb_vocabulary_scheduler_task = asyncio.create_task(vocabulary_scheduler())
     try:
         yield
     finally:
         cleanup_task.cancel()
         rmrb_scheduler_task.cancel()
+        rmrb_vocabulary_scheduler_task.cancel()
         try:
-            await asyncio.gather(cleanup_task, rmrb_scheduler_task, return_exceptions=True)
+            await asyncio.gather(cleanup_task, rmrb_scheduler_task, rmrb_vocabulary_scheduler_task, return_exceptions=True)
         except asyncio.CancelledError:
             pass
 

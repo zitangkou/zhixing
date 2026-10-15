@@ -68,6 +68,7 @@ from app.schemas.ziliao import (
     ZiliaoDrillSubmitOut, ZiliaoDrillWrongItem, ZiliaoFormulaCreate, ZiliaoFormulaImportBody, ZiliaoFormulaImportResult,
     ZiliaoFormulaOut, ZiliaoFormulaUpdate, ZiliaoOverviewOut, ZiliaoQuestionTypeCreate,
     ZiliaoQuestionTypeOut, ZiliaoQuestionTypeUpdate, ZiliaoTrickCreate, ZiliaoTrickOut, ZiliaoTrickUpdate, ZiliaoWeakTypeOut,
+    ZiliaoQuickMethodUpsert, ZiliaoQuickSessionCreate, ZiliaoQuickAnswerIn, ZiliaoQuickCompleteIn, ZiliaoQuickRetryIn,
 )
 from app.schemas.countdown import ExamCountdownOut, ExamCountdownUpsert
 from app.schemas.library_document import LibraryDocumentDetailOut, LibraryDocumentOut
@@ -97,3 +98,4 @@ from app.schemas.wechat_reply import (
 from app.schemas.image_style import ImageModelConfig, ImageModelConfigOut, ImageModelConfigUpdate, ImageStyleConfigOut, ImageStylePreset
 from app.schemas.photography import PhotographyCaseInput, PhotographyLessonInput, PhotographyStageInput
 from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest
+from app.schemas.shenlun_materials import ShenlunMaterialImport, ShenlunMaterialSave

@@ -155,7 +155,7 @@
         <text class="detail-path">{{ detailNode?.path.replace(/\//g, ' / ') }}</text>
         <template v-if="detailBlocks.length">
           <view v-for="(block, index) in detailBlocks" :key="index" class="content-block">
-            <text v-if="block.type === 'text'" class="block-text">{{ block.text }}</text>
+            <MathText v-if="block.type === 'text'" :text="block.text" />
             <view v-else-if="block.type === 'formula'" class="formula-box">
               <LatexBlock :latex="block.latex" :plain="block.plain" :show-plain="true" />
             </view>
@@ -164,8 +164,8 @@
               <text v-if="block.alt" class="block-caption">{{ block.alt }}</text>
             </view>
             <view v-else-if="block.type === 'example'">
-              <text class="block-label">例题</text><text class="block-text">{{ block.question }}</text>
-              <text v-if="block.answer" class="block-label answer-label">解析</text><text v-if="block.answer" class="block-text">{{ block.answer }}</text>
+              <text class="block-label">例题</text><MathText :text="block.question" />
+              <text v-if="block.answer" class="block-label answer-label">解析</text><MathText v-if="block.answer" :text="block.answer" />
             </view>
           </view>
         </template>
@@ -180,6 +180,7 @@ import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import { Popup as NutPopup } from '@nutui/nutui-taro'
 import LatexBlock from '@/components/LatexBlock.vue'
+import MathText from '@/components/MathText.vue'
 import { useKnowledgeStore } from '@/store/knowledge'
 import { resolveMediaUrl } from '@/utils/media'
 import { showToast } from '@/utils/platform'
@@ -352,8 +353,25 @@ async function refresh() {
 onMounted(async () => {
   await refresh()
   pageReady.value = true
-  const key = router.params?.treeKey
-  if (key && maps.value.some((m) => m.treeKey === key)) await selectTree(key)
+  const decodeParam = (value?: string) => {
+    try { return decodeURIComponent(value || '') } catch { return value || '' }
+  }
+  const key = decodeParam(router.params?.treeKey)
+  if (key && maps.value.some((m) => m.treeKey === key)) {
+    await selectTree(key)
+    // 训练页通过节点名称与上级分类定位，兼容重新发布后节点 ID 改变。
+    const title = decodeParam(router.params?.nodeTitle)
+    const parent = decodeParam(router.params?.nodeParent)
+    if (title) {
+      const normalize = (value: string) => value.replace(/[（(][^）)]*[）)]/g, '').replace(/\s/g, '')
+      const found = [...nodeMap.value.values()].filter((node) =>
+        normalize(node.title) === normalize(title) &&
+        (!parent || node.path.split('/').some((part) => normalize(part) === normalize(parent))),
+      )
+      if (found.length === 1) enterNode(found[0])
+      else query.value = title
+    }
+  }
 })
 useDidShow(() => {
   if (pageReady.value) void refresh()

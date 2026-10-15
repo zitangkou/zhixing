@@ -468,6 +468,8 @@ def run_compat_migrations() -> None:
     _ensure_ziliao_formula_plain_column()
     _ensure_content_ops_columns()
     _ensure_rmrb_comment_review_columns()
+    _ensure_rmrb_vocabulary_attempts()
+    _ensure_rmrb_daily_pool_columns()
 
 
 def _ensure_rmrb_comment_review_columns() -> None:
@@ -515,3 +517,36 @@ def _ensure_rmrb_archive_editor_column() -> None:
         with engine.begin() as conn:
             for statement in alters:
                 conn.execute(text(statement))
+
+
+def _ensure_rmrb_vocabulary_attempts() -> None:
+    """为已创建的词汇采集批次表补充重试计数。"""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if not insp.has_table("rmrb_vocabulary_jobs"):
+        return
+    cols = {c["name"] for c in insp.get_columns("rmrb_vocabulary_jobs")}
+    if "attempts" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE rmrb_vocabulary_jobs ADD COLUMN attempts INTEGER DEFAULT 0"))
+
+
+def _ensure_rmrb_daily_pool_columns() -> None:
+    """当日共享采集池的兼容字段。"""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if not insp.has_table("rmrb_daily_pool_articles"):
+        return
+    cols = {c["name"] for c in insp.get_columns("rmrb_daily_pool_articles")}
+    if "page_refs_json" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE rmrb_daily_pool_articles ADD COLUMN page_refs_json TEXT DEFAULT '[]'"))
+    adds = {
+        "analysis_json": "ALTER TABLE rmrb_daily_pool_articles ADD COLUMN analysis_json TEXT DEFAULT '{}'",
+        "analysis_body_sha256": "ALTER TABLE rmrb_daily_pool_articles ADD COLUMN analysis_body_sha256 VARCHAR(64) DEFAULT ''",
+        "analysis_rule_version": "ALTER TABLE rmrb_daily_pool_articles ADD COLUMN analysis_rule_version VARCHAR(32) DEFAULT ''",
+    }
+    with engine.begin() as conn:
+        for name, sql in adds.items():
+            if name not in cols:
+                conn.execute(text(sql))
