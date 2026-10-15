@@ -121,6 +121,9 @@ def save_joint_ai_candidates(db, candidates: list[dict], article: dict, collecte
                 raise ValueError('候选格式错误')
             item = dict(candidate)
             item_type = item.get('type')
+            theme_code = str(item.get('theme_code') or '')
+            if theme_code not in RULES['themes'] and theme_code[:2] in RULES['themes']:
+                item['theme_code'] = theme_code[:2]
             evidence = str(item.get('source_evidence') or '').strip()
             anchor = str(item.get('source_anchor') or '').strip()
             if not evidence or len(evidence) > 800 or evidence not in body:
@@ -145,7 +148,12 @@ def save_joint_ai_candidates(db, candidates: list[dict], article: dict, collecte
             })
             breakdown = item.get('quality_breakdown')
             if not isinstance(breakdown, dict) or set(breakdown) != set(weights):
-                raise ValueError('质量评分未覆盖全部维度')
+                # 提示词允许附带 total 展示字段，入库评分仍以七项权重之和为准。
+                if isinstance(breakdown, dict) and set(breakdown) == set(weights) | {'total'}:
+                    breakdown = {key: value for key, value in breakdown.items() if key in weights}
+                    item['quality_breakdown'] = breakdown
+                else:
+                    raise ValueError('质量评分未覆盖全部维度')
             if any(type(v) is not int or v < 0 or v > weights[k] for k, v in breakdown.items()):
                 raise ValueError('质量维度评分超出范围')
             score = sum(breakdown.values())

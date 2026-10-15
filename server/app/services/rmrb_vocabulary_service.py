@@ -40,8 +40,15 @@ def job_out(job):
 def save_candidates(db, issue_date, items, articles, method='ai'):
     sources={a['url']:a for a in articles}; added=skipped=invalid=0
     for item in items:
-        phrase=str(item.get('phrase','')).strip(); context=str(item.get('exactContext','')).strip()
-        article=sources.get(item.get('url')); kind=item.get('kind')
+        # 兼容联合分析提示词中的标准字段名；对外 schema 仍统一为管理端既有格式。
+        phrase=str(item.get('phrase','')).strip(); context=str(item.get('exactContext') or item.get('exact_context') or '').strip()
+        if not item.get('meaning') and item.get('definition'):
+            item['meaning']=item['definition']
+        if not item.get('topics') and item.get('theme'):
+            item['topics']=[item['theme']] if isinstance(item['theme'],str) else item['theme']
+        if not item.get('useCases') and item.get('usageScene'):
+            item['useCases']=[item['usageScene']] if isinstance(item['usageScene'],str) else item['usageScene']
+        article=sources.get(item.get('url')); kind=item.get('kind') or item.get('type')
         kind_alias={'成语':'idiom','熟语':'expression','固定熟语':'expression','固定表达':'expression','政策概念':'term','重点词语':'term','高质量搭配':'term'}
         kind=kind_alias.get(kind,kind)
         if not article or not 2<=len(phrase)<=40 or kind not in RULES['kinds'] or not context or phrase not in context or context not in article['body'] or not isinstance(item.get('topics'),list) or not item['topics'] or not isinstance(item.get('useCases'),list) or not item['useCases'] or not all(isinstance(item.get(k),str) and item[k].strip() for k in ('meaning','sample')):
@@ -159,7 +166,8 @@ def run_job(job_id):
                 if article['url'] in completed:
                     continue
                 analysis=analysis_by_url[article['url']]
-                save_sources=article['_aliases']
+                # 别名用于覆盖同文多版面的目录链接，但校验必须保留完整正文。
+                save_sources=[{**article, **alias} for alias in article['_aliases']]
                 vocabulary_items=[{**item,'url':alias['url']}
                                   for item in analysis['vocabulary'] if isinstance(item,dict)
                                   for alias in article['_aliases']]

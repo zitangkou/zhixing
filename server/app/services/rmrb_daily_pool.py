@@ -45,7 +45,9 @@ def discover_issue(issue_date:date,force=False):
     now=utcnow()
     with SessionLocal() as db:
         issue=db.get(RmrbDailyPoolIssue,issue_date)
-        if issue and issue.status=='ready' and not force and issue.discovered_at and issue.discovered_at>now-timedelta(hours=8):
+        discovered_at = issue.discovered_at.replace(tzinfo=None) if issue and issue.discovered_at and issue.discovered_at.tzinfo else (issue.discovered_at if issue else None)
+        comparable_now = now.replace(tzinfo=None) if now.tzinfo else now
+        if issue and issue.status=='ready' and not force and discovered_at and discovered_at>comparable_now-timedelta(hours=8):
             return {'issueDate':issue_date.isoformat(),'pages':issue.page_count,'articles':issue.article_count,'failures':json.loads(issue.failures_json or '[]'),'cached':True}
     layout_url,html=_fetch_layout(issue_date)
     pages=_parse_index(issue_date,html,layout_url)
@@ -96,7 +98,10 @@ def get_article_content(issue_date:date,url:str,force=False):
             row=db.query(RmrbDailyPoolArticle).filter_by(issue_date=issue_date,source_url=canonical).first()
         if row is None:raise ValueError('文章不在人民日报当日采集目录中')
         now=utcnow()
-        if not force and row.body_text and row.expires_at and row.expires_at>now:
+        # SQLite DateTime 会丢失 tzinfo；统一按项目约定的北京时间墙上时间比较。
+        expires_at = row.expires_at.replace(tzinfo=None) if row.expires_at and row.expires_at.tzinfo else row.expires_at
+        comparable_now = now.replace(tzinfo=None) if now.tzinfo else now
+        if not force and row.body_text and expires_at and expires_at>comparable_now:
             return {'url':row.source_url,'title':row.title,'pageNo':row.page_no,'pageName':row.page_name,
                     'body':row.body_text,'paragraphs':json.loads(row.paragraphs_json or '[]'),'author':row.author,
                     'bodySha256':row.body_sha256,'cached':True}
