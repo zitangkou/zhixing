@@ -61,6 +61,7 @@ export interface QuickCalcMethod {
   id: string; code: string; name: string; category: string; scene: string
   knowledgePath: string; nodeTitle: string; nodeParent: string
   config: { min?: number; max?: number; difficulty?: number }; enabled: boolean
+  knowledgeResolved: boolean
   status: 'draft' | 'published'; version: number; sortOrder: number
 }
 

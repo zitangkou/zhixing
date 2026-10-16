@@ -21,15 +21,20 @@
           <el-table-column label="规则范围" width="140">
             <template #default="{ row }">{{ row.config.min }}–{{ row.config.max }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }"><el-tag :type="row.status === 'published' ? 'success' : 'warning'">{{ row.status === 'published' ? `已发布 v${row.version}` : '草稿' }}</el-tag></template>
+          <el-table-column label="状态" width="170">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'published' ? 'success' : 'warning'">{{ row.status === 'published' ? `已发布 v${row.version}` : '草稿' }}</el-tag>
+              <el-tooltip v-if="!row.knowledgeResolved" content="知识框架关联路径无效，编辑高级设置后再预览发布" placement="top">
+                <el-tag class="validation-tag" type="danger">知识关联异常</el-tag>
+              </el-tooltip>
+            </template>
           </el-table-column>
           <el-table-column label="操作" width="280" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="edit(row)">编辑</el-button>
               <el-button link type="primary" @click="preview(row)">预览校验</el-button>
               <el-button link type="primary" @click="showVersions(row)">版本</el-button>
-              <el-button link type="success" :disabled="!row.enabled || row.status === 'published'" @click="publish(row)">发布</el-button>
+              <el-button link type="success" :disabled="!row.enabled || row.status === 'published' || !row.knowledgeResolved" @click="publish(row)">发布</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -127,7 +132,8 @@ const activeVersion = ref(0)
 const versionsMethodId = ref('')
 const form = reactive({ code: '', name: '', category: '比较', scene: '', knowledgePath: '', nodeTitle: '', nodeParent: '', config: { min: 1000, max: 9000, difficulty: 2 }, enabled: true, sortOrder: 0 })
 
-async function loadMethods() { loading.value = true; try { methods.value = await listQuickMethods() } catch { ElMessage.error('训练方法加载失败') } finally { loading.value = false } }
+function errorMessage(error: unknown, fallback: string) { return error instanceof Error ? error.message : fallback }
+async function loadMethods() { loading.value = true; try { methods.value = await listQuickMethods() } catch (error) { ElMessage.error(errorMessage(error, '训练方法加载失败')) } finally { loading.value = false } }
 async function loadAnalytics() { analyticsLoading.value = true; try { analytics.value = await getQuickAnalytics(days.value) } catch { ElMessage.error('训练统计加载失败') } finally { analyticsLoading.value = false } }
 function edit(row: QuickCalcMethod) {
   currentId.value = row.id
@@ -138,18 +144,18 @@ async function save() {
   if (form.config.min >= form.config.max) { ElMessage.error('数值上限必须大于下限'); return }
   saving.value = true
   try { await saveQuickMethod({ ...form }, currentId.value); editVisible.value = false; ElMessage.success('已保存为草稿，请预览校验后发布'); await loadMethods() }
-  catch { ElMessage.error('训练方法保存失败') }
+  catch (error) { ElMessage.error(errorMessage(error, '训练方法保存失败')) }
   finally { saving.value = false }
 }
 async function preview(row: QuickCalcMethod) {
   try { previewResult.value = await previewQuickMethod(row.id); previewVisible.value = true }
-  catch { ElMessage.error('样题生成或规则校验失败') }
+  catch (error) { ElMessage.error(errorMessage(error, '样题生成或规则校验失败')) }
 }
 async function publish(row: QuickCalcMethod) {
   try { await ElMessageBox.confirm(`发布「${row.name}」的新版本？发布后学员端将使用该规则出题。`, '发布确认') }
   catch { return }
   try { await publishQuickMethod(row.id); ElMessage.success('规则已发布'); await loadMethods() }
-  catch { ElMessage.error('规则发布失败，请先检查样题和启用状态') }
+  catch (error) { ElMessage.error(errorMessage(error, '规则发布失败')) }
 }
 async function showVersions(row: QuickCalcMethod) {
   versionsMethodId.value = row.id
@@ -182,6 +188,7 @@ onMounted(() => { void loadMethods(); void loadAnalytics() })
 .tip { color: var(--el-text-color-secondary); font-size: 13px; }
 .preview-card { margin-top: 14px; }
 .preview-meta { margin-top: 14px; }
+.validation-tag { margin-left: 6px; }
 .formula { margin: 12px 0; font-family: ui-monospace, monospace; font-size: 16px; }
 .plain { color: var(--el-text-color-secondary); font-size: 13px; }
 li { margin: 8px 0; }

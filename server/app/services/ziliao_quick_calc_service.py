@@ -13,10 +13,10 @@ from app.services.activity_service import record_event
 from app.timezone import now
 
 METHODS = [
-    dict(code="direct", name="分数性质", category="比较", scene="分子更大、分母更小，直接判定。", knowledgePath="资料分析 / 快速比较 / 大小比较", nodeTitle="大小比较", nodeParent="快速比较", sortOrder=10),
-    dict(code="difference", name="差分比较", category="比较", scene="分子分母同向变大且差值简单，比较差分数与原分数。", knowledgePath="资料分析 / 快速比较 / 大小比较 / 差分比较", nodeTitle="差分比较", nodeParent="大小比较", sortOrder=20),
-    dict(code="position", name="同位比较", category="比较", scene="分子和分母跨过同一倍数界线的方向相反。", knowledgePath="资料分析 / 快速比较 / 大小比较 / 同位比较", nodeTitle="同位比较", nodeParent="大小比较", sortOrder=30),
-    dict(code="split", name="分母拆分", category="比较", scene="两个正分数接近 1，转为部分与剩余后比较。", knowledgePath="资料分析 / 快速比较 / 大小比较 / 分母拆分（分子分母接近）", nodeTitle="分母拆分（分子分母接近）", nodeParent="大小比较", sortOrder=40),
+    dict(code="direct", name="分数性质", category="比较", scene="分子更大、分母更小，直接判定。", knowledgePath="资料分析 / 快速比较方法", nodeTitle="快速比较方法", nodeParent="资料分析", sortOrder=10),
+    dict(code="difference", name="差分比较", category="比较", scene="分子分母同向变大且差值简单，比较差分数与原分数。", knowledgePath="资料分析 / 快速比较方法 / 差分比较", nodeTitle="差分比较", nodeParent="快速比较方法", sortOrder=20),
+    dict(code="position", name="同位比较", category="比较", scene="分子和分母跨过同一倍数界线的方向相反。", knowledgePath="资料分析 / 快速比较方法 / 同位比较", nodeTitle="同位比较", nodeParent="快速比较方法", sortOrder=30),
+    dict(code="split", name="分母拆分", category="比较", scene="两个正分数接近 1，转为部分与剩余后比较。", knowledgePath="资料分析 / 快速比较方法 / 分母拆分", nodeTitle="分母拆分", nodeParent="快速比较方法", sortOrder=40),
     dict(code="growth-amount", name="增长量 · n＋1", category="计算", scene="正增长率为 1/n，增长量＝现期量 / (n＋1)。", knowledgePath="资料分析 / 增长 / 增长量（X）", nodeTitle="增长量（X）", nodeParent="增长", sortOrder=50),
     dict(code="growth-rate", name="增长率", category="计算", scene="已知现期量、基期量，先求差，再除以基期量。", knowledgePath="资料分析 / 增长 / 增长率（R）", nodeTitle="增长率（R）", nodeParent="增长", sortOrder=60),
     dict(code="base", name="基期量", category="计算", scene="现期量＝基期量×(1＋增长率)，逆推基期量。", knowledgePath="资料分析 / 增长 / 基期值（A）", nodeTitle="基期值（A）", nodeParent="增长", sortOrder=70),
@@ -45,8 +45,23 @@ def _snapshot(row: ZiliaoQuickMethod) -> dict:
 
 def ensure_seeded(db: Session) -> None:
     known = {x.code for x in db.query(ZiliaoQuickMethod.code).all()}
+    # 只修复旧版默认数据中的已知路径错误；不触碰发布记录或管理员自行修改过的关联。
+    legacy_paths = {
+        "direct": "资料分析 / 快速比较 / 大小比较",
+        "difference": "资料分析 / 快速比较 / 大小比较 / 差分比较",
+        "position": "资料分析 / 快速比较 / 大小比较 / 同位比较",
+        "split": "资料分析 / 快速比较 / 大小比较 / 分母拆分（分子分母接近）",
+    }
     for item in METHODS:
         if item["code"] in known:
+            row = db.query(ZiliaoQuickMethod).filter_by(code=item["code"], status="draft").first()
+            old_path = legacy_paths.get(item["code"])
+            if row and old_path and row.knowledge_path in {
+                old_path, old_path.replace(" / 快速比较 / ", " / 快速比较方法 / ")
+            }:
+                row.knowledge_path = item["knowledgePath"]
+                row.node_title = item["nodeTitle"]
+                row.node_parent = item["nodeParent"]
             continue
         db.add(ZiliaoQuickMethod(
             code=item["code"], name=item["name"], category=item["category"], scene=item["scene"],
@@ -69,7 +84,7 @@ def list_methods(db: Session, *, published_only: bool = False) -> list[dict]:
     if published_only:
         q = q.filter(ZiliaoQuickMethod.status == "published", ZiliaoQuickMethod.enabled.is_(True))
     rows = q.order_by(ZiliaoQuickMethod.sort_order, ZiliaoQuickMethod.code).all()
-    return [_out(row) for row in rows]
+    return [{**_out(row), "knowledgeResolved": _knowledge_path_resolves(db, row.knowledge_path)} for row in rows]
 
 
 def upsert_method(db: Session, data: ZiliaoQuickMethodUpsert, method_id: str | None = None) -> dict | None:
