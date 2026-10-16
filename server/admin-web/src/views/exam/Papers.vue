@@ -13,9 +13,9 @@
       </div>
       <div style="margin-top: 6px">
         资料分析导入规范：仓库
-        <code>server/data/ziliao/IMPORT.md</code>
+        <code>server/app/seed_data/ziliao/IMPORT.md</code>
         ；可导入示例卷
-        <code>server/data/ziliao/examples/guokao-style-sample.md</code>
+        <code>server/app/seed_data/ziliao/examples/guokao-style-sample.md</code>
         。有真题后，H5 练习池会自动排除系统样例卷。
       </div>
     </el-alert>

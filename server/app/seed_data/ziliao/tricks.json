@@ -1,0 +1,122 @@
+[
+  {
+    "code": "K001",
+    "name": "首数法",
+    "category": "直除",
+    "principle": "只看商的前几位数字，快速锁定选项。",
+    "when_to_use": "选项首位不同、或差距较大的除法题",
+    "when_not": "选项非常接近、需精确到后两位时",
+    "error_note": "一般可保证首位正确；接近选项需结合截位",
+    "formula_codes": ["F001", "F005", "F008", "F009"],
+    "example": "150÷998 ≈ 150÷1000 = 0.15，直接选约 15%",
+    "sort_order": 1
+  },
+  {
+    "code": "K002",
+    "name": "截位直除",
+    "category": "直除",
+    "principle": "分子分母同时截取前几位再除，提高速度。",
+    "when_to_use": "多位数除法、增长率估算",
+    "when_not": "选项极度接近且截位后无法区分",
+    "error_note": "截位位数越多越准，通常截 2～3 位",
+    "formula_codes": ["F001", "F002", "F003", "F005"],
+    "example": "12345÷67890 ≈ 123÷679 ≈ 0.18",
+    "sort_order": 2
+  },
+  {
+    "code": "K003",
+    "name": "估算法",
+    "category": "估算",
+    "principle": "把复杂百分数近似成好算的分数或整数。",
+    "when_to_use": "增长率不大、选项间隔宽",
+    "when_not": "需要精确比较接近值",
+    "error_note": "注意估算方向，避免系统性偏大/偏小",
+    "formula_codes": ["F001", "F004"],
+    "example": "增长 9.8% ≈ 10%，现期≈基期×1.1",
+    "sort_order": 3
+  },
+  {
+    "code": "K004",
+    "name": "百分数转分数",
+    "category": "换算",
+    "principle": "熟记常见百分数对应分数，加速心算。",
+    "when_to_use": "增长量=现期×r/(1+r) 等",
+    "when_not": "百分数很怪、无近似分数",
+    "error_note": "12.5%=1/8，16.7%≈1/6，33.3%≈1/3",
+    "formula_codes": ["F002"],
+    "example": "现期 800，增速 25% → 增长量=800×1/5=160",
+    "sort_order": 4
+  },
+  {
+    "code": "K005",
+    "name": "化同法",
+    "category": "基期",
+    "principle": "把分母化成相同再比较或计算。",
+    "when_to_use": "基期量比较、分数比较",
+    "when_not": "数字已经很好算时不必硬套",
+    "error_note": "注意分子也要同步变化",
+    "formula_codes": ["F003"],
+    "example": "比较 120/1.2 与 150/1.5，化同后看分子",
+    "sort_order": 5
+  },
+  {
+    "code": "K006",
+    "name": "分子分母增长率法",
+    "category": "比重",
+    "principle": "用 a、b 判断比重升降与估算差值。",
+    "when_to_use": "两期比重、基期比重、平均数增长率",
+    "when_not": "缺少增长率数据时",
+    "error_note": "a>b 比重上升；差值≈A/B×(a-b)/(1+a)",
+    "formula_codes": ["F006", "F007", "F010"],
+    "example": "部分增 20%，整体增 10%，比重上升",
+    "sort_order": 6
+  },
+  {
+    "code": "K007",
+    "name": "年均增速估算",
+    "category": "增长",
+    "principle": "用平方/立方近似或夹逼法估年均增速。",
+    "when_to_use": "年均增长率选择题",
+    "when_not": "需要精确开方结果时（考试通常估算即可）",
+    "error_note": "可先试选项代入验证",
+    "formula_codes": ["F012"],
+    "example": "4 年翻倍，年均约 19%（因 1.2^4≈2.07）",
+    "sort_order": 7
+  },
+  {
+    "code": "K008",
+    "name": "分数比较",
+    "category": "比较",
+    "principle": "横除、作差、化同比较分数大小。",
+    "when_to_use": "增长率比较、比重比较、排序",
+    "when_not": "已有精确值可直接比",
+    "error_note": "分子分母同向变化时要小心方向",
+    "formula_codes": ["F001", "F005"],
+    "example": "比较 310/520 与 280/490，可截位后横除",
+    "sort_order": 8
+  },
+  {
+    "code": "K009",
+    "name": "放缩法",
+    "category": "估算",
+    "principle": "放大或缩小分子分母，快速判断范围。",
+    "when_to_use": "选项跨度大、只需判断区间",
+    "when_not": "选项极近",
+    "error_note": "放缩方向要一致，避免反向放缩导致错判",
+    "formula_codes": ["F001", "F005"],
+    "example": "1234/5678 < 1300/5600 ≈ 0.23",
+    "sort_order": 9
+  },
+  {
+    "code": "K010",
+    "name": "差分法",
+    "category": "比较",
+    "principle": "用差分快速比较两个分数。",
+    "when_to_use": "两分数分子分母都大且接近",
+    "when_not": "分数差距很大时直除更快",
+    "error_note": "差分法有适用条件，分子分母需同向增减",
+    "formula_codes": ["F001", "F005"],
+    "example": "比较接近的两个占比时优先差分",
+    "sort_order": 10
+  }
+]

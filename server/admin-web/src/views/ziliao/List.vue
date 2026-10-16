@@ -4,11 +4,11 @@
       <el-button type="primary" @click="onSeed(false)">同步种子</el-button>
       <el-button @click="onSeed(true)">强制覆盖种子</el-button>
       <el-button @click="showGuide = true">真题导入规范</el-button>
-      <span class="tip">从 server/data/ziliao JSON 写入公式/题型/技巧；刷题难度靠真题导入，不靠样例卷</span>
+      <span class="tip">从内置种子同步公式/题型/技巧；刷题难度靠真题导入，不靠样例卷</span>
     </div>
     <el-alert type="warning" :closable="false" style="margin-bottom: 12px">
       系统样例仅联调用。请到「试卷题库」导入
-      <code>server/data/ziliao/examples/guokao-style-sample.md</code>
+      <code>server/app/seed_data/ziliao/examples/guokao-style-sample.md</code>
       或真实国考/省考资料分析；有真题后默认练习池会自动排除样例。
     </el-alert>
     <el-tabs v-model="activeTab">
@@ -61,7 +61,7 @@ onMounted(async () => {
     const g = await fetchImportGuide()
     guideMd.value = g.markdown
   } catch {
-    guideMd.value = '无法加载规范，请直接打开 server/data/ziliao/IMPORT.md'
+    guideMd.value = '无法加载规范，请查看项目中的 server/app/seed_data/ziliao/IMPORT.md'
   }
 })
 </script>

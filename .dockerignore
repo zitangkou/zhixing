@@ -13,3 +13,7 @@ dist/
 !docs/PROJECT_OPERATIONS_MANUAL.md
 .cursor/
 server/admin-web/node_modules/
+
+# Versioned teaching seeds live outside the persistent server/data volume.
+!server/app/seed_data/ziliao/*.md
+!server/app/seed_data/ziliao/examples/*.md

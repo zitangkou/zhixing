@@ -55,7 +55,7 @@
       <view v-if="ready && overview.usingSampleOnly" class="zl-tip-banner">
         <text class="zl-tip-title">当前仅有联调样例</text>
         <text class="zl-tip-desc"
-          >请在管理后台「试卷题库」导入真题资料分析；示例见 server/data/ziliao/examples/</text
+          >请在管理后台「试卷题库」导入真题资料分析；规范与示例见项目内置导入指南。</text
         >
       </view>
 

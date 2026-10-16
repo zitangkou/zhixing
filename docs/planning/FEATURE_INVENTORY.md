@@ -62,7 +62,7 @@
 | 功能名 | 端 | 状态 | 入口/路由 | featureVisibility | 备注 |
 |--------|----|------|-----------|-------------------|------|
 | 学习入口宫格 | weapp/H5 | 已实现菜单隐藏 | `pages/index` `examDomains` | `SHOW_HOME_DOMAINS=false` | 开露时复用，勿另起入口 |
-| 资料分析速算 | weapp/H5 | 在用露出 | 学习首页快捷区 → `pages/ziliao/quick-calc`；练习页资料分析入口 → `pages/ziliao/index` | `SHOW_ZILIAO=true`（首页速算快捷入口固定展示） | 后台暂不支持运行时开关；更改需改前端常量并重新构建 |
+| 资料分析速算 | weapp/H5 | 在用露出 | 学习首页快捷区 → `pages/ziliao/quick-calc`；练习页资料分析入口 → `pages/ziliao/index` | `SHOW_ZILIAO=true`（首页速算快捷入口固定展示） | 训练方法由后台发布控制；学员端入口本身仍无后台运行时开关，修改露出需改前端常量并重新构建 |
 | 真题套卷（exam 流） | weapp/H5 | 已实现菜单隐藏 | `pages/exam/*` | `SHOW_EXAM=false` | 与行测 xingce-hub 不同路由 |
 | 知识框架 | weapp/H5 | 已实现菜单隐藏 | `pages/knowledge/index` | `SHOW_KNOWLEDGE=false` | |
 | 时事印象 | weapp/H5 | 已实现菜单隐藏 | `pages/events/*` | `SHOW_EVENTS=false` | |

@@ -260,8 +260,8 @@ def admin_ziliao_seed(
 def admin_ziliao_import_guide(
     _admin=Depends(require_permission("ziliao:read")),
 ):
-    path = Path(__file__).resolve().parents[3] / "data" / "ziliao" / "IMPORT.md"
-    text = path.read_text(encoding="utf-8") if path.exists() else "导入规范文件缺失：server/data/ziliao/IMPORT.md"
-    return ApiResponse.ok({"markdown": text, "examplePath": "server/data/ziliao/examples/guokao-style-sample.md"})
+    path = Path(__file__).resolve().parents[2] / "seed_data" / "ziliao" / "IMPORT.md"
+    text = path.read_text(encoding="utf-8") if path.exists() else "导入规范文件缺失：server/app/seed_data/ziliao/IMPORT.md"
+    return ApiResponse.ok({"markdown": text, "examplePath": "server/app/seed_data/ziliao/examples/guokao-style-sample.md"})
 
 

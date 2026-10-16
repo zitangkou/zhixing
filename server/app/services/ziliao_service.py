@@ -42,7 +42,7 @@ from app.schemas import (
 )
 from app.timezone import now
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "ziliao"
+DATA_DIR = Path(__file__).resolve().parents[1] / "seed_data" / "ziliao"
 SECTION_NAME = "资料分析"
 SAMPLE_PAPER_ID = "ziliao_sample_paper"
 
@@ -185,48 +185,48 @@ def seed_ziliao_resources(db: Session, *, force: bool = False) -> dict[str, int]
                 row.formula_plain = item.get("formulaPlain") or item.get("formula_plain") or plain or latex
                 counts["formulas"] += 1
 
-    if force or db.query(ZiliaoQuestionType).count() == 0:
-        for item in _load_json("types.json"):
-            code = item["code"]
-            row = db.query(ZiliaoQuestionType).filter(ZiliaoQuestionType.code == code).first()
-            if row and not force:
-                continue
-            if not row:
-                row = ZiliaoQuestionType(id=gen_id("zt"), code=code)
-                db.add(row)
-            row.name = item.get("name", code)
-            row.category = item.get("category", "")
-            row.description = item.get("description", "")
-            row.ability = item.get("ability", "")
-            row.difficulty = int(item.get("difficulty", 3))
-            row.exam_freq = int(item.get("exam_freq", 3))
-            row.formula_codes = _dumps(item.get("formula_codes", []))
-            row.trick_codes = _dumps(item.get("trick_codes", []))
-            row.keywords = _dumps(item.get("keywords", []))
-            row.sort_order = int(item.get("sort_order", 0))
-            row.is_published = True
-            counts["types"] += 1
+    # Always add missing seed codes. Existing admin-managed records remain
+    # untouched unless force=True explicitly requests a seed overwrite.
+    for item in _load_json("types.json"):
+        code = item["code"]
+        row = db.query(ZiliaoQuestionType).filter(ZiliaoQuestionType.code == code).first()
+        if row and not force:
+            continue
+        if not row:
+            row = ZiliaoQuestionType(id=gen_id("zt"), code=code)
+            db.add(row)
+        row.name = item.get("name", code)
+        row.category = item.get("category", "")
+        row.description = item.get("description", "")
+        row.ability = item.get("ability", "")
+        row.difficulty = int(item.get("difficulty", 3))
+        row.exam_freq = int(item.get("exam_freq", 3))
+        row.formula_codes = _dumps(item.get("formula_codes", []))
+        row.trick_codes = _dumps(item.get("trick_codes", []))
+        row.keywords = _dumps(item.get("keywords", []))
+        row.sort_order = int(item.get("sort_order", 0))
+        row.is_published = True
+        counts["types"] += 1
 
-    if force or db.query(ZiliaoTrick).count() == 0:
-        for item in _load_json("tricks.json"):
-            code = item["code"]
-            row = db.query(ZiliaoTrick).filter(ZiliaoTrick.code == code).first()
-            if row and not force:
-                continue
-            if not row:
-                row = ZiliaoTrick(id=gen_id("zk"), code=code)
-                db.add(row)
-            row.name = item.get("name", code)
-            row.category = item.get("category", "")
-            row.principle = item.get("principle", "")
-            row.when_to_use = item.get("when_to_use", "")
-            row.when_not = item.get("when_not", "")
-            row.error_note = item.get("error_note", "")
-            row.formula_codes = _dumps(item.get("formula_codes", []))
-            row.example = item.get("example", "")
-            row.sort_order = int(item.get("sort_order", 0))
-            row.is_published = True
-            counts["tricks"] += 1
+    for item in _load_json("tricks.json"):
+        code = item["code"]
+        row = db.query(ZiliaoTrick).filter(ZiliaoTrick.code == code).first()
+        if row and not force:
+            continue
+        if not row:
+            row = ZiliaoTrick(id=gen_id("zk"), code=code)
+            db.add(row)
+        row.name = item.get("name", code)
+        row.category = item.get("category", "")
+        row.principle = item.get("principle", "")
+        row.when_to_use = item.get("when_to_use", "")
+        row.when_not = item.get("when_not", "")
+        row.error_note = item.get("error_note", "")
+        row.formula_codes = _dumps(item.get("formula_codes", []))
+        row.example = item.get("example", "")
+        row.sort_order = int(item.get("sort_order", 0))
+        row.is_published = True
+        counts["tricks"] += 1
 
     db.commit()
     return counts

@@ -2,10 +2,17 @@
   <div>
     <el-tabs v-model="subTab">
       <el-tab-pane label="训练方法" name="methods">
+        <el-alert
+          class="setup-guide"
+          title="配置流程：检查方法说明 → 预览校验 → 发布。首次配置通常不需要改高级设置。"
+          description="只有调整题目数值范围、难度或知识框架关联时，才展开编辑窗口中的高级设置。发布后学员端才会使用该方法出题。"
+          type="info"
+          :closable="false"
+          show-icon
+        />
         <div class="toolbar">
           <el-button @click="loadMethods">刷新</el-button>
-          <span class="tip">改动会回到草稿；完成样题校验后再发布。</span>
-          <span class="tip">算法适用条件由服务端固定校验；这里编辑展示说明、数值范围和难度。</span>
+          <span class="tip">修改已发布方法会生成草稿；校验通过后再发布新版本。</span>
         </div>
         <el-table :data="methods" v-loading="loading" row-key="id">
           <el-table-column prop="name" label="方法" min-width="130" />
@@ -51,13 +58,17 @@
         <el-form-item label="方法名称"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="方法类别"><el-select v-model="form.category"><el-option label="比较" value="比较" /><el-option label="计算" value="计算" /></el-select></el-form-item>
         <el-form-item label="适用场景"><el-input v-model="form.scene" type="textarea" :rows="2" /></el-form-item>
-        <el-form-item label="知识框架路径"><el-input v-model="form.knowledgePath" /></el-form-item>
-        <el-form-item label="知识节点标题"><el-input v-model="form.nodeTitle" /></el-form-item>
-        <el-form-item label="上级节点"><el-input v-model="form.nodeParent" /></el-form-item>
-        <el-form-item label="基础数值下限"><el-input-number v-model="form.config.min" :min="100" :max="99900" :step="100" /></el-form-item>
-        <el-form-item label="基础数值上限"><el-input-number v-model="form.config.max" :min="200" :max="100000" :step="100" /></el-form-item>
-        <el-form-item label="难度级别"><el-rate v-model="form.config.difficulty" :max="5" /></el-form-item>
         <el-form-item label="启用训练"><el-switch v-model="form.enabled" /></el-form-item>
+        <el-collapse class="advanced-settings">
+          <el-collapse-item title="高级设置（通常无需调整）" name="advanced">
+            <el-form-item label="知识框架路径"><el-input v-model="form.knowledgePath" /></el-form-item>
+            <el-form-item label="知识节点标题"><el-input v-model="form.nodeTitle" /></el-form-item>
+            <el-form-item label="上级节点"><el-input v-model="form.nodeParent" /></el-form-item>
+            <el-form-item label="基础数值下限"><el-input-number v-model="form.config.min" :min="100" :max="99900" :step="100" /></el-form-item>
+            <el-form-item label="基础数值上限"><el-input-number v-model="form.config.max" :min="200" :max="100000" :step="100" /></el-form-item>
+            <el-form-item label="难度级别"><el-rate v-model="form.config.difficulty" :max="5" /></el-form-item>
+          </el-collapse-item>
+        </el-collapse>
       </el-form>
       <template #footer><el-button @click="editVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存为草稿</el-button></template>
     </el-dialog>
@@ -166,6 +177,8 @@ onMounted(() => { void loadMethods(); void loadAnalytics() })
 
 <style scoped>
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.setup-guide { margin-bottom: 14px; }
+.advanced-settings { width: calc(100% - 120px); margin: 0 0 8px 120px; }
 .tip { color: var(--el-text-color-secondary); font-size: 13px; }
 .preview-card { margin-top: 14px; }
 .preview-meta { margin-top: 14px; }
