@@ -17,8 +17,8 @@
       <view class="state-btn" @tap="load">点击重试</view>
     </view>
     <view v-else-if="!items.length" class="state-box">
-      <text class="state-title">暂无时政要点</text>
-      <text class="state-desc">后台发布后会出现在这里</text>
+      <text class="state-title">暂无专题练习</text>
+      <text class="state-desc">专题练习发布后会显示在这里</text>
     </view>
     <template v-else>
       <TheoryPointRow v-for="item in items" :key="item.id" :item="item" @tap="goQuizById" />
@@ -36,7 +36,7 @@ import { requireLogin, isLoggedIn } from '@/utils/auth'
 import { showConfirm, showToast } from '@/utils/platform'
 import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '时政要点' })
+definePageConfig({ navigationBarTitleText: '专题练习' })
 
 const { themeClass } = useThemeClass()
 const pageMeta = usePageMeta()

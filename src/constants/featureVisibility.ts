@@ -7,7 +7,7 @@ export const SHOW_RMRB = true
 /** 学习页「学习入口」宫格（时政阅读 / 时评精拆等），与快捷区重复，先关 */
 export const SHOW_HOME_DOMAINS = false
 
-export const SHOW_ZILIAO = false
+export const SHOW_ZILIAO = true
 export const SHOW_EXAM = false
 export const SHOW_KNOWLEDGE = true
 export const SHOW_EVENTS = false

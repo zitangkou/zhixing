@@ -30,8 +30,8 @@
       </view>
 
       <view class="hub-section">
-        <text class="hub-title">时政刷题</text>
-        <text class="hub-sub">按文章练，或随机抽题</text>
+        <text class="hub-title">专题练习</text>
+        <text class="hub-sub">按专题巩固知识点，完成配套练习</text>
         <view class="mode-grid">
           <view
             v-for="item in quizModes"
@@ -72,14 +72,14 @@
       </view>
 
       <view class="hub-section">
-        <text class="hub-title">错题与申论</text>
-        <text class="hub-sub">时政错题重练 · 时评精拆阶梯训练</text>
+        <text class="hub-title">错题复习与写作</text>
+        <text class="hub-sub">错题重练 · 申论写作训练</text>
         <view class="entry-list">
           <view class="entry-row" @tap="goPage('/pages/question/article-pick')">
             <view class="entry-icon"><Order :color="brandColor" size="18" /></view>
             <view class="entry-text">
-              <text class="entry-name">按文章练</text>
-              <text class="entry-desc">选一篇文章出题</text>
+              <text class="entry-name">按专题练</text>
+              <text class="entry-desc">选择专题开始练习</text>
             </view>
             <text class="entry-arrow">›</text>
           </view>
@@ -95,7 +95,7 @@
             <view class="entry-icon"><Failure :color="brandColor" size="18" /></view>
             <view class="entry-text">
               <text class="entry-name">文章错题本</text>
-              <text class="entry-desc">时政题错题重练</text>
+              <text class="entry-desc">回顾错题并再次练习</text>
             </view>
             <text class="entry-arrow">›</text>
           </view>

@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite'
 
-/** 多个分包共享公式引擎，固定放在主包；禁止主包反向 require 某个业务分包。 */
+/** Keep the KaTeX parser in the shared main package: LatexBlock is used across subpackages. */
 export function weappMathChunk(): Plugin {
   return {
     name: 'weapp-math-chunk',

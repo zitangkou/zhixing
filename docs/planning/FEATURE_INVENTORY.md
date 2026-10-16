@@ -1,6 +1,6 @@
 # 杜衡阁 · 在用功能清单（FEATURE_INVENTORY）
 
-> 更新：2026-09-25  
+> 更新：2026-10-16（审核整改展示文案）
 > **本文件 = 在用 / 隐藏状态的操作真相源**。模块怎么实现见 [`FEATURES.md`](../../FEATURES.md)；下一步见 [`PRODUCT_ROADMAP.md`](./PRODUCT_ROADMAP.md)。  
 > 学员端开关源：`src/constants/featureVisibility.ts`。管理端侧栏：`server/admin-web/src/config/featureVisibility.ts`。  
 > 展示名：**杜衡阁**（历史文稿或写「知行公考」）。域名：`https://zhixinggk.ltd`。
@@ -46,10 +46,9 @@
 |--------|----|------|-----------|-------------------|------|
 | 学习 Tab | weapp/H5 | 在用露出 | `pages/index/index` | — | 双 Tab 之一 |
 | 我的 Tab | weapp/H5 | 在用露出 | `pages/user/index` | — | |
-| 今日文章 / 最近文章 | weapp/H5 | 在用露出 | 学习首页卡片 → `pages/article/detail` 等 | `SHOW_THEORY=true`（意图旗标；首页未再 `v-if` 该常量） | 时政/时评推荐与兜底 |
-| 时政练习 | weapp/H5 | 在用露出 | 快捷区 → `pages/question/article-pick` | 同上 | |
-| 时政阅读 + 考点练习 | weapp/H5 | 在用露出 | `pages/article/detail` → taking | 同上 | 未登录阅读/练习会引导登录 |
-| 时评精拆列表/详情 | weapp/H5 | 在用露出 | 快捷区 / 我的 → `pages/rmrb/article-list`、`article-detail` | `SHOW_RMRB=true`（意图旗标） | HTML 原文/解析 |
+| 每日练习 / 专题练习（原时政练习） | weapp/H5 | 在用露出（整改展示文案） | 首页 → `pages/question/article-pick` | — | 仅改入口、标题与空状态文案；要点数据/API及题目内容不变，需按实际内容确认审核可接受性 |
+| 专题内容阅读 + 配套练习 | weapp/H5 | 在用露出（页面标题通用化） | `pages/article/detail` → taking | — | 内容数据未调整；未登录阅读/练习会引导登录 |
+| 时评精拆列表/详情 | weapp/H5 | 在用露出 | 深链及既有入口 → `pages/rmrb/article-list`、`article-detail` | `SHOW_RMRB=true`（意图旗标） | HTML 原文/解析；本轮未移除页面和数据 |
 | 行测真题入口 | weapp/H5 | 在用露出 | 首页快捷 → `pages/question/xingce-hub` 等 | — | 先套题后题型；非 `SHOW_EXAM` |
 | 签到 / 积分 / 排行 | weapp/H5 | 在用露出 | `pages/user/signin`、`points`、`rank` | — | |
 | 文章错题 | weapp/H5 | 在用露出 | 我的 → `pages/question/wrong` | — | |
@@ -63,7 +62,7 @@
 | 功能名 | 端 | 状态 | 入口/路由 | featureVisibility | 备注 |
 |--------|----|------|-----------|-------------------|------|
 | 学习入口宫格 | weapp/H5 | 已实现菜单隐藏 | `pages/index` `examDomains` | `SHOW_HOME_DOMAINS=false` | 开露时复用，勿另起入口 |
-| 资料分析 | weapp/H5 | 已实现菜单隐藏 | `pages/ziliao/*` | `SHOW_ZILIAO=false` | |
+| 资料分析速算 | weapp/H5 | 在用露出 | 学习首页快捷区 → `pages/ziliao/quick-calc`；练习页资料分析入口 → `pages/ziliao/index` | `SHOW_ZILIAO=true`（首页速算快捷入口固定展示） | 后台暂不支持运行时开关；更改需改前端常量并重新构建 |
 | 真题套卷（exam 流） | weapp/H5 | 已实现菜单隐藏 | `pages/exam/*` | `SHOW_EXAM=false` | 与行测 xingce-hub 不同路由 |
 | 知识框架 | weapp/H5 | 已实现菜单隐藏 | `pages/knowledge/index` | `SHOW_KNOWLEDGE=false` | |
 | 时事印象 | weapp/H5 | 已实现菜单隐藏 | `pages/events/*` | `SHOW_EVENTS=false` | |
@@ -95,9 +94,10 @@
 | 反馈建议 | admin | 在用露出 | `/feedbacks` | VISIBLE | |
 | 行测管理 | admin | 在用露出 | `/xingce` | VISIBLE | |
 | 系统设置 / 角色 | admin | 在用露出 | `/settings`、`/roles` | VISIBLE | |
+| 资料分析管理 | admin | 在用露出 | `/ziliao` | path 在 VISIBLE | 需 `ziliao:read`；含速算训练方法管理 |
 | 账号运营 content-ops | admin | 已实现菜单隐藏 | `/content-ops` | 不在 VISIBLE | 路由可直开 |
 | 知识/计划/试卷/题库/生成/审核 | admin | 已实现菜单隐藏 | `/knowledge`、`/plan`、`/exam`、`/question-bank/*`、`/generation*` | 不在 VISIBLE | |
-| 资料分析 / 练习原型 | admin | 已实现菜单隐藏 | `/ziliao`、`/practice/proto` | 不在 VISIBLE | |
+| 练习原型 | admin | 已实现菜单隐藏 | `/practice/proto` | 不在 VISIBLE | |
 | 反馈看板 / 错因 | admin | 已实现菜单隐藏 | `/analytics/*` | 不在 VISIBLE | |
 | 语料本 / 时事事件 | admin | 已实现菜单隐藏 | `/corpus`、`/events` | 不在 VISIBLE | |
 | 时政学习入口 | admin | 已实现菜单隐藏 | `/theory-learning` | 不在 VISIBLE | |

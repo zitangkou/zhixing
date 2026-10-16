@@ -60,7 +60,7 @@ import { isLoggedIn, requireLogin } from '@/utils/auth'
 import { showConfirm, showToast } from '@/utils/platform'
 import { useThemeClass, usePageMeta } from '@/utils/brandColor'
 
-definePageConfig({ navigationBarTitleText: '时政要点' })
+definePageConfig({ navigationBarTitleText: '专题学习' })
 
 const { themeClass } = useThemeClass()
 const pageMeta = usePageMeta()

@@ -9,16 +9,11 @@ import type { Plugin } from 'vite'
  * defineComponent 仍是空值，微信开发者工具报 `e.defineComponent is not a function`。
  *
  * 与上游 https://github.com/NervJS/taro/pull/17541 相同：把 @babel 拆到独立的
- * babelHelpers chunk，让 taro chunk 不再依赖 vendors。
- *
- * 额外：KaTeX 浏览器排版默认会进主包 vendors（JS + 三套字体
- * base64 约 1.4MB）。这里把 katex / latex 工具打进
- * pages/ziliao/katex，并在 CSS 里只保留 woff2，避免主包/分包超限。
- * LatexBlock 是跨分包共享组件；微信端显示可读式，必须留在公共 chunk。
+ * babelHelpers chunk，让 taro chunk 不再依赖 vendors。公式解析器由公共组件共享，
+ * KaTeX JS chunk 由 weappMathChunk 放在主包，避免主包同步引用业务分包。
  */
 const BABEL_DEP = /node_modules[\\/]@babel[\\/]/
 const KATEX_DEP = /node_modules[\\/]katex[\\/]/
-const LATEX_UTIL = /[\\/]utils[\\/]latex\.ts$/
 
 /** 去掉同包的 woff/ttf（含 Vite 已 base64 内联的 data: URL），只留 woff2。 */
 export function stripKatexExtraFonts(css: string): string {
@@ -39,11 +34,6 @@ export function stripKatexExtraFonts(css: string): string {
   next = next.replace(/src:\s*,/g, 'src:')
   next = next.replace(/format\("woff2"\)\s*,(?=\s*[;}])/g, 'format("woff2")')
   return next
-}
-
-function isKatexRelatedModule(id: string): boolean {
-  const bare = id.split('?')[0] || id
-  return KATEX_DEP.test(bare) || LATEX_UTIL.test(bare)
 }
 
 function walkStripWxss(dir: string) {
@@ -74,8 +64,6 @@ export function weappBreakVueChunkCycle(): Plugin {
       const original = output.manualChunks
       output.manualChunks = (id, meta) => {
         if (BABEL_DEP.test(id)) return 'babelHelpers'
-        // chunkFileNames 为 [name].js → 落在分包目录，不进主包 vendors
-        if (isKatexRelatedModule(id)) return 'pages/ziliao/katex'
         return original(id, meta)
       }
     },

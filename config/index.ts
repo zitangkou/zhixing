@@ -53,14 +53,12 @@ export default defineConfig<'vite'>(async (merge) => {
           },
         },
         weappBreakVueChunkCycle(),
+        weappMathChunk(),
         weappScopedCss(),
         h5MarkmapChunk(),
-        weappMathChunk(),
       ],
     },
-    alias: {
-      '@': path.resolve(__dirname, '..', 'src'),
-    },
+    alias: { '@': path.resolve(__dirname, '..', 'src') },
     mini: {
       postcss: {
         pxtransform: { enable: true, config: {} },

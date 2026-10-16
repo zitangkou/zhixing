@@ -24,14 +24,14 @@
 
     <view class="track-list">
       <view class="track-card" @tap="goTheory">
-        <text class="track-kicker">今日时政</text>
-        <text class="track-title">按文章练</text>
-        <text class="track-desc">选一篇文章，刷该文配套题目</text>
+        <text class="track-kicker">今日练习</text>
+        <text class="track-title">专题刷题</text>
+        <text class="track-desc">选择专题，完成配套练习</text>
       </view>
       <view class="track-card" @tap="goRmrb">
-        <text class="track-kicker">今日申论</text>
-        <text class="track-title">时评精拆 · 三刀法</text>
-        <text class="track-desc">时评阅读、开采本、规范词、阶梯训练</text>
+        <text class="track-kicker">写作训练</text>
+        <text class="track-title">申论精读 · 三步法</text>
+        <text class="track-desc">精读文章、拆解表达、阶梯训练</text>
       </view>
     </view>
 

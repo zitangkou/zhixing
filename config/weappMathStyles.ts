@@ -14,7 +14,23 @@ export function writeWeappMathStyles(dir: string): void {
       `src:url(data:font/woff2;base64,${bytes.toString('base64')}) format("woff2");`,
     )
   })
-  fs.writeFileSync(path.join(dir, 'katex-mini.wxss'), css)
-  // rich-text 内部 class 需要处于承载它的 Taro 自定义组件样式作用域。
-  fs.appendFileSync(path.join(dir, 'comp.wxss'), '@import "./katex-mini.wxss";\n')
+  // 公式只在知识框架和资料分析分包页面使用。避免把约 360 KB 的字体
+  // 样式加入主包 comp.wxss，导致微信代码质量检查主包超过 1.5 MB。
+  const formulaPages = [
+    'pages/knowledge/index.wxss',
+    'pages/ziliao/quick-calc.wxss',
+    'pages/ziliao/formulas.wxss',
+    'pages/ziliao/formula-detail.wxss',
+  ]
+  for (const page of formulaPages) {
+    const subpackageDir = path.dirname(path.join(dir, page))
+    fs.mkdirSync(subpackageDir, { recursive: true })
+    fs.writeFileSync(path.join(subpackageDir, 'katex-mini.wxss'), css)
+    const pageStyles = path.join(dir, page)
+    if (!fs.existsSync(pageStyles)) throw new Error(`缺少公式页面样式：${page}`)
+    const current = fs.readFileSync(pageStyles, 'utf8')
+    if (!current.includes('katex-mini.wxss')) {
+      fs.appendFileSync(pageStyles, '\n@import "./katex-mini.wxss";\n')
+    }
+  }
 }

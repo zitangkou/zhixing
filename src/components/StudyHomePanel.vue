@@ -29,13 +29,19 @@
         <view class="action-icon-wrap">
           <Edit :color="brandColor" size="20" />
         </view>
-        <text>时政要点</text>
+        <text>每日练习</text>
       </view>
       <view class="action-item" @tap="go('/pages/quotes/index')">
         <view class="action-icon-wrap">
           <CheckChecked :color="brandColor" size="20" />
         </view>
         <text>金句素材</text>
+      </view>
+      <view class="action-item" @tap="go('/pages/ziliao/quick-calc')">
+        <view class="action-icon-wrap">
+          <Order :color="brandColor" size="20" />
+        </view>
+        <text>速算训练</text>
       </view>
       <view v-if="SHOW_KNOWLEDGE" class="action-item" @tap="go('/pages/knowledge/index')">
         <view class="action-icon-wrap">
@@ -56,7 +62,7 @@
 
     <view class="home-block">
       <view class="home-block-title">
-        <text>时政要点</text>
+        <text>每日练习</text>
         <text class="home-block-meta is-link" @tap="go('/pages/question/article-pick')">全部</text>
       </view>
       <nut-skeleton v-if="loading && !points.length" rows="3" />
@@ -64,8 +70,8 @@
         <TheoryPointRow v-for="item in points" :key="item.id" :item="item" @tap="goQuizById" />
       </template>
       <view v-else class="empty-rmrb">
-        <text class="empty-title">暂无时政要点</text>
-        <text class="empty-desc">后台发布后会出现在这里</text>
+        <text class="empty-title">暂无练习内容</text>
+        <text class="empty-desc">专题练习发布后会显示在这里</text>
       </view>
     </view>
 
@@ -90,7 +96,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import Taro from '@tarojs/taro'
 import { Skeleton as NutSkeleton } from '@nutui/nutui-taro'
-import { Category, CheckChecked, Edit } from '@nutui/icons-vue-taro'
+import { Category, CheckChecked, Edit, Order } from '@nutui/icons-vue-taro'
 import QuoteRow from '@/components/QuoteRow.vue'
 import TheoryPointRow from '@/components/TheoryPointRow.vue'
 import PointsBadge from '@/components/PointsBadge.vue'
