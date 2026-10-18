@@ -43,16 +43,19 @@ class Settings(BaseSettings):
     # 独立每日金句任务（旧全量采集已退役），北京时间调度。
     daily_quotes_include_extended: bool = False  # 理论/建言/文艺扩展池，默认关闭
     daily_quotes_enabled: bool = True
+    daily_quotes_peopleapp_fallback_enabled: bool = True  # 纸版候选不足时补采客户端评论页近24小时文章
+    daily_quotes_min_quotes_before_fallback: int = Field(3, ge=0, le=10)
     daily_quotes_hour: int = Field(7, ge=0, le=7)
     daily_quotes_minute: int = Field(10, ge=0, le=59)
     rmrb_vocabulary_enabled: bool = True
     rmrb_vocabulary_hour: int = Field(6, ge=0, le=8)
     rmrb_vocabulary_minute: int = Field(40, ge=0, le=59)
+    rmrb_shenlun_auto_enabled: bool = True
 
     llm_enabled: bool = False
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com"
-    llm_model: str = "deepseek-v4-flash"
+    llm_model: str = "deepseek-flash"
     llm_timeout_seconds: int = 120
     llm_input_price_per_million: float = Field(0, ge=0)
     llm_output_price_per_million: float = Field(0, ge=0)

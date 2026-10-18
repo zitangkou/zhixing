@@ -53,6 +53,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/rmrb-archive/quotes', title: '金句管理', icon: Tickets, permissions: ['rmrb:read'] },
       { path: '/rmrb-archive/vocabulary', title: '词汇素材', icon: Reading, permissions: ['rmrb:read'] },
       { path: '/rmrb-archive/shenlun-materials', title: '申论素材', icon: Reading, permissions: ['rmrb:read'] },
+      { path: '/rmrb/exercises', title: '申论练习', icon: Tickets, permissions: ['rmrb:read'] },
     ],
   },
   {
@@ -130,8 +131,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/tool-config/copy', title: '文案配置', icon: Document, permissions: ['setting:read'] },
       { path: '/tool-config/images', title: '图片配置', icon: Collection, permissions: ['setting:read'] },
       { path: '/tool-config/models', title: '模型配置', icon: Cpu, permissions: ['setting:read'] },
-      { path: '/tool-config/llm-usage', title: '大模型用量', icon: DataAnalysis, permissions: ['setting:read'] },
-      { path: '/tool-config/image-generation-jobs', title: '图片生成记录', icon: Tickets, permissions: ['setting:read'] },
+      { path: '/tool-config/llm-usage', title: '模型用量', icon: DataAnalysis, permissions: ['setting:read'] },
+      { path: '/tool-config/image-generation-jobs', title: '图片记录', icon: Tickets, permissions: ['setting:read'] },
     ],
   },
   {
@@ -144,8 +145,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/xingce', title: '行测管理', icon: Tickets, permissions: ['xingce:read'] },
       { path: '/settings', title: '系统设置', icon: Setting, permissions: ['setting:read'] },
       { path: '/wechat-replies', title: '消息回复', icon: ChatDotRound, permissions: ['wechat_reply:read'] },
-      { path: '/roles', title: '角色与权限', icon: User, permissions: ['admin:read'] },
-      { path: '/project-manual', title: '项目功能与操作', icon: Document, permissions: ['setting:read'] },
+      { path: '/roles', title: '角色权限', icon: User, permissions: ['admin:read'] },
+      { path: '/project-manual', title: '操作指引', icon: Document, permissions: ['setting:read'] },
     ],
   },
 ]
@@ -171,8 +172,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/tool-config/copy': '文案配置',
   '/tool-config/images': '图片配置',
   '/tool-config/models': '模型配置',
-  '/tool-config/llm-usage': '大模型用量',
-  '/tool-config/image-generation-jobs': '图片生成记录',
+  '/tool-config/llm-usage': '模型用量',
+  '/tool-config/image-generation-jobs': '图片记录',
   '/knowledge': '知识框架',
   '/knowledge-library': '知库文档',
   '/plan': '学习计划',
@@ -193,6 +194,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/rmrb-archive/quotes': '金句管理',
   '/rmrb-archive/vocabulary': '词汇素材',
   '/rmrb-archive/shenlun-materials': '申论素材',
+  '/rmrb/exercises': '申论练习',
   '/rmrb-archive/batches': '采集批次',
   '/rmrb/import': '三刀导入',
   '/rmrb/term-categories': '规范词分类',
@@ -207,9 +209,9 @@ export const ROUTE_TITLES: Record<string, string> = {
   '/photography/courses': '摄影学习 · 技巧课程',
   '/photography/map': '摄影学习 · 知识地图',
   '/photography/cases': '摄影学习 · 作品案例',
-  '/project-manual': '项目功能与操作',
+  '/project-manual': '操作指引',
   '/settings': '系统设置',
-  '/roles': '角色与权限',
+  '/roles': '角色权限',
 }
 
 export function canAccess(userPerms: string[], required: string[]): boolean {

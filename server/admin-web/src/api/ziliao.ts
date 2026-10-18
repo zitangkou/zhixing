@@ -61,7 +61,9 @@ export interface QuickCalcMethod {
   id: string; code: string; name: string; category: string; scene: string
   knowledgePath: string; nodeTitle: string; nodeParent: string
   config: { min?: number; max?: number; difficulty?: number }; enabled: boolean
-  knowledgeResolved: boolean
+  knowledgeResolved: boolean; knowledgeDraftResolved: boolean
+  knowledgeStatus: 'ready' | 'tree_unpublished' | 'tree_hidden' | 'node_unpublished' | 'tree_missing' | 'node_missing' | 'missing'
+  knowledgeMessage: string
   status: 'draft' | 'published'; version: number; sortOrder: number
 }
 
@@ -71,7 +73,7 @@ export const saveQuickMethod = (data: Partial<QuickCalcMethod>, id?: string) =>
     ? http.put(`/admin/ziliao/quick-calc/methods/${id}`, data)
     : http.post('/admin/ziliao/quick-calc/methods', data))
 export const previewQuickMethod = (id: string) =>
-  getData<{ valid: boolean; mathValid: boolean; knowledgeResolved: boolean; validationMessage: string; method: QuickCalcMethod; questions: Record<string, any>[] }>(http.post(`/admin/ziliao/quick-calc/methods/${id}/preview`))
+  getData<{ valid: boolean; mathValid: boolean; knowledgeResolved: boolean; knowledgeDraftResolved: boolean; knowledgeStatus: QuickCalcMethod['knowledgeStatus']; knowledgeMessage: string; validationMessage: string; method: QuickCalcMethod; questions: Record<string, any>[] }>(http.post(`/admin/ziliao/quick-calc/methods/${id}/preview`))
 export const publishQuickMethod = (id: string) =>
   getData<QuickCalcMethod>(http.post(`/admin/ziliao/quick-calc/methods/${id}/publish`))
 export const listQuickMethodVersions = (id: string) =>
@@ -79,7 +81,7 @@ export const listQuickMethodVersions = (id: string) =>
 export const rollbackQuickMethod = (id: string, version: number) =>
   getData<QuickCalcMethod>(http.post(`/admin/ziliao/quick-calc/methods/${id}/rollback/${version}`))
 export const getQuickAnalytics = (days = 30) =>
-  getData<{ days: number; sessions: number; attempts: number; methods: Array<{ method: string; name: string; attempts: number; correct: number; accuracy: number; averageSeconds: number; wrongOptions: Record<string, number> }> }>(http.get(`/admin/ziliao/quick-calc/analytics?days=${days}`))
+  getData<{ days: number; sessions: number; attempts: number; methods: Array<{ method: string; name: string; attempts: number; correct: number; accuracy: number; averageSeconds: number; wrongOptions: Record<string, number>; strategyCounts: Record<string, number>; formCounts: Record<string, number>; formPerformance: Record<string, { attempts: number; accuracy: number; averageSeconds: number }> }> }>(http.get(`/admin/ziliao/quick-calc/analytics?days=${days}`))
 
 export const listFormulas = () => getData<ZiliaoFormula[]>(http.get('/admin/ziliao/formulas'))
 export const createFormula = (data: Partial<ZiliaoFormula>) =>

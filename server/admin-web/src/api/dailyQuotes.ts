@@ -9,7 +9,13 @@ export interface DailyQuote {
 export const listQuotes = (params: Record<string, unknown>) => getData<{items: DailyQuote[];total:number;stats:Record<string,number>}>(http.get('/admin/daily-quotes', {params}))
 export const saveQuote = (item: DailyQuote) => getData<DailyQuote>(item.id ? http.put(`/admin/daily-quotes/${item.id}`, {collected_date:item.collectedDate,item}) : http.post('/admin/daily-quotes', {collected_date:item.collectedDate,item}))
 export const deleteQuote = (id:string) => getData<{deleted:string}>(http.delete(`/admin/daily-quotes/${id}`))
-export const getQuoteJob = (issue_date:string) => getData<{job: null | {status:string;error:string;failures?:{url:string;error:string}[]}; enabled:boolean;llmConfigured:boolean;schedule:string}>(http.get('/admin/daily-quotes/job',{params:{issue_date}}))
+export interface DailyQuoteJob {
+  status: string; error: string; attempts: number; updatedAt: string
+  metrics?: Record<string, number | boolean | string>; zeroReason?: string
+  failures?: {url?:string;source?:string;stage?:string;code?:string;error?:string}[]
+  warnings?: {url?:string;source?:string;code?:string;message?:string}[]
+}
+export const getQuoteJob = (issue_date:string) => getData<{job: null | DailyQuoteJob; enabled:boolean;llmConfigured:boolean;schedule:string}>(http.get('/admin/daily-quotes/job',{params:{issue_date}}))
 export const runQuoteJob = (issue_date:string) => getData(http.post('/admin/daily-quotes/run',{issue_date}))
 export const previewQuotes = (items:unknown[],collected_date:string) => getData<{index:number;text?:string;status:string;error?:string;evidenceMissing?:boolean}[]>(http.post('/admin/daily-quotes/import-preview',{items,collected_date}))
 export const importQuotes = (items:unknown[],collected_date:string) => getData<{added:number;skipped:number}>(http.post('/admin/daily-quotes/import',{items,collected_date}))

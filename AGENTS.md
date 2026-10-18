@@ -40,6 +40,12 @@ bash scripts/deploy-from-local.sh
 
 **注意**：H5 构建（esbuild）不做类型检查——只有 admin-web 的 `build` 跑 `vue-tsc`；前端类型问题靠 `npm run lint` 兜底。
 
+### 杜衡阁小程序本机打包约定
+
+- 正式小程序构建必须显式设置 `TARO_APP_API_URL=https://zhixinggk.ltd`；不能直接运行不带环境变量的 `npm run build:weapp`，否则 `config/index.ts` 会把本机 `http://127.0.0.1:8001` 写入包内。
+- 构建完成后，将 `dist/` 同步到 `/Users/dnn/Desktop/zhixing-weapp/dist/`，保留桌面目录自己的 `project.config.json`。微信开发者工具导入 `/Users/dnn/Desktop/zhixing-weapp` 根目录。
+- 同步后检查小程序产物包含 `https://zhixinggk.ltd` 且不包含 `127.0.0.1:8001` 或 `localhost:8001`。详细发布流程见 `docs/release/weapp-build-guide.md`。
+
 ## Architecture
 
 单体仓库：学员端（`src/`）、FastAPI 后端（`server/app/`）、Vue 管理后台（`server/admin-web/`）。生产用 Docker 构建综合 H5 + admin-web，Nginx 承载 H5，FastAPI 提供 `/api/*`、`/admin/*`、上传文件与 `/manage/` 静态后台。

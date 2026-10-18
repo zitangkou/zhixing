@@ -19,7 +19,7 @@ for (const mode of ['mixed', ...QUICK_METHODS.map((m) => m.id)]) {
     const questions = generateQuickSession(mode, 20, rng)
     assert.equal(questions.length,20)
     assert.equal(new Set(questions.map((q) => q.latex)).size,20)
-    if (mode === 'mixed') assert.equal(new Set(questions.map((q) => q.method)).size,7)
+    if (mode === 'mixed') assert.equal(new Set(questions.map((q) => q.method)).size,QUICK_METHODS.length)
     for (const q of questions) {
       checked++
       assert.equal(q.options.length,4)
@@ -33,7 +33,7 @@ for (const mode of ['mixed', ...QUICK_METHODS.map((m) => m.id)]) {
         assert.ok([a,b,c,d].every((v) => Number.isSafeInteger(v) && v > 0))
         const sign = Math.sign(a*d-c*b)
         comparisons.add(sign)
-        const expected = sign > 0 ? '左边大于右边' : sign < 0 ? '左边小于右边' : '两边相等'
+        const expected = sign > 0 ? '>' : sign < 0 ? '<' : '='
         assert.equal(q.options[q.answer], expected)
         if (q.method === 'direct') assert.ok((a>c && b<d)||(a<c && b>d))
         const [largeN,largeD,smallN,smallD] = a>c ? [a,b,c,d] : [c,d,a,b]

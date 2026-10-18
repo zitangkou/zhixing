@@ -67,6 +67,57 @@ class ShenlunTeachingExample(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class ShenlunExercise(Base):
+    """人工审核后发布的申论四类题型练习。"""
+    __tablename__ = "shenlun_exercises"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("sex"))
+    question_type: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(String(256))
+    source_article_id: Mapped[str | None] = mapped_column(ForeignKey("rmrb_articles.id"), nullable=True, index=True)
+    source_title: Mapped[str] = mapped_column(String(256), default="")
+    source_url: Mapped[str] = mapped_column(String(512), default="")
+    source_date: Mapped[str] = mapped_column(String(10), default="")
+    source_excerpt: Mapped[str] = mapped_column(Text, default="")
+    prompt: Mapped[str] = mapped_column(Text, default="")
+    requirements: Mapped[str] = mapped_column(Text, default="")
+    max_chars: Mapped[int] = mapped_column(Integer, default=200)
+    hint: Mapped[str] = mapped_column(Text, default="")
+    key_points_json: Mapped[str] = mapped_column(Text, default="[]")
+    rubric_json: Mapped[str] = mapped_column(Text, default="[]")
+    sample_answer: Mapped[str] = mapped_column(Text, default="")
+    analysis: Mapped[str] = mapped_column(Text, default="")
+    related_assets_json: Mapped[str] = mapped_column(Text, default="[]")
+    difficulty: Mapped[str] = mapped_column(String(16), default="基础")
+    estimated_minutes: Mapped[int] = mapped_column(Integer, default=8)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(16), default="draft", index=True)
+    reviewed_by: Mapped[str] = mapped_column(String(64), default="")
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    generation_job_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    generation_model: Mapped[str] = mapped_column(String(128), default="")
+    generation_rule_version: Mapped[str] = mapped_column(String(40), default="")
+    quality_score: Mapped[int] = mapped_column(Integer, default=0)
+    quality_report_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ShenlunExerciseAttempt(Base):
+    """学员的首次作答与订正记录；只向本人展示。"""
+    __tablename__ = "shenlun_exercise_attempts"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("sea"))
+    exercise_id: Mapped[str] = mapped_column(ForeignKey("shenlun_exercises.id"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_users.id"), index=True)
+    answer: Mapped[str] = mapped_column(Text, default="")
+    revision: Mapped[str] = mapped_column(Text, default="")
+    reflection: Mapped[str] = mapped_column(Text, default="")
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class ShenlunMineLog(Base):
     """人民日报模块 · 开采本：一日一行（三刀解剖）"""
     __tablename__ = "shenlun_mine_logs"

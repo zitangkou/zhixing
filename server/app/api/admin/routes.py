@@ -12,6 +12,7 @@ from app.api.admin.questions import router as questions_router
 from app.api.admin.rmrb import router as rmrb_router
 from app.api.admin.daily_quotes import router as daily_quotes_router
 from app.api.admin.shenlun_materials import router as shenlun_materials_router
+from app.api.admin.shenlun_exercises import router as shenlun_exercises_router
 from app.api.admin.theory_briefs import router as theory_briefs_router
 
 from app.api.admin.roles import router as roles_router
@@ -48,6 +49,7 @@ router.include_router(exam_router)
 router.include_router(rmrb_router)
 router.include_router(daily_quotes_router)
 router.include_router(shenlun_materials_router)
+router.include_router(shenlun_exercises_router)
 router.include_router(theory_briefs_router)
 
 router.include_router(ziliao_router)

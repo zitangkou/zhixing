@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.database import SessionLocal, engine  # noqa: E402
 from app.db_compat import run_compat_migrations  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Base, KnowledgeNode, KnowledgeTree, KnowledgeTreeVersion, UserKnowledgeState  # noqa: E402
+from app.models import Base, KnowledgeNode, KnowledgeTree, KnowledgeTreeVersion, UserKnowledgeState, ZiliaoQuickMethod  # noqa: E402
 from app.services import knowledge_doc_service as docs  # noqa: E402
 from app.services.knowledge_doc_service import (  # noqa: E402
     activate_version,
@@ -31,6 +31,7 @@ from app.services.knowledge_doc_service import (  # noqa: E402
 )
 from app.services.knowledge_structured import get_draft, preview_markdown_import, save_draft as save_structured_draft  # noqa: E402
 from app.services.knowledge_structured import validate_tree  # noqa: E402
+from app.services.ziliao_quick_calc_service import list_methods, publish_method  # noqa: E402
 
 Base.metadata.create_all(bind=engine)
 run_compat_migrations()
@@ -128,6 +129,52 @@ def test_public_sync_removed_and_maps_ok():
     body = r2.json()
     assert body.get("code") == 0
     assert isinstance(body.get("data"), list)
+
+
+def test_quick_calc_distinguishes_imported_draft_from_publishable_knowledge():
+    db = SessionLocal()
+    try:
+        db.add(KnowledgeTree(
+            tree_key="速算关联测试", title="速算关联测试", is_visible=False,
+            md_draft="# 速算关联测试\n\n## 增长\n\n### 增长量（X）\n",
+            draft_revision=1, latest_version=0, live_version=0,
+        ))
+        db.commit()
+
+        methods = list_methods(db)
+        method = next(item for item in methods if item["code"] == "growth-amount")
+        row = db.get(ZiliaoQuickMethod, method["id"])
+        row.knowledge_path = "速算关联测试 / 增长 / 增长量（X）"
+        row.node_title = "增长量（X）"
+        row.node_parent = "增长"
+        row.status = "draft"
+        row.enabled = True
+        db.commit()
+
+        state = next(item for item in list_methods(db) if item["code"] == "growth-amount")
+        assert state["knowledgeDraftResolved"] is True
+        assert state["knowledgeResolved"] is False
+        assert state["knowledgeStatus"] == "tree_unpublished"
+        try:
+            publish_method(db, row.id)
+        except ValueError as exc:
+            assert "先发布知识框架" in str(exc)
+        else:
+            raise AssertionError("unpublished knowledge tree should block quick method publishing")
+
+        tree = db.query(KnowledgeTree).filter_by(tree_key="速算关联测试").one()
+        tree.is_visible = True
+        tree.live_version = 1
+        db.add(KnowledgeNode(tree_key="速算关联测试", title="增长量（X）", path="增长/增长量（X）", depth=1))
+        db.commit()
+
+        state = next(item for item in list_methods(db) if item["code"] == "growth-amount")
+        assert state["knowledgeResolved"] is True
+        assert state["knowledgeStatus"] == "ready"
+        published = publish_method(db, row.id)
+        assert published and published["status"] == "published"
+    finally:
+        db.close()
 
 
 def test_structured_edit_preserves_node_id_and_formula_on_move():

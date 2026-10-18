@@ -58,7 +58,7 @@ onMounted(load)
       <template #header>
         <div class="card-head">
           <div>
-            <div class="title">图片生成记录</div>
+            <div class="title">图片记录</div>
             <div class="subtitle">查看异步任务进度与失败原因。密钥、提示词和原图不会显示在此页。</div>
           </div>
           <div class="actions">
@@ -93,7 +93,7 @@ onMounted(load)
         </el-table-column>
         <el-table-column label="提交时间" min-width="175"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
         <el-table-column label="完成时间" min-width="175"><template #default="{ row }">{{ formatTime(row.completedAt) }}</template></el-table-column>
-        <template #empty><el-empty description="暂无图片生成记录" /></template>
+        <template #empty><el-empty description="暂无图片记录" /></template>
       </el-table>
       <div class="pagination"><el-pagination v-model:current-page="page" v-model:page-size="size" :total="total" layout="total, sizes, prev, pager, next" @current-change="load" @size-change="onFilterChange" /></div>
     </el-card>

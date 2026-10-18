@@ -1,0 +1,64 @@
+{
+  "version": "2026-10-17-v1",
+  "title": "申论真题任务结构基准集",
+  "purpose": "为生成和二次复核提供经教材样本核对的任务结构基准，校准考查任务、复合关系与作答组织；不复制完整真题、材料或答案。",
+  "scope_note": "本集是题型结构基准，不是完整的标准答案金标集，也不代表官方评分尺度。练习题须结合人民日报材料改编；申发论述微练习只校准立意、提纲和论证段任务，不照搬真题篇幅。",
+  "cases": [
+    {
+      "id": "summary-2024-city-operator",
+      "question_type": "summary",
+      "source": "归纳概括题-思维导图.md｜真题范例：概括做法·2024国考市（地）级",
+      "task_shape": "围绕具体团队如何完成某项实践任务，概括其主要做法。",
+      "calibration": "答案按同类动作归并，采用主旨词加具体阐述；不把人物经历逐项复述成碎点。"
+    },
+    {
+      "id": "summary-2023-province-bridge",
+      "question_type": "summary",
+      "source": "归纳概括题-思维导图.md｜真题范例：概括特点·2023国考省级",
+      "task_shape": "围绕具体工程或机制的特点，概括其设计、建设、技术、连接或带动方面的巧思。",
+      "calibration": "按特点分类归纳；区分具体做法与产生的作用，答案回到题干所问的特点。"
+    },
+    {
+      "id": "counter-2022-jiangsu-delivery",
+      "question_type": "countermeasure",
+      "source": "提出对策题-教材清晰版.md｜真题精解：快递进村难（2022江苏C类）",
+      "task_shape": "针对一个明确的公共服务难题，结合材料问题及经验提出可操作的对策建议。",
+      "calibration": "建议要回应材料暴露的障碍，明确治理动作；避免泛化口号和材料未支撑的措施。"
+    },
+    {
+      "id": "counter-2024-city-culture",
+      "question_type": "countermeasure",
+      "source": "提出对策题-教材清晰版.md｜真题精解：S市公共文化空间（2024国考市地级）",
+      "task_shape": "复合任务：先梳理公共服务建设运营问题，再提出逐项对应的解决建议。",
+      "calibration": "问题与建议分层呈现且逐项对应；覆盖建设、服务或运营的不同环节，不以建议替代问题分析。"
+    },
+    {
+      "id": "implementation-2023-enforcement-speech",
+      "question_type": "implementation",
+      "source": "贯彻执行题-教材清晰版.md｜真题精解：无人经济发言提纲（2023国考行政执法类）",
+      "task_shape": "以明确机关身份面向会议对象，就新业态治理撰写发言提纲。",
+      "calibration": "身份、对象、目的、文种和场景一致；提纲纲目清晰，措施与监管职责匹配。"
+    },
+    {
+      "id": "implementation-2024-province-report",
+      "question_type": "implementation",
+      "source": "贯彻执行题-教材清晰版.md｜真题精解：高标准农田建设情况汇报（2024国考省级）",
+      "task_shape": "围绕建设工作撰写情况汇报，按要求组织做法成效、问题和建议等复合内容。",
+      "calibration": "汇报结构完整，任务要素逐项回应；材料事实与建议分开组织，不能遗漏题干要求的板块。"
+    },
+    {
+      "id": "implementation-2024-city-opinion",
+      "question_type": "implementation",
+      "source": "贯彻执行题-教材清晰版.md｜真题精解：基层卫生人才实施意见（2024国考市地级）",
+      "task_shape": "围绕明确工作主题起草实施意见，按题干要求写明指导思想、目标和措施。",
+      "calibration": "层级与文种相符；目标和措施彼此衔接，不补写题干未提供的正式机关信息。"
+    },
+    {
+      "id": "essay-2024-province-interpretation",
+      "question_type": "essay",
+      "source": "申发论述题-教材清晰版.md｜真题精解：2024国考省级第五题",
+      "task_shape": "围绕给定材料中的关键表述进行阐释，参考材料并联系实际，自拟题目完成议论文。",
+      "calibration": "先解释关键词并形成中心论点，再组织逻辑一致的分论点与论据；短练习仅训练立意、提纲或论证段，不冒充完整范文。"
+    }
+  ]
+}

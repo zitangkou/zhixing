@@ -1,10 +1,11 @@
-/** 管理端侧栏露出。路由仍注册，直链可进。隐藏项见项目功能与操作手册。 */
+/** 管理端侧栏露出。路由仍注册，直链可进。隐藏项见操作指引。 */
 
 const VISIBLE_PATHS = new Set([
   '/theory-briefs',
   '/rmrb-archive/quotes',
   '/rmrb-archive/shenlun-materials',
   '/rmrb-archive/vocabulary',
+  '/rmrb/exercises',
   '/knowledge',
   '/ziliao',
   '/users',

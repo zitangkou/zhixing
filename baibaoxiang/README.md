@@ -46,4 +46,4 @@ npm run dev:weapp
 
 小程序前端环境变量会被编译进客户端，只能放 API 地址等公开配置；微信 `AppSecret`、模型 API Key 等敏感凭据应保存在服务端环境中。
 
-全仓各产品功能、管理后台操作及构建发布说明见[项目功能与操作手册](../docs/PROJECT_OPERATIONS_MANUAL.md)。
+全仓各产品功能、管理后台操作及构建发布说明见[操作指引](../docs/PROJECT_OPERATIONS_MANUAL.md)。

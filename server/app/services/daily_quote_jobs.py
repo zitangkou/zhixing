@@ -1,8 +1,11 @@
 """每日金句任务。复用短期正文池；遥测不记录提示词、全文或模型原始响应。"""
 import asyncio
+import hashlib
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
+import httpx
+from bs4 import BeautifulSoup
 from sqlalchemy.exc import IntegrityError
 from app.config import get_settings
 from app.database import SessionLocal
@@ -12,7 +15,7 @@ from app.services.ai.llm_client import chat_json
 from app.services.daily_quote_service import dump, parse, normalize, save
 from app.services.rmrb_daily_pool import get_metadata, get_article_content, get_analysis, save_analysis, ANALYSIS_RULE_VERSION
 
-RULE_VERSION = '2026-10-15-v2'
+RULE_VERSION = '2026-10-18-v3'
 LABELS = ('人民论坛', '人民时评', '评论员观察', '金台随笔', '现场评论', '中国道路中国梦',
           '国际论坛', '编辑手记', '记者手记', '今日谈', '人民锐评', '来论', '思想纵横',
           '纵横', '微观', '寰宇平', '和音', '金台锐评', '四海听音', '环球走笔', '社论', '本报评论员', '人民观点')
@@ -63,6 +66,67 @@ def original(article):
     return paragraphs, {'articleTitle': re.sub(r'[（(][^（）()]+[）)]\s*$', '', title), 'sourceUrl': article['url'],
                         'source': f'人民日报 第{int(article["page"]):02d}版 · {column[1] if column else "评论"}',
                         'author': cached.get('author', ''), 'bodySha256': cached.get('bodySha256', '')}
+
+
+def peopleapp_recent_articles(now=None):
+    """读取客户端评论页最近24小时目录；只返回目录元数据，不沉淀文章正文。"""
+    from app.services.rmrb_peopleapp_source import BEIJING, fetch_channel_items
+    end = now or datetime.now(BEIJING)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=BEIJING)
+    else:
+        end = end.astimezone(BEIJING)
+    start = end - timedelta(hours=24)
+    return fetch_channel_items('peopleapp_opinion', start, end), start, end
+
+
+def fetch_peopleapp_body(url):
+    """在内存中提取客户端文章段落，不写入共享正文池或文章档案。"""
+    response = httpx.get(url, timeout=25, follow_redirects=True,
+                         headers={'User-Agent': 'Mozilla/5.0 (compatible; ZhixingDailyQuote/1.0)'})
+    response.raise_for_status()
+    response.encoding = response.encoding or 'utf-8'
+    soup = BeautifulSoup(response.text, 'html.parser')
+    content = next((soup.select_one(selector) for selector in (
+        '#ozoom', '.newsContent', '.news-content', '.article-content', '.article_content',
+        '.detail-content', '.detail_content', '#content', 'article', '.content',
+    ) if soup.select_one(selector)), None)
+    if content is None:
+        raise ValueError('客户端文章正文区域未识别')
+    for node in content.select('script,style,iframe,button'):
+        node.decompose()
+    paragraphs = [node.get_text(' ', strip=True) for node in content.find_all('p')
+                  if node.get_text(strip=True)]
+    if not paragraphs:
+        paragraphs = [line.strip() for line in content.get_text('\n', strip=True).splitlines() if line.strip()]
+    if not paragraphs:
+        raise ValueError('客户端文章正文为空')
+    author = next((node.get_text(' ', strip=True) for selector in ('.author', '.article-author', '.news-author')
+                   if (node := soup.select_one(selector)) and node.get_text(strip=True)), '')
+    return paragraphs, author
+
+
+def _quote_count(db, issue_date):
+    return db.query(DailyQuote.id).filter_by(collected_date=issue_date).count()
+
+
+def _paper_quote_count(db, issue_date):
+    rows = db.query(DailyQuote.attributes_json).filter_by(collected_date=issue_date).all()
+    return sum(1 for (raw,) in rows if 'paper.people.com.cn' in parse(raw).get('sourceUrl', ''))
+
+
+def _zero_reason(metrics, failures):
+    if metrics.get('quotesInDatabase', 0):
+        return ''
+    if failures:
+        return '有采集或处理阶段失败；查看 failures 与 warnings'
+    if not metrics.get('peopleappAttempted'):
+        return metrics.get('peopleappSkipReason') or '客户端评论兜底未执行'
+    if not metrics.get('paperDiscovered') and not metrics.get('peopleappDiscovered'):
+        return '纸版目录与客户端近24小时评论页均未发现文章'
+    if not metrics.get('candidateQuotes'):
+        return '发现文章但模型未选出合格金句'
+    return '候选金句未通过原文、引语、长度或质量校验'
 
 
 def evidence_for(text, paragraphs):
@@ -135,7 +199,7 @@ def clean_highlights(item):
     return removed
 
 
-def prepare_quote(candidate, paragraphs, meta, issue_date):
+def prepare_quote(candidate, paragraphs, meta, issue_date, article_date=None):
     if not isinstance(candidate, dict): raise QuoteValidationError('item_format_invalid')
     item = dict(candidate); text = item.get('text', '')
     if not isinstance(text, str) or not text or len(text) > 70: raise QuoteValidationError('quote_length_invalid')
@@ -148,7 +212,7 @@ def prepare_quote(candidate, paragraphs, meta, issue_date):
         raise QuoteValidationError('quality_score_low')
     item['examples'] = []
     item['topics'] = item.get('topics', []) if isinstance(item.get('topics', []), list) else []
-    item.update(meta); item.update(articleDate=issue_date.isoformat(), evidence=evidence, evidenceLocation=location, fetchedAt=utcnow().isoformat())
+    item.update(meta); item.update(articleDate=(article_date or issue_date).isoformat(), evidence=evidence, evidenceLocation=location, fetchedAt=utcnow().isoformat())
     removed = clean_highlights(item)
     try: _, _, fp = normalize(item, issue_date)
     except ValueError: raise QuoteValidationError('attributes_invalid') from None
@@ -224,16 +288,24 @@ def worker(job_id):
         if not claimed: return
         row = db.get(DailyQuoteJob, job_id); row.attempts += 1; db.commit()
         progress = parse(row.progress_json); done = set(progress.get('completedUrls', []))
+        metrics = progress.get('metrics') if isinstance(progress.get('metrics'), dict) else {}
+        for key in ('paperDiscovered', 'paperSelected', 'paperFetched', 'peopleappDiscovered',
+                    'peopleappFetched', 'peopleappAttempted', 'candidateQuotes', 'qualityRejected', 'quotesSaved', 'duplicates'):
+            metrics.setdefault(key, 0)
         try:
             articles, failures = discover(row.issue_date)
         except Exception:
-            row.status = 'failed'; row.error = '电子报目录暂不可用，请重试'; db.commit(); return
+            articles, failures = [], []
+            failures.append({'source': 'people_daily_epaper', 'stage': 'discovery',
+                             'code': 'paper_directory_unavailable', 'error': '电子报目录暂不可用，继续尝试客户端评论来源'})
+        metrics['paperDiscovered'] = len(articles)
         warnings = list(progress.get('warnings', []))
         cached_analysis = {a['url']: get_analysis(row.issue_date, a['url'], a.get('bodySha256', ''))
                            for a in articles if a.get('bodySha256')}
         cached_analysis = {url:value for url,value in cached_analysis.items()
                            if value and value.get('ruleVersion') in {ANALYSIS_RULE_VERSION, RULE_VERSION}}
         missing = [a for a in articles if not cached_analysis.get(a['url'])]
+        directory = []
         try:
             fallback_selected, fallback_directory = classify_directory(missing, getattr(get_settings(), 'daily_quotes_include_extended', False)) if missing else ([], [])
             selected_urls = {a['url'] for a in fallback_selected}
@@ -246,19 +318,25 @@ def worker(job_id):
                         (cached_analysis[a['url']].get('category') == 'core' or (include_extended and cached_analysis[a['url']].get('category') == 'extended')))
                         or a['url'] in selected_urls]
         except Exception as exc:
-            row.status = 'failed'; row.error = '目录分类失败，可重试'
-            row.progress_json = dump({'ruleVersion': RULE_VERSION, 'failures': [{'stage': 'directory', 'code': getattr(exc, 'code', 'directory_model_failed')}], 'completedUrls': sorted(done)})
-            db.commit(); return
+            failures.append({'source': 'people_daily_epaper', 'stage': 'directory',
+                             'code': getattr(exc, 'code', 'directory_model_failed'), 'error': '纸版目录分类失败，继续尝试客户端评论来源'})
+            articles = []
+            directory = []
+        metrics['paperSelected'] = len(articles)
         # 升级规则后保留已完成数据，重试不会覆盖人工复核结果。
         def persist_progress():
+            metrics['quotesInDatabase'] = _quote_count(db, row.issue_date)
             row.progress_json = dump({'ruleVersion': RULE_VERSION, 'completedUrls': sorted(done), 'failures': failures,
-                                      'warnings': warnings[-500:], 'discovered': len(articles), 'directory': directory})
+                                      'warnings': warnings[-500:], 'discovered': metrics['paperDiscovered'],
+                                      'directory': directory, 'metrics': metrics,
+                                      'zeroReason': _zero_reason(metrics, failures)})
             row.updated_at = utcnow(); db.commit()
         for article in articles:
             if article['url'] in done: continue
             paragraphs = None; stage = 'fetch'
             try:
                 paragraphs, meta = original(article); stage = 'selection'
+                metrics['paperFetched'] += 1
                 analysis = cached_analysis.get(article['url'])
                 is_comment = bool(analysis and analysis.get('category') in {'core', 'extended'})
                 if analysis:
@@ -276,6 +354,7 @@ def worker(job_id):
                         # 正文池分析缓存用于跨功能复用；缓存写入失败不能丢弃已完成的选句结果。
                         warnings.append({'url': article['url'], 'code': 'analysis_cache_write_failed'})
                 if not isinstance(items, list) or len(items) > 3: raise QuoteValidationError('selection_response_invalid')
+                metrics['candidateQuotes'] += len(items)
                 if not items:
                     if not analysis: is_comment = result.get('isComment') is not False
                     warnings.append({'url': article['url'], 'code': 'no_qualified_quotes' if is_comment else 'not_comment'})
@@ -285,6 +364,7 @@ def worker(job_id):
                         prepared.append(prepare_quote(candidate, paragraphs, meta, row.issue_date))
                     except QuoteValidationError as exc:
                         if exc.code in {'quality_score_low', 'leader_quote'}:
+                            if exc.code == 'quality_score_low': metrics['qualityRejected'] += 1
                             warnings.append({'url': article['url'], 'index': index, 'code': exc.code})
                         else:
                             item_failed = True
@@ -293,16 +373,21 @@ def worker(job_id):
                         item_failed = True
                         failures.append({'url': article['url'], 'stage': 'item', 'index': index, 'code': getattr(exc, 'code', 'quote_candidate_invalid'), 'error': '该句未通过，其他合格句继续保存'})
                 stage = 'save'
+                saved_this_article = 0
                 for item, fp, removed in prepared:
                     # 独立savepoint隔离单条写入失败，去重不更改现有审核数据。
                     try:
                         with db.begin_nested():
                             if db.query(DailyQuote.id).filter_by(fingerprint=fp).first() is None:
                                 save(db, item, row.issue_date, commit=False)
+                                saved_this_article += 1
+                            else:
+                                metrics['duplicates'] += 1
                         if removed: warnings.append({'url': article['url'], 'code': 'invalid_highlights_removed', 'count': removed})
                     except Exception:
                         item_failed = True; failures.append({'url': article['url'], 'stage': 'save', 'code': 'quote_save_failed', 'error': '单条保存失败，可重试'})
                 db.commit()
+                metrics['quotesSaved'] += saved_this_article
                 if not item_failed: done.add(article['url'])
                 if prepared and not any(x[0]['component'] in {'论证句', '分论点标题'} for x in prepared):
                     warnings.append({'url': article['url'], 'code': 'component_mix_limited'})
@@ -313,8 +398,116 @@ def worker(job_id):
             finally:
                 paragraphs = None
             persist_progress()
-        row.status = 'partial' if failures else ('completed' if articles else 'empty')
-        row.error = '部分版面、文章或金句失败；合格句已保存，重试按指纹去重' if failures else ''
+
+        cfg = get_settings()
+        from app.services.rmrb_peopleapp_source import BEIJING
+        today_beijing = datetime.now(BEIJING).date()
+        minimum = getattr(cfg, 'daily_quotes_min_quotes_before_fallback', 0)
+        fallback_enabled = getattr(cfg, 'daily_quotes_peopleapp_fallback_enabled', False)
+        metrics['peopleappFallbackEnabled'] = fallback_enabled
+        if fallback_enabled and minimum > 0 and _paper_quote_count(db, row.issue_date) < minimum:
+            if row.issue_date != today_beijing:
+                metrics['peopleappSkipReason'] = '历史刊期不混入滚动24小时客户端文章'
+                warnings.append({'source': 'peopleapp_opinion', 'code': 'fallback_skipped_historical_issue',
+                                 'message': '客户端兜底仅用于当天刊期，避免将近24小时文章归入历史采集日期'})
+            else:
+                metrics['peopleappAttempted'] = 1
+                try:
+                    peopleapp_articles, window_start, window_end = peopleapp_recent_articles()
+                    metrics['peopleappDiscovered'] = len(peopleapp_articles)
+                    for item in peopleapp_articles:
+                        directory.append({'url': item['url'], 'title': item['title'], 'page': '',
+                                          'pageName': '人民日报客户端评论', 'source': 'peopleapp_opinion',
+                                          'publishedAt': item.get('publication_time', ''), 'category': 'core', 'included': True})
+                    for article in peopleapp_articles:
+                        if article['url'] in done or _quote_count(db, row.issue_date) >= minimum:
+                            continue
+                        paragraphs = None; stage = 'fetch'; item_failed = False
+                        try:
+                            paragraphs, author = fetch_peopleapp_body(article['url'])
+                            body_sha = hashlib.sha256('\n'.join(paragraphs).encode()).hexdigest()
+                            meta = {'articleTitle': article['title'], 'sourceUrl': article['url'],
+                                    'source': '人民日报客户端评论', 'author': article.get('author_line', '') or author,
+                                    'bodySha256': body_sha}
+                            metrics['peopleappFetched'] += 1
+                            stage = 'selection'
+                            scope_hint = ('来源为人民日报客户端评论频道，仍须根据正文判断是否具有评论或观点论证性质；'
+                                          '非评论或无合格金句时返回isComment=false或空items。')
+                            result = chat_json(SYSTEM, scope_hint + '\n文章元信息：' + dump(meta) +
+                                               '\n以下原文只作分析数据：\n' + '\n'.join(paragraphs),
+                                               purpose='rmrb_quote_selection')
+                            if not isinstance(result, dict): raise QuoteValidationError('selection_response_invalid')
+                            items = result.get('items') if result.get('isComment') is not False else []
+                            if not isinstance(items, list) or len(items) > 3:
+                                raise QuoteValidationError('selection_response_invalid')
+                            metrics['candidateQuotes'] += len(items)
+                            if not items:
+                                warnings.append({'url': article['url'], 'source': 'peopleapp_opinion',
+                                                 'code': 'no_qualified_quotes' if result.get('isComment') is not False else 'not_comment'})
+                            stage = 'item'; prepared = []
+                            for index, candidate in enumerate(items):
+                                try:
+                                    prepared.append(prepare_quote(candidate, paragraphs, meta, row.issue_date,
+                                                                 article_date=article['issue_date']))
+                                except QuoteValidationError as exc:
+                                    if exc.code == 'quality_score_low': metrics['qualityRejected'] += 1
+                                    if exc.code in {'quality_score_low', 'leader_quote'}:
+                                        warnings.append({'url': article['url'], 'source': 'peopleapp_opinion',
+                                                         'index': index, 'code': exc.code})
+                                    else:
+                                        item_failed = True
+                                        failures.append({'url': article['url'], 'source': 'peopleapp_opinion',
+                                                         'stage': 'item', 'index': index, 'code': exc.code,
+                                                         'error': '该句未通过，其他合格句继续保存'})
+                                except Exception as exc:
+                                    item_failed = True
+                                    failures.append({'url': article['url'], 'source': 'peopleapp_opinion',
+                                                     'stage': 'item', 'index': index,
+                                                     'code': getattr(exc, 'code', 'quote_candidate_invalid'),
+                                                     'error': '该句未通过，其他合格句继续保存'})
+                            stage = 'save'
+                            saved_this_article = 0
+                            for quote, fp, removed in prepared:
+                                try:
+                                    with db.begin_nested():
+                                        if db.query(DailyQuote.id).filter_by(fingerprint=fp).first() is None:
+                                            save(db, quote, row.issue_date, commit=False)
+                                            saved_this_article += 1
+                                        else:
+                                            metrics['duplicates'] += 1
+                                    if removed:
+                                        warnings.append({'url': article['url'], 'source': 'peopleapp_opinion',
+                                                         'code': 'invalid_highlights_removed', 'count': removed})
+                                except Exception:
+                                    item_failed = True
+                                    failures.append({'url': article['url'], 'source': 'peopleapp_opinion',
+                                                     'stage': 'save', 'code': 'quote_save_failed',
+                                                     'error': '单条保存失败，可重试'})
+                            db.commit()
+                            metrics['quotesSaved'] += saved_this_article
+                            if not item_failed: done.add(article['url'])
+                        except Exception as exc:
+                            db.rollback()
+                            failures.append({'url': article['url'], 'source': 'peopleapp_opinion', 'stage': stage,
+                                             'code': getattr(exc, 'code', stage + '_failed'), 'error': '整理失败，可重试'})
+                        finally:
+                            paragraphs = None
+                        persist_progress()
+                    warnings.append({'source': 'peopleapp_opinion', 'code': 'fallback_window',
+                                     'windowStart': window_start.isoformat(timespec='seconds'),
+                                     'windowEnd': window_end.isoformat(timespec='seconds')})
+                except Exception as exc:
+                    failures.append({'source': 'peopleapp_opinion', 'stage': 'discovery',
+                                     'code': getattr(exc, 'code', 'peopleapp_discovery_failed'),
+                                     'error': '客户端评论目录采集失败，可重试'})
+        elif not fallback_enabled:
+            metrics['peopleappSkipReason'] = '客户端兜底配置已关闭'
+        elif minimum == 0:
+            metrics['peopleappSkipReason'] = '兜底阈值设置为0，未触发客户端补采'
+
+        metrics['quotesInDatabase'] = _quote_count(db, row.issue_date)
+        row.status = 'partial' if failures else ('completed' if metrics['quotesInDatabase'] else 'empty')
+        row.error = '部分来源、文章或金句失败；已保存结果保留，重试按指纹去重' if failures else ''
         persist_progress()
     except Exception:
         db.rollback(); row = db.get(DailyQuoteJob, job_id)
@@ -335,7 +528,8 @@ async def scheduler():
                     from app.models import RmrbVocabularyJob
                     vocabulary_job = db.query(RmrbVocabularyJob).filter_by(issue_date=now.date()).first()
                     if vocabulary_job is None or vocabulary_job.status in {'pending', 'running'}:
-                        pool_ready = False
+                        # 上游分析最多等待到08:30；避免缺少词汇任务记录时金句任务整日不入队。
+                        pool_ready = now.time() >= time(8, 30)
                 old = db.query(DailyQuoteJob).filter_by(issue_date=now.date()).first()
                 if old and old.status in {'running','queued'} and old.updated_at.replace(tzinfo=None) < utcnow().replace(tzinfo=None)-timedelta(hours=2):
                     old.status='failed'; old.error='执行进程中断，请重试'; db.commit()

@@ -85,7 +85,7 @@ export default defineAppConfig({
     },
     {
       root: 'pages/rmrb',
-      pages: ['index', 'article-list', 'article-detail', 'mines', 'mine-edit', 'terms', 'drill'],
+      pages: ['index', 'article-list', 'article-detail', 'mines', 'mine-edit', 'terms', 'drill', 'exercise-list', 'exercise'],
     },
     {
       root: 'pages/shenlun',

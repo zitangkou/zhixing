@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import Taro, { useLoad } from '@tarojs/taro'
+import { useLoad } from '@tarojs/taro'
 import { api } from '@/api'
 import type { DailyQuoteCard } from '@/types'
 import { useThemeClass, usePageMeta } from '@/utils/brandColor'

@@ -1,6 +1,6 @@
 <template>
   <div class="usage-page">
-    <div class="toolbar"><h2>大模型用量</h2><el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"/><el-button type="primary" :loading="loading" @click="load">查询</el-button></div>
+    <div class="toolbar"><h2>模型用量</h2><el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"/><el-button type="primary" :loading="loading" @click="load">查询</el-button></div>
     <el-alert v-if="!pricingConfigured" title="当前只统计 token 和调用量。配置 LLM_INPUT_PRICE_PER_MILLION / LLM_OUTPUT_PRICE_PER_MILLION 后显示费用估算；价格单位按服务商配置。" type="info" :closable="false" />
     <div class="cards"><el-card><span>调用次数</span><strong>{{ totals.calls }}</strong></el-card><el-card><span>输入 Token</span><strong>{{ totals.input.toLocaleString() }}</strong></el-card><el-card><span>输出 Token</span><strong>{{ totals.output.toLocaleString() }}</strong></el-card><el-card><span>失败调用</span><strong>{{ totals.failures }}</strong></el-card><el-card v-if="pricingConfigured"><span>估算费用</span><strong>{{ totals.cost.toFixed(4) }}</strong></el-card></div>
     <el-table v-loading="loading" :data="items" stripe>

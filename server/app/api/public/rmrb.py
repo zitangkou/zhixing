@@ -1,7 +1,65 @@
 from app.api.public._deps import *  # noqa: F401,F403
+import json
+from app.models import ShenlunExercise, ShenlunExerciseAttempt
+from app.schemas.shenlun_exercises import ShenlunExerciseAnswerIn, ShenlunExerciseRevisionIn
+from app.services.activity_service import record_event
 
 router = APIRouter()
 # ===== 人民日报模块（独立：时评 / 开采本 / 规范词） =====
+
+def _exercise_public(row: ShenlunExercise, attempt=None):
+    def parsed(value):
+        try: return json.loads(value or '[]')
+        except (ValueError, TypeError): return []
+    reviewed = attempt is not None
+    return {
+        'id': row.id, 'question_type': row.question_type, 'title': row.title,
+        'source_title': row.source_title, 'source_url': row.source_url, 'source_date': row.source_date,
+        'source_excerpt': row.source_excerpt, 'prompt': row.prompt, 'requirements': row.requirements,
+        'max_chars': row.max_chars, 'hint': row.hint, 'difficulty': row.difficulty,
+        'estimated_minutes': row.estimated_minutes, 'is_featured': row.is_featured,
+        'key_points': parsed(row.key_points_json) if reviewed else [],
+        'rubric': parsed(row.rubric_json) if reviewed else [],
+        'sample_answer': row.sample_answer if reviewed else '', 'analysis': row.analysis if reviewed else '',
+        'related_assets': parsed(row.related_assets_json) if reviewed else [],
+        'attempt': {'id':attempt.id,'answer':attempt.answer,'revision':attempt.revision,'reflection':attempt.reflection} if attempt else None,
+    }
+
+@router.get('/rmrb/exercises')
+def rmrb_exercises_list(question_type: str | None = None, db: Session = Depends(get_db)):
+    query=db.query(ShenlunExercise).filter(ShenlunExercise.status=='published')
+    if question_type: query=query.filter(ShenlunExercise.question_type==question_type)
+    rows=query.order_by(ShenlunExercise.is_featured.desc(),ShenlunExercise.sort_order,ShenlunExercise.published_at.desc()).limit(100).all()
+    return ApiResponse.ok([_exercise_public(x) for x in rows])
+
+@router.get('/rmrb/exercises/{exercise_id}')
+def rmrb_exercise_detail(exercise_id: str, user: AppUser = Depends(get_app_user), db: Session = Depends(get_db)):
+    row=db.get(ShenlunExercise,exercise_id)
+    if not row or row.status!='published': return ApiResponse.fail('练习不存在或已下架',code=404)
+    attempt=db.query(ShenlunExerciseAttempt).filter_by(exercise_id=exercise_id,user_id=user.id).order_by(ShenlunExerciseAttempt.submitted_at.desc()).first()
+    return ApiResponse.ok(_exercise_public(row,attempt))
+
+@router.post('/rmrb/exercises/{exercise_id}/answers')
+def rmrb_exercise_answer(exercise_id: str, body: ShenlunExerciseAnswerIn, user: AppUser = Depends(get_app_user), db: Session = Depends(get_db)):
+    row=db.get(ShenlunExercise,exercise_id)
+    if not row or row.status!='published': return ApiResponse.fail('练习不存在或已下架',code=404)
+    attempt=ShenlunExerciseAttempt(exercise_id=exercise_id,user_id=user.id,answer=body.answer.strip())
+    db.add(attempt)
+    try:
+        record_event(db,user.id,'shenlun_exercise_done',{'exercise_id':exercise_id,'question_type':row.question_type},commit=False)
+        db.commit();db.refresh(attempt)
+    except Exception:
+        db.rollback();raise
+    return ApiResponse.ok(_exercise_public(row,attempt))
+
+@router.put('/rmrb/exercises/{exercise_id}/answers/{attempt_id}')
+def rmrb_exercise_revision(exercise_id: str, attempt_id: str, body: ShenlunExerciseRevisionIn, user: AppUser = Depends(get_app_user), db: Session = Depends(get_db)):
+    row=db.get(ShenlunExercise,exercise_id)
+    attempt=db.get(ShenlunExerciseAttempt,attempt_id)
+    if not row or row.status!='published' or not attempt or attempt.exercise_id!=exercise_id or attempt.user_id!=user.id:
+        return ApiResponse.fail('练习记录不存在',code=404)
+    attempt.revision=body.revision.strip();attempt.reflection=body.reflection.strip();db.commit()
+    return ApiResponse.ok(_exercise_public(row,attempt))
 
 
 @router.get("/rmrb/meta")

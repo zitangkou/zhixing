@@ -6,10 +6,34 @@
         <p>先审核是否符合金句素材，通过后再启用；仿写可在确认运营用途时按需生成。</p>
       </div>
       <div class="actions">
-        <el-button v-if="canWrite" :loading="running" @click="run">整理今日</el-button>
+        <el-button v-if="canWrite" :loading="running || jobActive" :disabled="jobActive" @click="run">整理今日</el-button>
         <el-button type="primary" @click="edit()">新增</el-button>
       </div>
     </header>
+
+    <el-alert v-if="job" :type="job.status === 'completed' ? 'success' : job.status === 'partial' || job.status === 'failed' ? 'warning' : job.status === 'empty' ? 'info' : 'info'" :closable="false">
+      <template #title>今日采集：{{ jobStatusLabel(job.status) }}<span v-if="job.error"> · {{ job.error }}</span></template>
+      <div v-if="job.metrics" class="job-metrics">
+        纸版文章 {{ job.metrics.paperDiscovered ?? 0 }} / 入选 {{ job.metrics.paperSelected ?? 0 }} / 正文处理 {{ job.metrics.paperFetched ?? 0 }}；
+        客户端评论 {{ job.metrics.peopleappDiscovered ?? 0 }} / 正文处理 {{ job.metrics.peopleappFetched ?? 0 }}；
+        候选句 {{ job.metrics.candidateQuotes ?? 0 }} / 质量拒绝 {{ job.metrics.qualityRejected ?? 0 }} / 重复 {{ job.metrics.duplicates ?? 0 }} / 新增 {{ job.metrics.quotesSaved ?? 0 }} / 库内 {{ job.metrics.quotesInDatabase ?? 0 }}
+      </div>
+      <div v-if="job.zeroReason" class="job-reason">零结果原因：{{ job.zeroReason }}</div>
+      <div v-if="job.failures?.length" class="job-reason">
+        <div>失败 {{ job.failures.length }} 项，可重试：</div>
+        <div v-for="(failure, index) in job.failures.slice(0, 3)" :key="`${failure.url || failure.source}-${index}`">
+          {{ failure.source || failure.url || '采集任务' }} · {{ failure.stage || '处理' }} · {{ failure.code || 'unknown' }}：{{ failure.error || '未提供详情' }}
+        </div>
+      </div>
+      <div v-if="job.warnings?.length" class="job-reason">
+        <div v-for="(warning, index) in job.warnings.slice(0, 3)" :key="`${warning.url || warning.source}-${warning.code}-${index}`">
+          提示：{{ warning.source || warning.url || '采集任务' }} · {{ warning.code }}{{ warning.message ? `：${warning.message}` : '' }}
+        </div>
+      </div>
+    </el-alert>
+    <el-alert v-else-if="jobConfig && !jobConfig.llmConfigured" type="warning" :closable="false" title="今日自动整理尚未启动：服务端 LLM 未启用或未配置。" />
+    <el-alert v-else-if="jobConfig && !jobConfig.enabled" type="info" :closable="false" title="每日金句自动整理已关闭，可由有写权限的管理员手动启动。" />
+    <el-alert v-else-if="jobConfig" type="info" :closable="false" :title="`今日任务尚未入队；默认计划 ${jobConfig.schedule}，上游延迟时最迟于北京时间 08:30 独立启动。`" />
 
     <div class="filters">
       <el-radio-group v-model="status" @change="filter">
@@ -84,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import * as api from '@/api/dailyQuotes'
@@ -101,6 +125,10 @@ const items = ref<api.DailyQuote[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const running = ref(false)
+const job = ref<api.DailyQuoteJob | null>(null)
+const jobConfig = ref<{enabled:boolean;llmConfigured:boolean;schedule:string} | null>(null)
+const jobActive = computed(() => ['queued', 'running'].includes(job.value?.status || ''))
+let jobPollTimer: ReturnType<typeof setInterval> | undefined
 const editing = ref(false)
 const draft = ref<api.DailyQuote | null>(null)
 const topicsInput = ref('')
@@ -173,6 +201,27 @@ function auditLabel(s: string) {
   return ({ pending: '待审核', passed: '符合', rejected: '不符合' } as Record<string, string>)[s] || '待审核'
 }
 
+function jobStatusLabel(s: string) {
+  return ({ queued: '排队中', running: '处理中', completed: '完成', partial: '部分完成', empty: '无合格金句', failed: '失败' } as Record<string, string>)[s] || s
+}
+
+async function refreshJob() {
+  try {
+    const data = await api.getQuoteJob(today)
+    const wasActive = jobActive.value
+    job.value = data.job
+    jobConfig.value = { enabled: data.enabled, llmConfigured: data.llmConfigured, schedule: data.schedule }
+    if (jobActive.value && !jobPollTimer) jobPollTimer = setInterval(() => { void refreshJob() }, 3000)
+    if (!jobActive.value && jobPollTimer) {
+      clearInterval(jobPollTimer)
+      jobPollTimer = undefined
+      if (wasActive) void load()
+    }
+  } catch {
+    // 任务状态提示不影响金句列表的正常使用。
+  }
+}
+
 async function audit(row: api.DailyQuote) {
   try {
     await ElMessageBox.confirm('这条是否符合金句素材？', '审核', {
@@ -226,6 +275,8 @@ async function run() {
   try {
     await api.runQuoteJob(today)
     ElMessage.success('已开始整理，完成后出现在待确认')
+    await refreshJob()
+    await load()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '整理失败')
   } finally {
@@ -233,11 +284,13 @@ async function run() {
   }
 }
 
-onMounted(load)
+onMounted(() => { void load(); void refreshJob() })
+onBeforeUnmount(() => { if (jobPollTimer) clearInterval(jobPollTimer) })
 </script>
 
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
+.job-metrics, .job-reason { margin-top: 6px; line-height: 1.6; }
 header, .actions, .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 header { justify-content: space-between; }
 header p { margin: 4px 0 0; color: var(--el-text-color-secondary); }

@@ -92,7 +92,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
 | 时政要点 | TheoryPoint 编排已发布原文及题目；管理接口支持分页查询，Article 保存 brief_json / brief_status，学员端仅取已发布要点。时政套题用 ArticleQuizProgress 保存用户进度与最近作答。 |
-| 人民日报 | 每日金句库（DailyQuote 等）、词汇素材库（RmrbVocabulary / RmrbVocabularyJob）与申论素材库（ShenlunMaterial）分开管理。词汇素材按刊期和词条指纹去重，JSON 保存主题/使用场景/仿写/逐字原文证据及多来源，采集批次保存进度与错误；候选必须通过原文硬校验且人工审核后采用。申论素材保存来源日期/版面/标题/链接、类型、主题要素、使用场景、事实摘要、原创示例、使用边界、质量分与审核状态；闭集、8/10质量门、案例/语录专属校验由 `services/shenlun_materials.py` 统一实施，首批10月15日筛选结果以待审核状态幂等初始化。 |
+| 人民日报 | 每日金句库、词汇素材库、申论素材库分表管理。申论四类练习由 `ShenlunExercise` 管理，定时生成批次由 `ShenlunExerciseJob` 管理。生成任务复用48小时 `RmrbDailyPoolArticle` 与联合分析缓存，按公共议题/治理/政策材料锚点筛选、正文去重，每批最多处理3篇，并记录逐篇进度与已完成候选供续跑；通过原文证据、字数硬校验及结构化复核后只存草稿；生成和复核均参考`shenlun_benchmark_cases.json`中按教材真题结构整理的8个题型样例，并记录基准集版本。人工审核后发布；审核结论、问题维度、意见、修改标记保存在质量报告并留存变更历史；`/admin/shenlun-exercises/review-metrics`按审核结果、题型和问题维度汇总反馈；审核历史保存当时的题目内容快照，`/admin/shenlun-exercises/review-dataset`支持筛选和分页导出审核样本 JSON；反馈统计按生成规则版本聚合审核结果与修改数，`server/scripts/analyze_shenlun_review_dataset.py`将审核事件样本汇总为本地复盘报告。旧规则草稿标为需复核。公开接口仅返回已发布题，首次提交后才返回解析；`ShenlunExerciseAttempt` 保存作答、订正和反思，行为事件经 `activity_service.record_event()` 写入。 |
 | 用户管理 | 学员账号、积分、状态管理 |
 | 知识框架 | Markdown 上传、树同步、节点维护；工作台可将当前已保存结构化草稿导出为 Markdown、阅读版 HTML（图片引用原资源地址）或 Markmap 渲染 PNG（长边上限 4096 像素） |
 | 学习计划 | 周计划模板维护、同步到待办 |
@@ -156,7 +156,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 手动错题 | `pages/question/manual-*` | `manual_wrong_service.py` | 行测错题录入、图片上传、知识点关联、复习状态 |
 | 知识框架 | `pages/knowledge/index` | `knowledge_service.py`、`knowledge_review_service.py` | Markdown 同步、树状知识点、笔记、星标、掌握度、复习 |
 | 真题套卷 | `pages/exam/*` | `exam_service.py`、`exam_import.py` | 试卷列表、开考、答题、交卷、成绩和历史记录 |
-| 人民日报/申论 | `pages/rmrb/*` | `rmrb_service.py`、`rmrb_meta_service.py`、`shenlun_service.py`、`vocab_inbox_service.py` | 时评 HTML、开采本、词表待收录、骨架模板、阶梯训练 |
+| 人民日报/申论 | `pages/rmrb/*` | `rmrb_service.py`、`rmrb_meta_service.py`、`shenlun_service.py`、`vocab_inbox_service.py` | 时评 HTML、开采本、词表待收录、骨架模板、阶梯训练、四类题型练习与答案订正 |
 | 资料分析 | `pages/ziliao/*` | `ziliao_service.py`, `ziliao_quick_calc_service.py` | 公式/题型/技巧、材料练习、速算训练与结果统计 |
 
 ### 4.2 素材积累与能力辅助
@@ -201,7 +201,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 真题套卷 | `ExamPaper`、`ExamQuestion`、`ExamAttempt`、`ExamAnswer` |
 | 倒计时与行为 | `ExamCountdown`、`ActivityEvent` |
 | 时政 | `TheoryPoint`、`ArticleQuizProgress`；`Article.brief_json` / `brief_status` |
-| 人民日报/申论 | `RmrbArticle`、`DailyQuote`、`DailyQuoteSelection`、`DailyQuoteJob`、`ShenlunMaterial`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
+| 人民日报/申论 | `RmrbArticle`、`DailyQuote`、`DailyQuoteSelection`、`DailyQuoteJob`、`ShenlunMaterial`、`ShenlunExercise`、`ShenlunExerciseJob`、`ShenlunExerciseAttempt`、`ShenlunMineLog`、`ShenlunNormTerm`、`ShenlunDrillLog`、`ShenlunTermCategory`、`ShenlunSkeletonTemplate`、`ShenlunSentenceType`、`ShenlunArgumentMethod`、`VocabInbox` |
 | 时政/时评 HTML | `Article.content_html`；`RmrbArticle.content_html`；示范 `ShenlunTeachingExample.display_html` |
 | 事件复盘 | `EventImpression` |
 | 语料与资料分析 | `CorpusItem`、`ZiliaoFormula`、`ZiliaoQuestionType`、`ZiliaoTrick`、`ZiliaoPracticeLog`、`ZiliaoQuickMethod`、`ZiliaoQuickMethodVersion`、`ZiliaoQuickSession` |
@@ -389,7 +389,26 @@ Obsidian Markdown / 管理端上传
 ### 2026-10-15 · 本地速算生成与双端公式渲染
 
 - `src/utils/quickCalc.ts` 是无网络的教学模拟题生成器，按七类方法场景构造数据；`QuickQuestion.check` 保留精确校验参数。四选项去重，比较用整数交叉乘积，计算题按题干指定精度设置唯一答案。
-- `src/pages/ziliao/quick-calc.vue` 承载方法选择、训练、解析与结果；路由位于资料分析分包。服务端 `ziliao_quick_calc_service.py` 按已发布规则生成题目并在逐题提交时判分；`ZiliaoQuickSession` 保存题目快照、规则版本、答案与耗时，支持账号历史和错题重练。统计通过 `activity_service.record_event()` 写 `quick_calc_done`，禁止直接写 `activity_events`。速算训练不进入材料题积分或排行。
+- `src/pages/ziliao/quick-calc.vue` 承载题型选择、训练、解析与结果；路由位于资料分析分包。服务端 `ziliao_quick_calc_service.py` 按已发布规则生成题目并在逐题提交时判分；训练按计算概念组织，多分数比较/排序、计算辨析与综合材料辨析作为题目形式组合，解题建议在答题后显示。增长量题基于真实统计/真题数据改编，按数据特征推荐除乘转化、乘数拆分、假设估算或错位加减等方法。`ZiliaoQuickSession` 保存题目快照、规则版本、答案与耗时，支持账号历史和错题重练。统计通过 `activity_service.record_event()` 写 `quick_calc_done`，禁止直接写 `activity_events`。速算训练不进入材料题积分或排行。
 - `LatexBlock` 静态依赖 `formulaRenderer`，由 Taro 解析 `.weapp.ts` / `.h5.ts`；禁止在小程序中动态 import 源码 alias，否则可能留下未解析 require。微信端通过 `@rojer/katex-mini` 和既有 KaTeX 转换为 rich-text nodes，H5 使用 HTML；`MathText` 识别显式行内/块公式及 latex/math/tex 围栏。
 - 依赖覆盖将 katex-mini 的旧 peer 范围绑定至根项目锁定的 KaTeX；该库依赖 KaTeX 内部 DOM API，升级任一依赖后须运行数学/渲染验证脚本。`weappMathChunk` 固定共享引擎在主包，防止主包同步引用资料分包。`weappMathStyles` 读取依赖样式，将字体替换为本地 woff2 data URL 并注入 Taro comp.wxss，不依赖字体 CDN。
 - `scripts/check-quick-calc.mjs` 验证生成答案、条件、选项、公式与暗色根号；`scripts/check-weapp-math.mjs` 检查主包 2MB 限制、同步依赖边界、字体、公式引擎和路由。实现状态为本地，未部署发布；真机视觉验收待做。
+
+
+### 2026-10-17 · 速算训练按题型组织（本地实现，待部署）
+
+速算训练统一为分数比较、增长量、增长率、基期量四种题型。分数比较在同一组内覆盖分数性质、差分比较、同位比较和分母拆分场景，作答前只展示数据，作答后解析给出优先建议与推导。管理端按题型配置、预览和发布；新增分数比较规则初始为草稿，需显式发布。旧比较方法规则、版本及训练快照保留，历史统计和薄弱项推荐归入分数比较，建议方法分布单独统计。无需新增权限、菜单或环境变量。
+
+### 2026-10-17 · 速算训练扩展题目形式（本地实现，待部署）
+
+训练仍按计算概念归类，生成时再组合题目形式。分数比较包含两数符号比较、四分数选极值和完整排序；增长量、增长率、基期量包含直接计算及四选项计算辨析（唯一正确项或唯一错误项）。服务端生成后、练习会话落库前独立校验分数顺序、题目选项和计算辨析真值；答题记录新增题目形式统计。正式原题、公开数据改编题与教学模拟题应分别记录来源，当前多分数排序属于教学模拟，不代表真题频率或原题复现。
+
+### 2026-10-17 · 混合训练综合材料辨析（本地实现，待部署）
+
+混合训练达到 10/20 题时，每 10 题最多插入一题综合材料辨析，且仅在增长量、增长率、基期量均已发布时启用。题目从同源同单位的公开统计材料抽取四个指标，四个选项覆盖增长量、增长率、基期量和现期量；训练会话保存表格、公式编码、选项真值和题目形式快照。服务端按源数据重新计算并校验唯一正确项/错误项。学员端答题后接收逐项真值和公式解析；答题记录按 `mixed` 汇入“综合材料辨析”统计，不作为单一公式薄弱项推荐。
+
+### 2026-10-18 · 速算训练概念扩展（本地实现，待部署）
+
+速算规则扩展为比重、平均数、倍数、混合增长率、隔年增长率、年均增长、贡献率/拉动等概念题型，题面形式由生成器按规则轮换，解题技巧仅在答题后提供。隔年增长率独立按连续两期同比增速复合；年均增长包含年均复合增长率和年均增长量，复合增速题仅用两个以上增长年度的数据，解析保留开方精确式并提供对称近似和选项代入建议。数据来源包括国家统计局 2022—2024 年粮食分省产量与单产、分季节/分品种产量、2023—2024 年 GDP 现价产业构成，以及海关贸易统计。训练会话轮换真实数据样本；在重复检测时结合题型、题干和公式，避免相同题目重复，同时允许指标不同但数值相同的独立题目。增长量/增长率计算辨析仅使用在题面精度下可区分常见错项的数据样本（分别至少 2.5% 和 0.5% 增速），增长率训练覆盖低幅度及正负增长，不用人工算术误差补选项；更小增幅仍可用于其他题型。生成、预览、发布校验重新计算各类题目的答案和四项选项唯一性；训练效果按概念统计正确率和平均用时，并按题目形式记录各自正确率、平均用时和答题量。统计数据的改编练习不声明为真题复刻。资料分析知识框架的倍数关系同步更正为“倍数 = 1 + 增长率”。功能目前本地实现，部署前需逐项关联已发布且学员可见的知识节点并发布规则。
+
+基期量训练同步改为基于官方两期数据出题，使用真实现期量与真实增速，按难度筛选样本并平衡正负增长。题干和解析显示来源、年份、单位；增速按一位小数展示，基期量按题面数据计算后取最接近值，避免将展示增速误解为数据原始精度。

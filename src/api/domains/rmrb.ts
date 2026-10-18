@@ -1,7 +1,40 @@
 import * as d from '../_shared'
 
+export interface ShenlunExerciseCard {
+  id: string; question_type: 'summary' | 'countermeasure' | 'implementation' | 'essay'; title: string
+  source_title: string; source_url: string; source_date: string; source_excerpt: string; prompt: string
+  requirements: string; max_chars: number; hint: string; difficulty: string; estimated_minutes: number
+  is_featured: boolean; key_points: {point:string;evidence:string}[]; rubric: {name:string;description:string}[]
+  sample_answer: string; analysis: string; related_assets: {type:string;id:string;title:string}[]
+  attempt: {id:string;answer:string;revision:string;reflection:string} | null
+}
+
 export const apiRmrb = {
   // ===== 人民日报 / 申论 =====
+
+  listShenlunExercises(questionType?: string): Promise<d.ApiRes<ShenlunExerciseCard[]>> {
+    if (d.isMock) return Promise.resolve({ code: 0, data: [] } as d.ApiRes<ShenlunExerciseCard[]>)
+    const query = questionType ? `?question_type=${encodeURIComponent(questionType)}` : ''
+    return d.request(`/api/rmrb/exercises${query}`)
+  },
+
+  getShenlunExercise(id: string): Promise<d.ApiRes<ShenlunExerciseCard>> {
+    return d.isMock
+      ? Promise.resolve({ code: 404, data: null as unknown as ShenlunExerciseCard, message: '暂无可用练习' })
+      : d.request(`/api/rmrb/exercises/${id}`)
+  },
+
+  submitShenlunExercise(id: string, answer: string): Promise<d.ApiRes<ShenlunExerciseCard>> {
+    return d.isMock
+      ? Promise.resolve({ code: 404, data: null as unknown as ShenlunExerciseCard, message: '暂无可用练习' })
+      : d.request(`/api/rmrb/exercises/${id}/answers`, { method: 'POST', data: { answer } })
+  },
+
+  reviseShenlunExercise(id: string, attemptId: string, revision: string, reflection = ''): Promise<d.ApiRes<ShenlunExerciseCard>> {
+    return d.isMock
+      ? Promise.resolve({ code: 404, data: null as unknown as ShenlunExerciseCard, message: '暂无可用练习' })
+      : d.request(`/api/rmrb/exercises/${id}/answers/${attemptId}`, { method: 'PUT', data: { revision, reflection } })
+  },
 
   getRmrbMeta(): Promise<d.ApiRes<d.ShenlunMeta>> {
     return d.isMock ? d.mockService.getRmrbMeta() : d.request('/api/rmrb/meta')

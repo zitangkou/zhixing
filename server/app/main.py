@@ -31,7 +31,9 @@ async def lifespan(_app: FastAPI):
     try:
         seed_if_empty(db)
         from app.services.rmrb_vocabulary_service import seed_vocabulary, recover_jobs
+        from app.services.shenlun_exercise_generation import recover_jobs as recover_shenlun_exercise_jobs
         recover_jobs(db)
+        recover_shenlun_exercise_jobs(db)
         seed_vocabulary(db)
         try:
             from app.services.shenlun_materials import seed_curated_materials
@@ -86,14 +88,19 @@ async def lifespan(_app: FastAPI):
     rmrb_scheduler_task = asyncio.create_task(scheduler())
     from app.services.rmrb_vocabulary_service import scheduler as vocabulary_scheduler
     rmrb_vocabulary_scheduler_task = asyncio.create_task(vocabulary_scheduler())
+    # 申论自动出题复用人民日报共享采集池和词汇联合分析缓存，不恢复已退役的全量档案调度。
+    from app.services.shenlun_exercise_generation import scheduler as shenlun_exercise_scheduler
+    shenlun_exercise_scheduler_task = asyncio.create_task(shenlun_exercise_scheduler())
     try:
         yield
     finally:
         cleanup_task.cancel()
         rmrb_scheduler_task.cancel()
         rmrb_vocabulary_scheduler_task.cancel()
+        shenlun_exercise_scheduler_task.cancel()
         try:
-            await asyncio.gather(cleanup_task, rmrb_scheduler_task, rmrb_vocabulary_scheduler_task, return_exceptions=True)
+            await asyncio.gather(cleanup_task, rmrb_scheduler_task, rmrb_vocabulary_scheduler_task,
+                                 shenlun_exercise_scheduler_task, return_exceptions=True)
         except asyncio.CancelledError:
             pass
 

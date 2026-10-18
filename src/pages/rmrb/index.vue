@@ -23,6 +23,10 @@
       </view>
     </view>
     <view class="method-tip">先看教研示范（考题定位 → 原文 → 骨架 → 词句 → 迁移），再跟做开采。</view>
+    <view class="exercise-entry" @tap="go('/pages/rmrb/exercise-list')">
+      <view><text class="exercise-title">申论题型练习</text><text class="exercise-desc">归纳概括 · 提出对策 · 贯彻执行 · 申发论述</text></view>
+      <text class="exercise-arrow">开始练习 ›</text>
+    </view>
     <view class="entry-grid">
       <view class="entry-item" @tap="go('/pages/rmrb/article-list')">
         <text class="entry-name">时评阅读</text><text class="entry-desc">精读 + 三刀解剖</text>
@@ -96,6 +100,16 @@ useDidShow(load)
   border: 1px solid $border-color;
 }
 .entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.exercise-entry {
+  @include card;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  .exercise-title { display: block; font-size: 15px; font-weight: 700; color: $text-primary; }
+  .exercise-desc { display: block; margin-top: 5px; font-size: 11px; color: $text-muted; }
+  .exercise-arrow { flex: none; color: $primary-color; font-size: 12px; font-weight: 600; }
+}
 .entry-item {
   @include card;
   padding: 14px 12px;

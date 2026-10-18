@@ -15,6 +15,8 @@ from app.models.rmrb import (
     ShenlunSentenceType,
     ShenlunSkeletonTemplate,
     ShenlunTeachingExample,
+    ShenlunExercise,
+    ShenlunExerciseAttempt,
     ShenlunTermCategory,
     VocabInbox,
 )
@@ -48,5 +50,6 @@ from app.models.daily_quote import DailyQuote, DailyQuoteSelection, DailyQuoteJo
 from app.models.shenlun_material import ShenlunMaterial
 
 from app.models.rmrb_vocabulary import RmrbVocabulary, RmrbVocabularyJob
+from app.models.shenlun_exercises import ShenlunExerciseJob
 from app.models.llm_usage import LlmUsageLog
 from app.models.rmrb_daily_pool import RmrbDailyPoolIssue, RmrbDailyPoolArticle

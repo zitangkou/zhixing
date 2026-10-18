@@ -20,7 +20,7 @@ export const apiZiliao = {
   },
 
   answerQuickCalcQuestion(sessionId: string, data: { questionId: string; selected: number; seconds: number }) {
-    return d.request<{ correct: boolean; correctOption: string; steps: import('@/utils/quickCalc').QuickStep[]; pitfall: string }>(`/api/ziliao/quick-calc/sessions/${encodeURIComponent(sessionId)}/answers`, { method: 'POST', data })
+    return d.request<{ correct: boolean; correctOption: string; steps: import('@/utils/quickCalc').QuickStep[]; pitfall: string; optionFeedback: string[] }>(`/api/ziliao/quick-calc/sessions/${encodeURIComponent(sessionId)}/answers`, { method: 'POST', data })
   },
 
   completeQuickCalcSession(sessionId: string, data: { totalSeconds: number }) {

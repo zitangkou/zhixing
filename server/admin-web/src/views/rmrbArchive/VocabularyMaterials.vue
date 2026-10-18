@@ -54,16 +54,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { listVocabulary, listVocabularyJobs, collectVocabulary, reviewVocabulary, editVocabulary, vocabularyRules, type VocabularyItem, type VocabularyJob } from '@/api/rmrbVocabulary'
 const kinds: Record<string, string> = { idiom: '成语', expression: '固定表达', term: '重点词语 / 政策表达' }
 const statuses: Record<string, string> = { pending: '待审核', approved: '已采用', rejected: '不采用' }
 const jobStatuses: Record<string, string> = { pending: '排队中', running: '采集中', completed: '完成', partial: '部分完成', failed: '失败' }
 const auth = useAuthStore()
+const route = useRoute()
 const canWrite = computed(() => auth.hasPermission('rmrb:write'))
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date())
+const requestedCollectDate = route.query.collect_date
+const initialCollectDate = typeof requestedCollectDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(requestedCollectDate) ? requestedCollectDate : today
 const filters = reactive({ issue_date: '', q: '', kind: '', status: '' })
-const collectDate = ref(today), page = ref(1), pageSize = ref(20), total = ref(0)
+const collectDate = ref(initialCollectDate), page = ref(1), pageSize = ref(20), total = ref(0)
 const items = ref<VocabularyItem[]>([]), jobs = ref<VocabularyJob[]>([]), selected = ref<VocabularyItem[]>([]), detail = ref<VocabularyItem | null>(null)
 const loading = ref(false), collecting = ref(false), saving = ref(false), reviewVisible = ref(false), rulesVisible = ref(false)
 const rules = ref<Awaited<ReturnType<typeof vocabularyRules>> | null>(null)

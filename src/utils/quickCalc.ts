@@ -1,6 +1,24 @@
 /** 资料分析速算：先构造方法适用条件，再用整数交叉乘积校验比较结论。 */
 export type QuickMethod =
-  'direct' | 'difference' | 'position' | 'split' | 'growth-amount' | 'growth-rate' | 'base'
+  | 'fraction-compare'
+  | 'growth-amount'
+  | 'growth-rate'
+  | 'base'
+  // Legacy values remain readable for existing history/session snapshots.
+  | 'direct'
+  | 'difference'
+  | 'position'
+  | 'split'
+export type QuickTrainingMethod =
+  | QuickMethod
+  | 'share'
+  | 'average'
+  | 'multiple'
+  | 'mixed-growth'
+  | 'interval-growth'
+  | 'period-growth'
+  | 'contribution'
+export type QuickTrainingMode = QuickTrainingMethod | 'mixed'
 export type QuickMode = QuickMethod | 'mixed'
 export interface QuickMethodInfo {
   id: QuickMethod
@@ -12,37 +30,16 @@ export interface QuickMethodInfo {
 }
 export const QUICK_METHODS: QuickMethodInfo[] = [
   {
-    id: 'direct',
-    name: '分数性质',
-    scene: '分子更大、分母更小，直接判定。',
+    id: 'fraction-compare',
+    name: '分数比较',
+    scene: '比较两个分数的大小，答后查看更快的比较方法。',
     path: '资料分析 / 快速比较方法',
     nodeTitle: '快速比较方法',
   },
   {
-    id: 'difference',
-    name: '差分比较',
-    scene: '分子分母同向变大且差值简单，比较差分数与原分数。',
-    path: '资料分析 / 快速比较方法 / 差分比较',
-    nodeTitle: '差分比较',
-  },
-  {
-    id: 'position',
-    name: '同位比较',
-    scene: '分子和分母跨过同一倍数界线的方向相反。',
-    path: '资料分析 / 快速比较方法 / 同位比较',
-    nodeTitle: '同位比较',
-  },
-  {
-    id: 'split',
-    name: '分母拆分',
-    scene: '两个正分数接近 1，转为“部分 / 剩余”后容易比较。',
-    path: '资料分析 / 快速比较方法 / 分母拆分',
-    nodeTitle: '分母拆分',
-  },
-  {
     id: 'growth-amount',
-    name: '增长量 · n＋1',
-    scene: '正增长率为 1/n，增长量＝现期量 / (n＋1)。',
+    name: '增长量',
+    scene: '已知现期量和增长率，计算增长量；解析按数据特征推荐速算方法。',
     path: '资料分析 / 增长 / 增长量 / 快速计算方法',
     nodeTitle: '增长量',
     nodeParent: '增长',
@@ -70,7 +67,10 @@ export interface QuickStep {
 }
 export interface QuickQuestion {
   id: string
-  method: QuickMethod
+  method: QuickTrainingMethod | 'mixed'
+  questionForm?: 'pair' | 'multi-extrema' | 'multi-sort' | 'calculation' | 'calculation-correct' | 'calculation-incorrect' | 'material-correct' | 'material-incorrect' | 'share-current' | 'share-base' | 'share-change' | 'average-current' | 'average-change' | 'average-growth' | 'multiple-current' | 'multiple-base' | 'multiple-excess' | 'mixed-rate' | 'interval-growth' | 'annual-growth' | 'annual-amount' | 'contribution-rate' | 'growth-pull'
+  material?: { title: string; headers: string[]; rows: string[][] }
+  optionFeedback?: string[]
   stem: string
   latex: string
   plain: string
@@ -81,6 +81,7 @@ export interface QuickQuestion {
   /** 用于独立精确校验，不依赖选项和解析文本。 */
   check:
     | { kind: 'compare'; values: [number, number, number, number] }
+    | { kind: 'fraction-multi' | 'calculation-audit' | 'material-audit' | 'data-concept' }
     | { kind: 'number'; target: number; values: number[]; unit: string }
 }
 export type RandomSource = () => number
@@ -97,10 +98,11 @@ function shuffle<T>(items: T[], rng: RandomSource): T[] {
 const frac = (a: number, b: number) => `\\frac{${a}}{${b}}`
 const format = (n: number) => Number(n.toFixed(2)).toString()
 export function methodInfo(id: QuickMethod): QuickMethodInfo {
-  return QUICK_METHODS.find((m) => m.id === id)!
+  const code = ['direct', 'difference', 'position', 'split'].includes(id) ? 'fraction-compare' : id
+  return QUICK_METHODS.find((m) => m.id === code)!
 }
 
-function comparison(method: QuickMethod, rng: RandomSource): Omit<QuickQuestion, 'id'> {
+function comparison(method: 'direct' | 'difference' | 'position' | 'split', rng: RandomSource): Omit<QuickQuestion, 'id'> {
   let a = 0,
     b = 0,
     c = 0,
@@ -182,9 +184,9 @@ function comparison(method: QuickMethod, rng: RandomSource): Omit<QuickQuestion,
       text: step.text.replace(/左边|右边/g, (word) => (word === '左边' ? '右边' : '左边')),
     }))
   }
-  const options = shuffle(['左边大于右边', '左边小于右边', '两边相等', '根据题目无法判断'], rng)
+  const options = shuffle(['>', '<', '=', '无法判断'], rng)
   const difference = a * d - c * b
-  const correct = difference > 0 ? '左边大于右边' : difference < 0 ? '左边小于右边' : '两边相等'
+  const correct = difference > 0 ? '>' : difference < 0 ? '<' : '='
   return {
     method,
     stem: '比较下面两个分数的大小，选择正确关系。',
@@ -219,8 +221,8 @@ function numeric(method: QuickMethod, rng: RandomSource): Omit<QuickQuestion, 'i
     plain = `${current} × ${format(rate)}% ÷ (1＋${format(rate)}%)`
     steps = [
       {
-        text: `增长率为 1/${n}，使用 n＋1 原则；本题增长率恰好为倒数，转换是精确的。`,
-        latex: `X=\\frac{B}{n+1}=\\frac{${current}}{${n + 1}}=${target}`,
+        text: '建议方法：除乘转化法。将增长量系数转成乘法估算，再结合选项判断。',
+        latex: `X=\\frac{${current}\\times${format(rate)}\\%}{1+${format(rate)}\\%}=${target}`,
       },
     ]
     candidates = [target, current / n, current / (n - 1), current / (n + 2)]
@@ -299,14 +301,27 @@ export function generateQuickSession(
           QUICK_METHODS.map((m) => m.id),
           rng,
         )
-      : [mode]
+      : [(['direct', 'difference', 'position', 'split'].includes(mode) ? 'fraction-compare' : mode) as QuickMethod]
   const questions: QuickQuestion[] = []
   const seen = new Set<string>()
   for (let attempt = 0; questions.length < size && attempt < size * 100; attempt++) {
     const method = methods[questions.length % methods.length]
-    const question = ['direct', 'difference', 'position', 'split'].includes(method)
-      ? comparison(method, rng)
+    let question = method === 'fraction-compare'
+      ? comparison((['direct', 'difference', 'position', 'split'] as const)[integer(rng, 0, 3)], rng)
       : numeric(method, rng)
+    if (method === 'fraction-compare') {
+      const strategy = question.method
+      const tips: Record<string, string> = {
+        direct: '分子更大且分母更小，直接判断大小关系。',
+        difference: '分子、分母同向增加且差值关系清楚，可比较差分数与原分数。',
+        position: '分子和分母跨过同一倍数界线的方向相反，可直接判断。',
+        split: '两个正分数接近 1，可改比部分与剩余量。',
+      }
+      const strategyNames: Record<string, string> = {
+        direct: '分数性质', difference: '差分比较', position: '同位比较', split: '分母拆分',
+      }
+      question = { ...question, method, steps: [{ text: `最快建议：${strategyNames[strategy]}。${tips[strategy]}` }, ...question.steps] }
+    }
     if (seen.has(question.latex)) continue
     seen.add(question.latex)
     questions.push({ ...question, id: `qc-${Date.now()}-${attempt}-${questions.length}` })

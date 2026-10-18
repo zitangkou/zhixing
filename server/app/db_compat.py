@@ -470,6 +470,82 @@ def run_compat_migrations() -> None:
     _ensure_rmrb_comment_review_columns()
     _ensure_rmrb_vocabulary_attempts()
     _ensure_rmrb_daily_pool_columns()
+    _ensure_shenlun_exercise_quality_columns()
+    _ensure_shenlun_material_nullable_score()
+
+
+def _ensure_shenlun_exercise_quality_columns() -> None:
+    """为已有练习表补充自动生成与质量审计字段。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("shenlun_exercises"):
+        return
+    cols = {c["name"] for c in insp.get_columns("shenlun_exercises")}
+    alters = {
+        "generation_job_id": "ALTER TABLE shenlun_exercises ADD COLUMN generation_job_id VARCHAR(32) DEFAULT ''",
+        "generation_model": "ALTER TABLE shenlun_exercises ADD COLUMN generation_model VARCHAR(128) DEFAULT ''",
+        "generation_rule_version": "ALTER TABLE shenlun_exercises ADD COLUMN generation_rule_version VARCHAR(40) DEFAULT ''",
+        "quality_score": "ALTER TABLE shenlun_exercises ADD COLUMN quality_score INTEGER DEFAULT 0",
+        "quality_report_json": "ALTER TABLE shenlun_exercises ADD COLUMN quality_report_json TEXT DEFAULT '{}'",
+    }
+    with engine.begin() as conn:
+        for column, statement in alters.items():
+            if column not in cols:
+                conn.execute(text(statement))
+
+
+def _ensure_shenlun_material_nullable_score() -> None:
+    """Keep old SQLite material tables compatible with unscored pending records."""
+    from sqlalchemy import inspect, text
+
+    if engine.dialect.name != "sqlite":
+        return
+    insp = inspect(engine)
+    if not insp.has_table("shenlun_materials"):
+        return
+    score_column = next((column for column in insp.get_columns("shenlun_materials")
+                         if column["name"] == "quality_score"), None)
+    if not score_column or score_column.get("nullable", True):
+        return
+
+    indexes = insp.get_indexes("shenlun_materials")
+    columns = (
+        "id", "fingerprint", "source_date", "collected_date", "source_title",
+        "source_section", "source_url", "item_type", "theme_code", "scene_code",
+        "quality_score", "veto", "review_status", "text", "payload_json",
+        "created_by", "updated_by", "created_at", "updated_at",
+    )
+    column_sql = ", ".join(columns)
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS shenlun_materials_nullable_mig"))
+        conn.execute(text(
+            "CREATE TABLE shenlun_materials_nullable_mig ("
+            "id VARCHAR(32) NOT NULL PRIMARY KEY, fingerprint VARCHAR(64) NOT NULL, "
+            "source_date DATE NOT NULL, collected_date DATE NOT NULL, "
+            "source_title VARCHAR(300) NOT NULL, source_section VARCHAR(100) NOT NULL, "
+            "source_url VARCHAR(1000) NOT NULL, item_type VARCHAR(32) NOT NULL, "
+            "theme_code VARCHAR(16) NOT NULL, scene_code VARCHAR(32) NOT NULL, "
+            "quality_score INTEGER, veto BOOLEAN NOT NULL, review_status VARCHAR(24) NOT NULL, "
+            "text TEXT NOT NULL, payload_json TEXT NOT NULL, created_by VARCHAR(128) NOT NULL, "
+            "updated_by VARCHAR(128) NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT INTO shenlun_materials_nullable_mig ({column_sql}) "
+            f"SELECT {column_sql} FROM shenlun_materials"
+        ))
+        conn.execute(text("DROP TABLE shenlun_materials"))
+        conn.execute(text("ALTER TABLE shenlun_materials_nullable_mig RENAME TO shenlun_materials"))
+        for index in indexes:
+            name = index.get("name")
+            index_columns = index.get("column_names") or []
+            if not name or not index_columns or any(not column.replace("_", "").isalnum() for column in index_columns):
+                continue
+            unique = "UNIQUE " if index.get("unique") else ""
+            quoted_columns = ", ".join(f'"{column}"' for column in index_columns)
+            conn.execute(text(
+                f'CREATE {unique}INDEX "{name}" ON shenlun_materials ({quoted_columns})'
+            ))
 
 
 def _ensure_rmrb_comment_review_columns() -> None:
