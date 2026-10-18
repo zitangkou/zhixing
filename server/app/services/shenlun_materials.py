@@ -5,9 +5,10 @@ import re
 from pathlib import Path
 from datetime import date
 from app.models import ShenlunMaterial
+from app.services.rmrb_daily_pool import find_source_span, normalized_source_text
 
 RULES = {
-    'version': '1.0.0', 'source': '人民日报当天已刊发稿件',
+    'version': '1.1.0', 'source': '人民日报当天已刊发稿件',
     'exclude': ['人事任免', '公告', '广告', '天气预报', '纯转载通稿'],
     'no_external_fill': True, 'quote_must_appear_in_source': True,
     'themes': {'zl':'基层治理','kj':'科技创新','st':'生态文明','wh':'文化自信','ms':'民生保障','xc':'乡村振兴','fz':'法治建设','qn':'青年担当','gf':'共同富裕','aq':'安全发展'},
@@ -18,6 +19,34 @@ RULES = {
     'case_required': ['fact','result','proves','do_not_use_for'],
     'daily_quota': {'golden':{'target':10,'min':6},'template':{'target':10,'min':6},'rhetoric':{'target':10,'min':0},'quote':{'target':10,'min':0},'case':{'target':10,'min':6},'policy_phrase':{'target':6,'min':0},'problem_line':{'target':4,'min':0}},
 }
+
+# 模型提示词、历史分析缓存和人工表单曾使用过不同维度键名；统一在写入前
+# 归一为 RULES 中的中文显示名，避免完整评分被误判为缺项。
+QUALITY_DIMENSION_ALIASES = {
+    '独立成义': ('独立成义', 'independentMeaning', 'independent_meaning', 'independent'),
+    '主题咬合': ('主题咬合', 'themeFit', 'theme_fit'),
+    '场景匹配': ('场景匹配', 'sceneMatch', 'scene_match'),
+    '可改写': ('可改写', 'rewriteable', 'rewrite'),
+    '规范': ('规范', 'normative', 'norm'),
+    '可追溯': ('可追溯', 'traceability', 'trace'),
+    '不重复': ('不重复', 'nonDuplication', 'non_duplication', 'unique'),
+}
+
+
+def _normalize_quality_breakdown(value):
+    if not isinstance(value, dict):
+        raise ValueError('七维质量分缺项或格式错误')
+    normalized = {}
+    for canonical, aliases in QUALITY_DIMENSION_ALIASES.items():
+        present = [key for key in aliases if key in value]
+        if len(present) != 1:
+            raise ValueError('七维质量分缺项或字段名重复：' + canonical)
+        normalized[canonical] = value[present[0]]
+    extras = set(value) - {alias for aliases in QUALITY_DIMENSION_ALIASES.values() for alias in aliases} - {'total'}
+    if extras:
+        raise ValueError('质量评分包含未知维度：' + '、'.join(sorted(extras)))
+    return normalized
+
 
 def normalize(item: dict, collected_date: date, actor: str = '') -> dict:
     data = dict(item)
@@ -34,9 +63,8 @@ def normalize(item: dict, collected_date: date, actor: str = '') -> dict:
     breakdown = data.get('quality_breakdown') or {}
     if breakdown:
         weights = RULES['quality_gate']['dimensions']
-        if set(breakdown) != set(weights): raise ValueError('质量评分需覆盖全部七个评分维度')
-        try: breakdown = {key:int(value) for key,value in breakdown.items()}
-        except (TypeError,ValueError): raise ValueError('评分维度必须为整数')
+        breakdown = _normalize_quality_breakdown(breakdown)
+        if any(type(value) is not int for value in breakdown.values()): raise ValueError('评分维度必须为整数')
         if any(value < 0 or value > weights[key] for key,value in breakdown.items()): raise ValueError('评分维度超出对应分值上限')
         if score is not None and sum(breakdown.values()) != score: raise ValueError('质量总分必须等于各维度得分之和')
         if score is None: score = sum(breakdown.values()); data['quality_score'] = score
@@ -106,12 +134,24 @@ def save_joint_ai_candidates(db, candidates: list[dict], article: dict, collecte
     from sqlalchemy.exc import IntegrityError
 
     added = duplicates = invalid = quality_rejected = 0
+    invalid_reasons = {}
+    quality_rejected_reasons = {}
+
+    def reject(reason):
+        nonlocal invalid
+        invalid += 1
+        invalid_reasons[reason] = invalid_reasons.get(reason, 0) + 1
+
     if len(candidates) > 3:
-        invalid += len(candidates) - 3
+        for _ in candidates[3:]:
+            reject('每篇申论候选超过3条上限')
         candidates = candidates[:3]
     body = str(article.get('body') or '')
     if not body:
-        return {'added': 0, 'duplicates': 0, 'invalid': len(candidates), 'qualityRejected': 0}
+        if candidates:
+            for _ in candidates:
+                reject('原文正文为空')
+        return {'added': 0, 'duplicates': 0, 'invalid': invalid, 'invalidReasons': invalid_reasons, 'qualityRejected': 0, 'qualityRejectedReasons': {}}
 
     exact_types = {'golden', 'rhetoric', 'quote', 'policy_phrase', 'problem_line'}
     weights = RULES['quality_gate']['dimensions']
@@ -126,11 +166,14 @@ def save_joint_ai_candidates(db, candidates: list[dict], article: dict, collecte
                 item['theme_code'] = theme_code[:2]
             evidence = str(item.get('source_evidence') or '').strip()
             anchor = str(item.get('source_anchor') or '').strip()
-            if not evidence or len(evidence) > 800 or evidence not in body:
+            verified_evidence = find_source_span(body, evidence)
+            if not evidence or len(evidence) > 800 or not verified_evidence:
                 raise ValueError('原文证据无法逐字核验')
-            if item_type in exact_types and (not item.get('text') or item['text'] not in evidence):
+            # 使用原文实际切片保存证据，避免 HTML 段落空白差异破坏后续复核。
+            item['source_evidence'] = verified_evidence
+            if item_type in exact_types and (not item.get('text') or normalized_source_text(item['text']) not in normalized_source_text(verified_evidence)):
                 raise ValueError('原句必须逐字出现在原文证据中')
-            if item_type == 'template' and (not anchor or anchor not in evidence or anchor not in body):
+            if item_type == 'template' and (not anchor or normalized_source_text(anchor) not in normalized_source_text(verified_evidence)):
                 raise ValueError('模板句缺少可回查的原文句式锚点')
             if type(item.get('veto')) is not bool:
                 raise ValueError('候选必须明确填写一票否决判断')
@@ -140,34 +183,36 @@ def save_joint_ai_candidates(db, candidates: list[dict], article: dict, collecte
                 'source_title': str(article.get('title') or '')[:300],
                 'source_section': f"第{article.get('pageNo') or ''}版 {article.get('pageName') or ''}".strip(),
                 'source_url': str(article.get('url') or ''),
-                'source_evidence': evidence,
+                'source_evidence': verified_evidence,
                 'source_anchor': anchor,
                 'review_status': 'pending',
                 'veto': item['veto'],
                 'collection_method': 'rmrb_joint_analysis',
             })
             breakdown = item.get('quality_breakdown')
-            if not isinstance(breakdown, dict) or set(breakdown) != set(weights):
-                # 提示词允许附带 total 展示字段，入库评分仍以七项权重之和为准。
-                if isinstance(breakdown, dict) and set(breakdown) == set(weights) | {'total'}:
-                    breakdown = {key: value for key, value in breakdown.items() if key in weights}
-                    item['quality_breakdown'] = breakdown
-                else:
-                    raise ValueError('质量评分未覆盖全部维度')
+            # 接受现行提示词的英文 ID 与旧缓存字段，入库统一保留中文维度键。
+            if isinstance(breakdown, dict) and 'total' in breakdown:
+                breakdown = {key: value for key, value in breakdown.items() if key != 'total'}
+            breakdown = _normalize_quality_breakdown(breakdown)
+            item['quality_breakdown'] = breakdown
             if any(type(v) is not int or v < 0 or v > weights[k] for k, v in breakdown.items()):
                 raise ValueError('质量维度评分超出范围')
             score = sum(breakdown.values())
             item['quality_score'] = score
             if item['veto'] or score < RULES['quality_gate']['pass_score']:
                 quality_rejected += 1
+                reason = '命中一票否决' if item['veto'] else '质量分低于8分'
+                quality_rejected_reasons[reason] = quality_rejected_reasons.get(reason, 0) + 1
                 continue
 
             if item_type == 'quote':
                 speaker = str(item.get('speaker') or '').strip()
                 context = str(item.get('context_15') or '').strip()
-                if not speaker or speaker not in evidence or not context or len(context) > 500 or item['text'] not in context or context not in body:
+                verified_context = find_source_span(body, context)
+                if not speaker or not context or len(context) > 500 or normalized_source_text(speaker) not in normalized_source_text(context) or normalized_source_text(item['text']) not in normalized_source_text(context) or not verified_context:
                     raise ValueError('语录说话人或前后文无法核验')
                 item['verified'] = True
+                item['context_15'] = verified_context
 
             values = normalize(item, collected_date, actor='ai:rmrb_joint_analysis')
             existing = db.query(ShenlunMaterial.id).filter_by(fingerprint=values['fingerprint']).first()
@@ -178,10 +223,12 @@ def save_joint_ai_candidates(db, candidates: list[dict], article: dict, collecte
                 db.add(ShenlunMaterial(**values))
                 db.flush()
             added += 1
-        except (ValueError, TypeError, KeyError, IntegrityError):
-            invalid += 1
+        except IntegrityError:
+            reject('数据库完整性冲突')
+        except (ValueError, TypeError, KeyError) as exc:
+            reject(str(exc) or type(exc).__name__)
     db.commit()
-    return {'added': added, 'duplicates': duplicates, 'invalid': invalid, 'qualityRejected': quality_rejected}
+    return {'added': added, 'duplicates': duplicates, 'invalid': invalid, 'invalidReasons': invalid_reasons, 'qualityRejected': quality_rejected, 'qualityRejectedReasons': quality_rejected_reasons}
 
 def seed_curated_materials(db):
     """将仓库内的首批已筛选样本以待审核状态幂等导入。"""

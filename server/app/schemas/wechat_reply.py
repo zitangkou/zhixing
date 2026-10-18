@@ -6,6 +6,15 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class WechatPromotionEntry(BaseModel):
+    id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=64)
+    pagePath: str = Field(min_length=1, max_length=200)
+    enabled: bool = True
+    instruction: str = Field(min_length=1, max_length=500)
+    fallbackText: str = Field(min_length=1, max_length=500)
+
+
 class WechatKeywordRule(BaseModel):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     name: str = Field(min_length=1, max_length=64)
@@ -13,6 +22,7 @@ class WechatKeywordRule(BaseModel):
     matchType: Literal["exact", "contains"] = "exact"
     responseText: str = Field(default="", max_length=4000)
     enabled: bool = True
+    entryId: str = Field(default="", max_length=64)
     priority: int = Field(default=100, ge=-10000, le=10000)
 
 
@@ -21,6 +31,7 @@ class WechatReplyConfig(BaseModel):
     fallbackReply: str = Field(default="", max_length=4000)
     unsupportedMessageReply: str = Field(default="", max_length=4000)
     unsupportedEventReply: str = Field(default="", max_length=4000)
+    promotionEntries: list[WechatPromotionEntry] = Field(default_factory=list, max_length=20)
     keywordRules: list[WechatKeywordRule] = Field(default_factory=list, max_length=200)
 
 

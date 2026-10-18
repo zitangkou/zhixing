@@ -87,6 +87,7 @@ from app.schemas.question_bank import (
     ReconciliationReport,
 )
 from app.schemas.wechat_reply import (
+    WechatPromotionEntry,
     WechatKeywordRule,
     WechatReplyConfig,
     WechatReplyPreviewIn,

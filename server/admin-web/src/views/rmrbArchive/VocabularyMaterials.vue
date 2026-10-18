@@ -11,6 +11,7 @@
       <el-input v-model="filters.q" placeholder="词语、主题、来源文章" clearable @keyup.enter="search" @clear="search" />
       <el-select v-model="filters.kind" clearable placeholder="全部类型" @change="search"><el-option v-for="(name, key) in kinds" :key="key" :label="name" :value="key" /></el-select>
       <el-select v-model="filters.status" clearable placeholder="全部审核状态" @change="search"><el-option v-for="(name, key) in statuses" :key="key" :label="name" :value="key" /></el-select>
+      <el-select v-model="filters.priority" clearable placeholder="全部学习优先级" @change="search"><el-option v-for="(name, key) in priorities" :key="key" :label="name" :value="key" /></el-select>
       <el-button @click="search">查询</el-button>
     </div>
     <div class="toolbar">
@@ -26,6 +27,10 @@
         <div v-for="job in jobs" :key="job.id" class="job-row">
           <strong>{{ job.issueDate }}</strong> · {{ jobStatuses[job.status] || job.status }} · 重试{{ job.attempts }}次 · {{ job.progress.pages || 0 }}版 / {{ job.progress.articles || 0 }}篇 · 已分析{{ job.progress.processed || 0 }}篇（缓存复用{{ job.progress.analysisCacheHits || 0 }}篇）
           <div class="muted">词汇：新增{{ job.progress.added || 0 }} / 重复{{ job.progress.duplicates || 0 }} / 拦截{{ job.progress.invalid || 0 }}；申论：新增{{ job.progress.shenlunAdded || 0 }} / 重复{{ job.progress.shenlunDuplicates || 0 }} / 质量未达标{{ job.progress.shenlunQualityRejected || 0 }} / 校验拦截{{ job.progress.shenlunInvalid || 0 }}</div>
+          <div v-if="job.progress.invalidReasons && Object.keys(job.progress.invalidReasons).length" class="reason-list">词汇拦截原因：<span v-for="(count, reason) in job.progress.invalidReasons" :key="reason">{{ reason }} {{ count }}条；</span></div>
+          <div v-if="job.progress.shenlunInvalidReasons && Object.keys(job.progress.shenlunInvalidReasons).length" class="reason-list">申论拦截原因：<span v-for="(count, reason) in job.progress.shenlunInvalidReasons" :key="reason">{{ reason }} {{ count }}条；</span></div>
+          <div v-if="job.progress.shenlunQualityRejectedReasons && Object.keys(job.progress.shenlunQualityRejectedReasons).length" class="reason-list">申论质量门槛：<span v-for="(count, reason) in job.progress.shenlunQualityRejectedReasons" :key="reason">{{ reason }} {{ count }}条；</span></div>
+          <div class="muted">自动生成均为候选。原文核验通过不等于教研审核通过；请先看学习优先级和上下文，再决定是否采用。</div>
           <div v-if="job.error" class="error">{{ job.error }}</div>
           <div v-for="failure in job.progress.failures || []" :key="failure" class="error">{{ failure }}</div>
         </div>
@@ -33,7 +38,7 @@
     </el-collapse>
     <el-table v-loading="loading" :data="items" row-key="id" @selection-change="onSelection">
       <el-table-column type="selection" width="45" />
-      <el-table-column label="词语 / 类型" width="160"><template #default="{ row }"><strong>{{ row.phrase }}</strong><div class="muted">{{ kinds[row.kind] }}</div></template></el-table-column>
+      <el-table-column label="词语 / 类型" width="175"><template #default="{ row }"><strong>{{ row.phrase }}</strong><div class="muted">{{ kinds[row.kind] }}</div><el-tag size="small" :type="priorityTypes[row.studyPriority || 'supplementary']">{{ priorities[row.studyPriority || 'supplementary'] }}</el-tag></template></el-table-column>
       <el-table-column label="释义与应用" min-width="290"><template #default="{ row }"><div>{{ row.meaning }}</div><div class="muted">主题：{{ row.topics.join('、') }}</div><div class="muted">场景：{{ row.useCases.join('、') }}</div><div class="example">仿写：{{ row.sample.replace(/^仿写[：:]|^（仿写）/, '') }}</div></template></el-table-column>
       <el-table-column label="来源" min-width="200"><template #default="{ row }"><div>{{ row.issueDate }} · {{ row.pageNo }}版 {{ row.pageName }}</div><el-link :href="row.sourceUrl" target="_blank" rel="noopener noreferrer" type="primary">{{ row.sourceTitle }}</el-link><div class="muted">{{ row.sources.length }}处来源</div></template></el-table-column>
       <el-table-column label="审核" width="100"><template #default="{ row }"><el-tag :type="row.reviewStatus === 'approved' ? 'success' : row.reviewStatus === 'rejected' ? 'danger' : 'info'">{{ statuses[row.reviewStatus] }}</el-tag></template></el-table-column>
@@ -41,14 +46,14 @@
     </el-table>
     <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" layout="total, sizes, prev, pager, next" @current-change="load" @size-change="search" />
     <el-drawer :model-value="!!detail" title="词汇素材 · 原文核对" size="600px" @close="detail = null">
-      <template v-if="detail"><h2>{{ detail.phrase }} <el-tag>{{ kinds[detail.kind] }}</el-tag></h2><p>{{ detail.meaning }}</p><p>使用边界：{{ detail.usageNote || '结合题目材料和原文语境使用。' }}</p><p>原创仿写：{{ detail.sample }}</p><div v-for="source in detail.sources" :key="source.url" class="source"><el-link :href="source.url" target="_blank" rel="noopener noreferrer" type="primary">{{ source.pageNo }}版 {{ source.pageName }} · {{ source.title }}</el-link><blockquote>{{ source.exactContext }}</blockquote></div><el-button :disabled="!canWrite" @click="openEdit(detail)">编辑释义与应用</el-button><p>审核：{{ statuses[detail.reviewStatus] }} · {{ detail.reviewedBy }}</p><p>{{ detail.reviewNote }}</p><el-button :disabled="!canWrite" @click="openReview('pending', detail)">退回待审核</el-button></template>
+      <template v-if="detail"><h2>{{ detail.phrase }} <el-tag>{{ kinds[detail.kind] }}</el-tag> <el-tag :type="priorityTypes[detail.studyPriority || 'supplementary']">{{ priorities[detail.studyPriority || 'supplementary'] }}</el-tag></h2><p>{{ detail.meaning }}</p><p>使用边界：{{ detail.usageNote || '结合题目材料和原文语境使用。' }}</p><p>原创仿写：{{ detail.sample }}</p><div v-for="source in detail.sources" :key="source.url" class="source"><el-link :href="source.url" target="_blank" rel="noopener noreferrer" type="primary">{{ source.pageNo }}版 {{ source.pageName }} · {{ source.title }}</el-link><blockquote>{{ source.exactContext }}</blockquote></div><el-button :disabled="!canWrite" @click="openEdit(detail)">编辑释义与应用</el-button><p>审核：{{ statuses[detail.reviewStatus] }} · {{ detail.reviewedBy }}</p><p>{{ detail.reviewNote }}</p><el-button :disabled="!canWrite" @click="openReview('pending', detail)">退回待审核</el-button></template>
     </el-drawer>
     <el-dialog v-model="reviewVisible" :title="`审核：${statuses[reviewStatus]}`" width="480px"><p>已选择 {{ reviewIds.length }} 条素材</p><el-input v-model="reviewNote" type="textarea" :rows="4" maxlength="2000" placeholder="填写采用依据或不采用原因" /><template #footer><el-button @click="reviewVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveReview">确认</el-button></template></el-dialog>
     <el-dialog v-model="editVisible" title="编辑词汇应用（保存后需重新审核）" width="600px">
-      <el-form label-width="90px"><el-form-item label="类型"><el-select v-model="editForm.kind"><el-option v-for="(name,key) in kinds" :key="key" :label="name" :value="key" /></el-select></el-form-item><el-form-item label="释义"><el-input v-model="editForm.meaning" type="textarea" /></el-form-item><el-form-item label="主题"><el-input v-model="editForm.topics" placeholder="多个主题用顿号分隔" /></el-form-item><el-form-item label="使用场景"><el-input v-model="editForm.useCases" placeholder="多个场景用顿号分隔" /></el-form-item><el-form-item label="原创仿写"><el-input v-model="editForm.sample" type="textarea" :rows="3" /></el-form-item><el-form-item label="使用边界"><el-input v-model="editForm.usageNote" type="textarea" /></el-form-item></el-form>
+      <el-form label-width="90px"><el-form-item label="类型"><el-select v-model="editForm.kind"><el-option v-for="(name,key) in kinds" :key="key" :label="name" :value="key" /></el-select></el-form-item><el-form-item label="学习优先级"><el-select v-model="editForm.studyPriority"><el-option v-for="(name,key) in priorities" :key="key" :label="name" :value="key" /></el-select></el-form-item><el-form-item label="释义"><el-input v-model="editForm.meaning" type="textarea" /></el-form-item><el-form-item label="主题"><el-input v-model="editForm.topics" placeholder="多个主题用顿号分隔" /></el-form-item><el-form-item label="使用场景"><el-input v-model="editForm.useCases" placeholder="多个场景用顿号分隔" /></el-form-item><el-form-item label="原创仿写"><el-input v-model="editForm.sample" type="textarea" :rows="3" /></el-form-item><el-form-item label="使用边界"><el-input v-model="editForm.usageNote" type="textarea" /></el-form-item></el-form>
       <template #footer><el-button @click="editVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button></template>
     </el-dialog>
-    <el-dialog v-model="rulesVisible" title="采集与筛选规则" width="680px"><template v-if="rules"><p>版本 {{ rules.version }} · 全版面 · 不设数量下限</p><h3>筛选要求</h3><p v-for="s in rules.selection" :key="s">{{ s }}</p><h3>排除内容</h3><p>{{ rules.exclude.join('；') }}</p><h3>入库核对</h3><p v-for="s in rules.validation" :key="s">{{ s }}</p></template></el-dialog>
+    <el-dialog v-model="rulesVisible" title="采集与筛选规则" width="680px"><template v-if="rules"><p>版本 {{ rules.version }} · 全版面 · 不设数量下限</p><h3>学习优先级</h3><p v-for="(label, key) in rules.priorities" :key="key"><strong>{{ label }}</strong>：{{ priorityDescriptions[key] }}</p><h3>筛选要求</h3><p v-for="s in rules.selection" :key="s">{{ s }}</p><h3>排除内容</h3><p>{{ rules.exclude.join('；') }}</p><h3>入库核对</h3><p v-for="s in rules.validation" :key="s">{{ s }}</p></template></el-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -59,6 +64,9 @@ import { useAuthStore } from '@/stores/auth'
 import { listVocabulary, listVocabularyJobs, collectVocabulary, reviewVocabulary, editVocabulary, vocabularyRules, type VocabularyItem, type VocabularyJob } from '@/api/rmrbVocabulary'
 const kinds: Record<string, string> = { idiom: '成语', expression: '固定表达', term: '重点词语 / 政策表达' }
 const statuses: Record<string, string> = { pending: '待审核', approved: '已采用', rejected: '不采用' }
+const priorities: Record<string, string> = { core: '重点积累', useful: '可迁移积累', supplementary: '拓展补充' }
+const priorityTypes: Record<string, 'danger' | 'warning' | 'info'> = { core: 'danger', useful: 'warning', supplementary: 'info' }
+const priorityDescriptions: Record<string, string> = { core: '政策高频、逻辑清晰且适合跨主题使用。', useful: '适用于特定主题，可自然迁移到分析、论证或对策。', supplementary: '偏专业或低频，作为拓展材料，不默认列为必背。' }
 const jobStatuses: Record<string, string> = { pending: '排队中', running: '采集中', completed: '完成', partial: '部分完成', failed: '失败' }
 const auth = useAuthStore()
 const route = useRoute()
@@ -66,7 +74,7 @@ const canWrite = computed(() => auth.hasPermission('rmrb:write'))
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date())
 const requestedCollectDate = route.query.collect_date
 const initialCollectDate = typeof requestedCollectDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(requestedCollectDate) ? requestedCollectDate : today
-const filters = reactive({ issue_date: '', q: '', kind: '', status: '' })
+const filters = reactive({ issue_date: '', q: '', kind: '', status: '', priority: '' })
 const collectDate = ref(initialCollectDate), page = ref(1), pageSize = ref(20), total = ref(0)
 const items = ref<VocabularyItem[]>([]), jobs = ref<VocabularyJob[]>([]), selected = ref<VocabularyItem[]>([]), detail = ref<VocabularyItem | null>(null)
 const loading = ref(false), collecting = ref(false), saving = ref(false), reviewVisible = ref(false), rulesVisible = ref(false)
@@ -83,8 +91,8 @@ function openReview(status: string, row?: VocabularyItem) { reviewIds.value = ro
 async function saveReview() { saving.value = true; try { await reviewVocabulary(reviewIds.value, reviewStatus.value, reviewNote.value); reviewVisible.value = false; detail.value = null; ElMessage.success('审核已保存'); await load() } catch (e) { error(e) } finally { saving.value = false } }
 function exportCurrent() { const blob = new Blob([JSON.stringify(items.value, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `人民日报词汇-${filters.issue_date || today}-第${page.value}页.json`; a.click(); URL.revokeObjectURL(url) }
 const editVisible = ref(false), editId = ref('')
-const editForm = reactive({ kind: 'term', meaning: '', topics: '', useCases: '', sample: '', usageNote: '' })
-function openEdit(row: VocabularyItem) { editId.value = row.id; Object.assign(editForm, { kind: row.kind, meaning: row.meaning, topics: row.topics.join('、'), useCases: row.useCases.join('、'), sample: row.sample, usageNote: row.usageNote || '' }); editVisible.value = true }
+const editForm = reactive({ kind: 'term', studyPriority: 'supplementary', meaning: '', topics: '', useCases: '', sample: '', usageNote: '' })
+function openEdit(row: VocabularyItem) { editId.value = row.id; Object.assign(editForm, { kind: row.kind, studyPriority: row.studyPriority || 'supplementary', meaning: row.meaning, topics: row.topics.join('、'), useCases: row.useCases.join('、'), sample: row.sample, usageNote: row.usageNote || '' }); editVisible.value = true }
 async function saveEdit() { saving.value = true; try { await editVocabulary(editId.value, { ...editForm, topics: editForm.topics.split(/[、，,]/).map(s => s.trim()).filter(Boolean), useCases: editForm.useCases.split(/[、，,]/).map(s => s.trim()).filter(Boolean) }); editVisible.value = false; detail.value = null; ElMessage.success('已保存，需重新审核'); await load() } catch (e) { error(e) } finally { saving.value = false } }
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(async () => { await refresh(); try { rules.value = await vocabularyRules() } catch (e) { error(e) }; timer = setInterval(async () => { if (jobs.value.some(j => ['pending', 'running'].includes(j.status))) await refresh() }, 5000) })
@@ -102,5 +110,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .jobs, .el-pagination { margin: 16px 0; }
 .job-row, .source { padding: 12px 0; border-bottom: 1px solid var(--el-border-color-lighter); }
 .error { color: var(--el-color-danger); }
+.reason-list { color: var(--el-color-warning-dark-2); font-size: 12px; margin-top: 5px; line-height: 1.6; }
 blockquote { margin: 12px 0; padding: 12px; background: var(--el-fill-color-light); line-height: 1.8; white-space: pre-wrap; }
 </style>

@@ -48,11 +48,45 @@ def test_ai_materials_are_hard_checked_deduplicated_and_pending():
         row = db.query(ShenlunMaterial).one()
         payload = json.loads(row.payload_json)
         rejected = save_joint_ai_candidates(db, [material_candidate(quality_breakdown={**BREAKDOWN, '独立成义': 0, '主题咬合': 0, '场景匹配': 0})], article, ISSUE_DATE)
-        assert result == {'added': 1, 'duplicates': 1, 'invalid': 1, 'qualityRejected': 0}
+        assert result == {
+            'added': 1,
+            'duplicates': 1,
+            'invalid': 1,
+            'invalidReasons': {'原文证据无法逐字核验': 1},
+            'qualityRejected': 0,
+            'qualityRejectedReasons': {},
+        }
         assert rejected['qualityRejected'] == 1 and rejected['added'] == 0
+        assert rejected['qualityRejectedReasons'] == {'质量分低于8分': 1}
         assert row.review_status == 'pending'
         assert row.source_url == article['url']
         assert payload['source_evidence'] == f'报道指出，{TEXT}'
+    engine.dispose()
+
+
+def test_source_evidence_allows_extraction_whitespace_and_empty_candidates():
+    engine, factory = db_factory()
+    article = {'url': 'https://paper.people.com.cn/a.html', 'title': '基层治理的实践',
+               'pageNo': '02', 'pageName': '评论', 'body': BODY}
+    candidate = material_candidate(source_evidence=f'报道指出，{TEXT}'.replace('，', '，\n'))
+    with factory() as db:
+        result = save_joint_ai_candidates(db, [candidate], article, ISSUE_DATE)
+        payload = json.loads(db.query(ShenlunMaterial).one().payload_json)
+        empty = save_joint_ai_candidates(db, [], {**article, 'body': ''}, ISSUE_DATE)
+        assert result['added'] == 1 and result['invalid'] == 0
+        assert payload['source_evidence'] == f'报道指出，{TEXT}'
+        assert empty['invalid'] == 0 and empty['invalidReasons'] == {}
+    engine.dispose()
+
+
+def test_malformed_vocabulary_candidates_are_counted_without_aborting_batch():
+    engine, factory = db_factory()
+    article = {'url': 'https://paper.people.com.cn/a.html', 'title': '基层治理的实践',
+               'pageNo': '02', 'pageName': '评论', 'body': BODY}
+    with factory() as db:
+        result = joint.save_candidates(db, ISSUE_DATE, [None, {'url': article['url'], 'phrase': '群众', 'kind': []}], [article])
+        assert result['invalid'] == 2
+        assert result['invalidReasons'] == {'候选格式错误': 1, '词语类型不在允许范围': 1}
     engine.dispose()
 
 

@@ -27,6 +27,7 @@
             <div class="section-head">
               <div><strong>基础回复</strong><span class="sub">用户关注、规则未命中或发送非文字消息时使用</span></div>
               <div class="button-row">
+                <el-button v-if="auth.hasPermission('wechat_reply:write')" @click="importPromotion" :loading="importing">导入小程序推广方案</el-button>
                 <el-button @click="runValidation" :loading="validating">检查配置</el-button>
                 <el-button @click="previewVisible = true">预览回复</el-button>
                 <el-button v-if="auth.hasPermission('wechat_reply:write')" @click="saveDraft" :loading="saving">保存草稿</el-button>
@@ -92,6 +93,12 @@
                 </el-form-item>
               </el-col>
               <el-col :xs="24" :lg="16">
+                <el-form-item label="推广入口">
+                  <el-select v-model="rule.entryId" clearable placeholder="不绑定入口，仅回复正文">
+                    <el-option v-for="entry in draft.promotionEntries || []" :key="entry.id" :value="entry.id" :label="entry.name + (entry.enabled ? '' : '（已停用）')" />
+                  </el-select>
+                  <span class="sub">回复正文后自动追加入口打开说明；停用后追加维护说明。</span>
+                </el-form-item>
                 <el-form-item label="回复内容">
                   <el-input v-model="rule.responseText" type="textarea" :rows="7" maxlength="4000" show-word-limit placeholder="可直接填写文字、网盘链接或站内入口变量" />
                 </el-form-item>
@@ -105,6 +112,24 @@
             <el-button v-if="auth.hasPermission('wechat_reply:write')" @click="saveDraft" :loading="saving">保存草稿</el-button>
             <el-button v-if="auth.hasPermission('wechat_reply:publish')" type="primary" @click="publishDraft" :loading="publishing">发布配置</el-button>
           </div>
+        </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane label="小程序推广入口" name="promotion">
+        <el-card shadow="never">
+          <el-alert type="info" :closable="false" title="适用于无底部菜单的个人订阅号：回复搜索小程序与功能位置说明，不发送小程序卡片。页面路径供运营核对，用户不会收到原始路径。入口与规则一起保存、发布和回退。" />
+          <el-empty v-if="!draft.promotionEntries?.length" description="请先在回复配置中导入小程序推广方案" />
+          <div v-for="entry in draft.promotionEntries || []" :key="entry.id" class="rule-card">
+            <h3>{{ entry.name }}</h3>
+            <el-form label-width="100px" :disabled="!auth.hasPermission('wechat_reply:write')">
+              <el-form-item label="页面路径"><el-input :model-value="entry.pagePath" readonly /></el-form-item>
+              <el-form-item label="启用推广"><el-switch v-model="entry.enabled" /></el-form-item>
+              <el-form-item label="打开说明"><el-input v-model="entry.instruction" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
+              <el-form-item label="停用说明"><el-input v-model="entry.fallbackText" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
+            </el-form>
+          </div>
+          <el-button v-if="auth.hasPermission('wechat_reply:write')" :loading="saving" @click="saveDraft">保存草稿</el-button>
+          <el-button @click="previewVisible = true">预览回复</el-button>
         </el-card>
       </el-tab-pane>
 
@@ -157,6 +182,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   fetchWechatReplyState,
   previewWechatReply,
+  prepareWechatPromotionTemplate,
   publishWechatReplyDraft,
   rollbackWechatReply,
   saveWechatReplyDraft,
@@ -176,6 +202,7 @@ const loading = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
 const validating = ref(false)
+const importing = ref(false)
 const previewing = ref(false)
 const activeTab = ref('config')
 const validation = ref<WechatReplyValidation | null>(null)
@@ -190,6 +217,7 @@ function cloneConfig(source: WechatReplyConfig): WechatReplyConfig {
     fallbackReply: source.fallbackReply,
     unsupportedMessageReply: source.unsupportedMessageReply,
     unsupportedEventReply: source.unsupportedEventReply,
+    promotionEntries: (source.promotionEntries || []).map(entry => ({ ...entry })),
     keywordRules: source.keywordRules.map(rule => ({
       id: rule.id,
       name: rule.name,
@@ -198,6 +226,7 @@ function cloneConfig(source: WechatReplyConfig): WechatReplyConfig {
       responseText: rule.responseText,
       enabled: rule.enabled,
       priority: rule.priority,
+      entryId: rule.entryId || '',
     })),
   }
 }
@@ -216,6 +245,21 @@ async function loadState() {
     ElMessage.error(error instanceof Error ? error.message : '读取公众号回复配置失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function importPromotion() {
+  try {
+    await ElMessageBox.confirm('将替换欢迎语、导航和内置学习规则；保留十五五等专项资料、自定义规则及已有入口说明。导入后仅修改当前页面，需保存并发布才生效。', '导入小程序推广方案', { type: 'warning', confirmButtonText: '导入到当前草稿', cancelButtonText: '取消' })
+    importing.value = true
+    copyConfig(await prepareWechatPromotionTemplate(currentConfig()))
+    validation.value = null
+    previewResult.value = null
+    ElMessage.success('已导入，请检查关键词冲突并预览后保存、发布')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error instanceof Error ? error.message : '导入失败')
+  } finally {
+    importing.value = false
   }
 }
 

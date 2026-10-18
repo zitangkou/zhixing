@@ -7,6 +7,7 @@ import re
 import threading
 import time
 import xml.etree.ElementTree as ET
+from app.services.wechat_promotion_service import render_promotion_entry
 from copy import deepcopy
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -248,9 +249,13 @@ def decide_reply(
     if matches:
         matches.sort(key=lambda item: (item[0], item[1], item[2], item[3].get("id", "")))
         rule = matches[0][3]
+        reply_text = _render_reply_template(str(rule.get("responseText", "")), public_base_url)
+        if rule.get("entryId"):
+            entry_text = render_promotion_entry(reply_config, rule["entryId"])
+            reply_text += "\n\n" + _render_reply_template(entry_text, public_base_url)
         return ReplyDecision(
             str(rule.get("id", "keyword")),
-            _render_reply_template(str(rule.get("responseText", "")), public_base_url),
+            reply_text,
             str(rule.get("id", "")),
         )
     return ReplyDecision("fallback", _render_reply_template(reply_config["fallbackReply"], public_base_url))

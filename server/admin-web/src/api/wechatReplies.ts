@@ -1,5 +1,14 @@
 import http, { getData } from './http'
 
+export interface WechatPromotionEntry {
+  id: string
+  name: string
+  pagePath: string
+  enabled: boolean
+  instruction: string
+  fallbackText: string
+}
+
 export interface WechatKeywordRule {
   id: string
   name: string
@@ -7,6 +16,7 @@ export interface WechatKeywordRule {
   matchType: 'exact' | 'contains'
   responseText: string
   enabled: boolean
+  entryId?: string
   priority: number
 }
 
@@ -15,6 +25,7 @@ export interface WechatReplyConfig {
   fallbackReply: string
   unsupportedMessageReply: string
   unsupportedEventReply: string
+  promotionEntries?: WechatPromotionEntry[]
   keywordRules: WechatKeywordRule[]
 }
 
@@ -56,3 +67,5 @@ export const previewWechatReply = (message: string, config: WechatReplyConfig, m
   getData<WechatReplyPreview>(http.post('/admin/wechat-replies/preview', { message, config, msgType, event }))
 export const publishWechatReplyDraft = () => getData<WechatReplyState>(http.post('/admin/wechat-replies/publish'))
 export const rollbackWechatReply = (releaseId: string) => getData<WechatReplyState>(http.post('/admin/wechat-replies/rollback', { releaseId }))
+
+export const prepareWechatPromotionTemplate = (config: WechatReplyConfig) => getData<WechatReplyConfig>(http.post('/admin/wechat-replies/promotion-template', config))

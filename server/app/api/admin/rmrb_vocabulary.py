@@ -2,7 +2,7 @@ from datetime import date
 from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import or_
+from sqlalchemy import not_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.api.deps import require_permission
@@ -23,12 +23,20 @@ class ReviewBody(BaseModel):
 def rules(admin=Depends(require_permission('rmrb:read'))):return ApiResponse.ok(RULES)
 
 @router.get('')
-def listing(issue_date: date|None=None,q: str='',kind: str='',status: str='',page: int=Query(1,ge=1),page_size: int=Query(20,ge=1,le=100),admin=Depends(require_permission('rmrb:read')),db: Session=Depends(get_db)):
+def listing(issue_date: date|None=None,q: str='',kind: str='',status: str='',priority: str='',page: int=Query(1,ge=1),page_size: int=Query(20,ge=1,le=100),admin=Depends(require_permission('rmrb:read')),db: Session=Depends(get_db)):
     query=db.query(RmrbVocabulary)
     if issue_date:query=query.filter(RmrbVocabulary.issue_date==issue_date)
     if q:query=query.filter(or_(RmrbVocabulary.phrase.contains(q),RmrbVocabulary.source_title.contains(q),RmrbVocabulary.payload_json.contains(q)))
     if kind:query=query.filter(RmrbVocabulary.kind==kind)
     if status:query=query.filter(RmrbVocabulary.review_status==status)
+    if priority in RULES['priorities']:
+        # JSON 由历史版本以带空格或紧凑格式序列化；旧记录按补充项兼容展示。
+        spaced='"studyPriority": "'+priority+'"'; compact='"studyPriority":"'+priority+'"'
+        match=or_(RmrbVocabulary.payload_json.contains(spaced),RmrbVocabulary.payload_json.contains(compact))
+        if priority=='supplementary':match=or_(match,not_(RmrbVocabulary.payload_json.contains('studyPriority')))
+        query=query.filter(match)
+    elif priority:
+        return ApiResponse.fail('学习优先级不在允许范围',code=400)
     total=query.count()
     return ApiResponse.ok({'items':[out(r) for r in query.order_by(RmrbVocabulary.issue_date.desc(),RmrbVocabulary.created_at.desc()).offset((page-1)*page_size).limit(page_size)],'total':total})
 
@@ -61,6 +69,7 @@ def review(body: ReviewBody,admin=Depends(require_permission('rmrb:write')),db: 
 
 class EditBody(BaseModel):
     kind: Literal['idiom','expression','term']
+    studyPriority: Literal['core','useful','supplementary'] | None = None
     meaning: str=Field(min_length=1,max_length=2000)
     topics: list[str]=Field(min_length=1,max_length=10)
     useCases: list[str]=Field(min_length=1,max_length=10)
@@ -72,7 +81,7 @@ def edit(item_id: str,body: EditBody,admin=Depends(require_permission('rmrb:writ
     import json
     row=db.get(RmrbVocabulary,item_id)
     if not row:return ApiResponse.fail('词汇素材不存在',code=404)
-    values=body.model_dump()
+    values=body.model_dump(exclude_none=True)
     if any(not str(values[key]).strip() for key in ('meaning','sample')) or any(not v.strip() for k in ('topics','useCases') for v in values[k]):
         return ApiResponse.fail('释义、示例、主题和场景不能为空',code=400)
     payload=json.loads(row.payload_json);payload.update(values);row.payload_json=json.dumps(payload,ensure_ascii=False)

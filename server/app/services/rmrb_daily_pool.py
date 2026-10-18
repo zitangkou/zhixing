@@ -12,11 +12,35 @@ from app.models.base import utcnow
 from app.services.rmrb_archive_service import _fetch_layout,_parse_index,_parse_page,USER_AGENT
 
 POOL_TTL=timedelta(hours=48)
-ANALYSIS_RULE_VERSION='2026-10-15-combined-v2'
+ANALYSIS_RULE_VERSION='2026-10-18-combined-v3'
 
 def canonical_url(url):
     parsed=urlsplit(url)
     return urlunsplit((parsed.scheme,parsed.netloc,parsed.path,'',''))
+
+
+def normalized_source_text(value):
+    """忽略网页抽取空白差异，仍保留文字与标点的逐字约束。"""
+    return re.sub(r'\s+', '', str(value or ''))
+
+
+def find_source_span(body, evidence):
+    """返回原文中与证据匹配的原始切片；仅允许空白格式不同。"""
+    body = str(body or '')
+    compact_evidence = normalized_source_text(str(evidence or '').strip())
+    if not compact_evidence:
+        return ''
+    compact_body = []
+    offsets = []
+    for index, char in enumerate(body):
+        if not char.isspace():
+            compact_body.append(char)
+            offsets.append(index)
+    start = ''.join(compact_body).find(compact_evidence)
+    if start < 0:
+        return ''
+    end = start + len(compact_evidence)
+    return body[offsets[start]:offsets[end - 1] + 1]
 
 def _fetch_and_parse(url):
     response=httpx.get(url,timeout=30,follow_redirects=True,headers={'User-Agent':USER_AGENT})

@@ -18,6 +18,7 @@ from app.services.wechat_reply_service import (
     validate_reply_config,
 )
 from app.config import get_settings
+from app.services.wechat_promotion_service import promotion_config
 
 router = APIRouter(prefix="/wechat-replies", tags=["公众号消息回复"])
 
@@ -100,3 +101,12 @@ def rollback_release(
         )
     except ValueError as exc:
         return ApiResponse.fail(str(exc), code=400)
+
+
+@router.post("/promotion-template")
+def prepare_promotion_template(
+    body: WechatReplyConfig,
+    _admin: AdminUser = Depends(require_permission("wechat_reply:write")),
+):
+    """仅生成合并结果，不写草稿、不发布；保留专项资料及自定义规则。"""
+    return ApiResponse.ok(promotion_config(body.model_dump()))

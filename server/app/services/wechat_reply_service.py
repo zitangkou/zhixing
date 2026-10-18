@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.services.wechat_promotion_service import ENTRY_PATHS
 from app.models import WechatReplyConfiguration, WechatReplyRelease
 from app.models.base import gen_id, utcnow
 from app.schemas.wechat_reply import WechatReplyConfig
@@ -55,6 +56,18 @@ def validate_reply_config(config: dict) -> dict:
     if not isinstance(rules, list):
         return {"valid": False, "errors": errors + ["关键词规则格式无效"], "warnings": warnings}
 
+    entries = config.get("promotionEntries", [])
+    entry_ids: set[str] = set()
+    for entry in entries:
+        entry_id = entry.get("id", "")
+        if entry_id in entry_ids:
+            errors.append(f"推广入口 ID 重复：{entry_id}")
+        entry_ids.add(entry_id)
+        if entry_id not in ENTRY_PATHS or entry.get("pagePath") != ENTRY_PATHS.get(entry_id):
+            errors.append(f"推广入口路径不在允许范围：{entry_id}")
+        if not str(entry.get("instruction", "")).strip() or not str(entry.get("fallbackText", "")).strip():
+            errors.append(f"推广入口打开说明与停用说明不能为空：{entry_id}")
+
     seen_ids: set[str] = set()
     seen_keywords: dict[str, tuple[str, str]] = {}
     for index, rule in enumerate(rules, start=1):
@@ -67,6 +80,8 @@ def validate_reply_config(config: dict) -> dict:
         seen_ids.add(rule_id)
         if not rule.get("enabled", True):
             continue
+        if rule.get("entryId") and rule["entryId"] not in entry_ids:
+            errors.append(f"规则“{rule_name}”绑定的推广入口不存在")
         keywords = rule.get("keywords") or []
         normalized_keywords = [normalise_text(str(item)) for item in keywords]
         normalized_keywords = [item for item in normalized_keywords if item]
@@ -96,6 +111,7 @@ def validate_reply_config(config: dict) -> dict:
         str(config.get("unsupportedMessageReply", "")),
         str(config.get("unsupportedEventReply", "")),
         *(str(rule.get("responseText", "")) for rule in rules),
+        *(str(entry.get(field, "")) for entry in entries for field in ("instruction", "fallbackText")),
     ]
     for text in template_texts:
         for token in TEMPLATE_TOKEN_RE.findall(text):
