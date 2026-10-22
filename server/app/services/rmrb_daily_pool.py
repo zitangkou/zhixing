@@ -12,7 +12,7 @@ from app.models.base import utcnow
 from app.services.rmrb_archive_service import _fetch_layout,_parse_index,_parse_page,USER_AGENT
 
 POOL_TTL=timedelta(hours=48)
-ANALYSIS_RULE_VERSION='2026-10-18-combined-v3'
+ANALYSIS_RULE_VERSION='2026-10-21-combined-v6'
 
 def canonical_url(url):
     parsed=urlsplit(url)

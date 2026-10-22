@@ -8,9 +8,10 @@ from app.core.response import ApiResponse
 from app.database import get_db
 from app.config import get_settings
 from app.models.base import utcnow
-from app.models import DailyQuote, DailyQuoteJob, DailyQuoteSelection
-from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest
-from app.services.daily_quote_service import listing, out, save, preview_import, import_items
+from app.models import DailyQuote, DailyQuoteJob, DailyQuoteSelection, DailyQuoteFeedback
+from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest, QuoteReviewRequest
+from app.services.daily_quote_service import (FEEDBACK_REASONS, listing, out, save, preview_import,
+                                             import_items, record_quote_review, record_daily_selection_feedback)
 from app.services.daily_quote_jobs import enqueue, worker, job_out, generate_selected_examples
 
 router = APIRouter(prefix='/daily-quotes', tags=['每日金句'])
@@ -75,15 +76,39 @@ def get_selection(issue_date: date, admin=Depends(require_permission('rmrb:read'
 @router.put('/selection')
 def selection(body: QuoteSelectionRequest, background: BackgroundTasks, admin=Depends(require_permission('rmrb:write')), db: Session = Depends(get_db)):
     ids = list(dict.fromkeys(body.quote_ids))
+    if any(code not in FEEDBACK_REASONS for code in body.reason_codes + body.not_selected_reason_codes):
+        return ApiResponse.fail('精选理由无效', code=400)
     if len(ids) != db.query(DailyQuote).filter(DailyQuote.id.in_(ids), DailyQuote.review_status == 'confirmed').count():
         return ApiResponse.fail('精选只能选择已确认且存在的金句', code=400)
     db.query(DailyQuoteSelection).filter_by(issue_date=body.issue_date).delete()
     for n, qid in enumerate(ids): db.add(DailyQuoteSelection(issue_date=body.issue_date, quote_id=qid, position=n))
+    candidates = db.query(DailyQuote).filter_by(collected_date=body.issue_date, review_status='confirmed').all()
+    record_daily_selection_feedback(db, body.issue_date, candidates, ids, body.reason_codes,
+                                    body.not_selected_reason_codes, admin.username)
     db.commit()
     can_generate = bool(get_settings().llm_enabled and get_settings().llm_api_key)
     if ids and can_generate: background.add_task(generate_selected_examples, ids)
     message = '精选已保存；仅为已选金句补充仿写示例' if can_generate else '精选已保存；服务端模型未启用，仿写暂未生成'
     return ApiResponse.ok({'selected': len(ids), 'examplesQueued': len(ids) if can_generate else 0}, message=message)
+
+
+@router.put('/{quote_id}/review')
+def review_quote(quote_id: str, body: QuoteReviewRequest,
+                 admin=Depends(require_permission('rmrb:write')), db: Session = Depends(get_db)):
+    row = db.get(DailyQuote, quote_id)
+    if row is None: return ApiResponse.fail('金句不存在', code=404)
+    if body.decision not in {'passed', 'rejected'}:
+        return ApiResponse.fail('审核结论无效', code=400)
+    try:
+        updated = save(db, {**out(row), 'auditStatus': body.decision,
+                            'enabled': False if body.decision == 'rejected' else row.enabled,
+                            'reviewStatus': 'pending' if body.decision == 'rejected' else row.review_status},
+                       row.collected_date, row=row, reviewer=admin.username, commit=False)
+        record_quote_review(db, updated, body.decision, body.reason_codes, body.note, admin.username)
+        db.commit(); db.refresh(updated)
+        return ApiResponse.ok(out(updated))
+    except ValueError as exc:
+        db.rollback(); return ApiResponse.fail(str(exc), code=400)
 
 
 @router.post('/{quote_id}/examples')
@@ -136,6 +161,7 @@ def delete_quote(quote_id: str, admin=Depends(require_permission('rmrb:write')),
     row = db.get(DailyQuote, quote_id)
     if row is None: return ApiResponse.fail('金句不存在', code=404)
     db.query(DailyQuoteSelection).filter_by(quote_id=quote_id).delete()
+    db.query(DailyQuoteFeedback).filter_by(quote_id=quote_id).delete()
     db.delete(row)
     db.commit()
     return ApiResponse.ok({'deleted': quote_id})

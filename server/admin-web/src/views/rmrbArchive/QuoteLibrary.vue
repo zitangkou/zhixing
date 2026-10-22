@@ -16,8 +16,23 @@
       <div v-if="job.metrics" class="job-metrics">
         纸版文章 {{ job.metrics.paperDiscovered ?? 0 }} / 入选 {{ job.metrics.paperSelected ?? 0 }} / 正文处理 {{ job.metrics.paperFetched ?? 0 }}；
         客户端评论 {{ job.metrics.peopleappDiscovered ?? 0 }} / 正文处理 {{ job.metrics.peopleappFetched ?? 0 }}；
-        候选句 {{ job.metrics.candidateQuotes ?? 0 }} / 质量拒绝 {{ job.metrics.qualityRejected ?? 0 }} / 重复 {{ job.metrics.duplicates ?? 0 }} / 新增 {{ job.metrics.quotesSaved ?? 0 }} / 库内 {{ job.metrics.quotesInDatabase ?? 0 }}
+        候选句 {{ job.metrics.candidateQuotes ?? 0 }} / 质量拒绝 {{ job.metrics.qualityRejected ?? 0 }}（考生视角不符 {{ job.metrics.roleFitRejected ?? 0 }} · 缺少适配依据 {{ job.metrics.roleFitReasonRejected ?? 0 }}） / 重复 {{ job.metrics.duplicates ?? 0 }} / 新增 {{ job.metrics.quotesSaved ?? 0 }} / 库内 {{ job.metrics.quotesInDatabase ?? 0 }}
       </div>
+      <el-collapse v-if="job.directory?.length" class="directory-inspection">
+        <el-collapse-item :title="`逐篇范围复核：纳入 ${directorySummary(job.directory)} / ${job.directory.length}`" name="directory">
+          <el-table :data="job.directory" size="small" max-height="320">
+            <el-table-column label="文章 / 版面" min-width="300">
+              <template #default="{ row }"><div>{{ row.title }}</div><div class="meta">第{{ row.pageNo ?? row.page ?? '—' }}版 · {{ row.pageName || '栏目未标注' }}</div></template>
+            </el-table-column>
+            <el-table-column label="分类" width="120"><template #default="{ row }">{{ categoryLabel(row.category) }}</template></el-table-column>
+            <el-table-column label="处理" width="100"><template #default="{ row }">{{ row.included ? '进入正文复核' : '目录排除' }}</template></el-table-column>
+            <el-table-column label="依据" width="180"><template #default="{ row }">{{ row.classificationFallback ? '分类服务失败，降级处理' : row.classificationSource === 'analysis_cache' ? '复用分析缓存' : row.classificationSource === 'title_column_rule' ? '标题/栏目规则' : '目录模型' }}</template></el-table-column>
+            <el-table-column label="正文与选句" min-width="190">
+              <template #default="{ row }"><div>{{ processStatusLabel(row.processStatus, row.included) }}</div><div v-if="row.candidateCount !== undefined" class="meta">候选 {{ row.candidateCount }} · 通过校验 {{ row.acceptedCount ?? 0 }} · 入库 {{ row.savedCount ?? 0 }}</div><div v-if="row.processError || row.rejectionReasons?.length" class="meta">{{ row.processError || [...new Set(row.rejectionReasons)].join('、') }}</div></template>
+            </el-table-column>
+          </el-table>
+        </el-collapse-item>
+      </el-collapse>
       <div v-if="job.zeroReason" class="job-reason">零结果原因：{{ job.zeroReason }}</div>
       <div v-if="job.failures?.length" class="job-reason">
         <div>失败 {{ job.failures.length }} 项，可重试：</div>
@@ -42,13 +57,36 @@
         <el-radio-button value="confirmed">已启用</el-radio-button>
       </el-radio-group>
       <el-input v-model="search" clearable placeholder="搜索原句" @keyup.enter="filter" @clear="filter" />
+      <el-date-picker v-model="selectionDate" type="date" value-format="YYYY-MM-DD" placeholder="采集日期" @change="filter" />
     </div>
 
-    <el-table v-loading="loading" :data="items">
+    <el-alert type="info" :closable="false" title="勾选已启用金句并保存当日精选，可记录入选特征与未入选原因；单条退回也需说明原因。系统只把跨多个刊期反复出现的理由用于后续候选排序。" />
+    <div class="selection-bar">
+      <div><strong>当日精选：{{ selection.length }} 条</strong><span class="meta">　选中理由（用于校准后续推荐）</span></div>
+      <el-checkbox-group v-model="selectionReasons" class="reason-group">
+        <el-checkbox-button v-for="option in selectionReasonOptions" :key="option.value" :value="option.value">{{ option.label }}</el-checkbox-button>
+      </el-checkbox-group>
+      <div class="meta">未入选主要原因</div>
+      <el-checkbox-group v-model="notSelectedReasons" class="reason-group">
+        <el-checkbox-button v-for="option in rejectionReasonOptions" :key="option.value" :value="option.value">{{ option.label }}</el-checkbox-button>
+      </el-checkbox-group>
+      <el-button v-if="canWrite" type="primary" :disabled="!selection.length && !hasExistingSelection" @click="saveDailySelection">保存当日精选</el-button>
+    </div>
+
+    <el-table ref="tableRef" v-loading="loading" :data="items" row-key="id" @selection-change="selection = $event">
+      <el-table-column type="selection" width="48" :selectable="canSelect" />
       <el-table-column label="金句" min-width="280">
         <template #default="{ row }">
           <div class="quote">{{ row.text }}</div>
           <div class="meta">{{ row.topics.join('、') || row.component }} · {{ row.articleTitle }}</div>
+          <div v-if="row.roleFitReason" class="meta">考生视角：{{ row.roleFitReason }}</div>
+          <div v-if="row.humanFeedback" class="meta feedback">人工反馈：入选 {{ row.humanFeedback.selected }} 次 · 未入选 {{ row.humanFeedback.notSelected }} 次 · 退回 {{ row.humanFeedback.rejected }} 次<span v-if="row.humanFeedback.selectedReasons?.length"> · 入选特征：{{ feedbackReasonLabels(row.humanFeedback.selectedReasons) }}</span><span v-if="row.humanFeedback.notSelectedReasons?.length"> · 未入选原因：{{ feedbackReasonLabels(row.humanFeedback.notSelectedReasons) }}</span><span v-if="row.humanFeedback.reasons?.length"> · 退回原因：{{ feedbackReasonLabels(row.humanFeedback.reasons) }}</span></div>
+        </template>
+      </el-table-column>
+      <el-table-column label="AI初筛" width="150">
+        <template #default="{ row }">
+          <template v-if="row.scores && Object.keys(row.scores).length"><span>{{ scoreSummary(row.scores) }}</span><div class="meta">推荐 {{ row.recommendationScore ?? '—' }}/5</div></template>
+          <span v-else class="meta">—</span>
         </template>
       </el-table-column>
       <el-table-column label="日期" width="170">
@@ -74,7 +112,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
+    <el-pagination v-model:current-page="page" :total="total" :page-size="100" layout="total, prev, pager, next" @current-change="load" />
 
     <el-drawer v-model="editing" title="金句" size="480px">
       <el-form v-if="draft" label-position="top">
@@ -89,6 +127,7 @@
         <el-form-item label="句式"><el-input v-model="draft.formula" type="textarea" :rows="2" /></el-form-item>
         <el-form-item label="用法"><el-input v-model="draft.use" /></el-form-item>
         <el-form-item label="为什么好"><el-input v-model="draft.why" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="考生视角适配依据"><el-input v-model="draft.roleFitReason" type="textarea" :rows="2" maxlength="120" show-word-limit /></el-form-item>
         <el-form-item label="怎么用"><el-input v-model="draft.guidance" type="textarea" :rows="2" /></el-form-item>
         <el-form-item label="注意"><el-input v-model="draft.pitfall" type="textarea" :rows="2" /></el-form-item>
         <el-form-item label="出处栏目"><el-input v-model="draft.source" /></el-form-item>
@@ -104,11 +143,30 @@
         <div class="save"><el-button type="primary" :loading="saving" @click="save">保存</el-button></div>
       </el-form>
     </el-drawer>
+
+    <el-dialog v-model="reviewVisible" title="金句复核反馈" width="620px">
+      <template v-if="reviewTarget">
+        <blockquote class="review-quote">{{ reviewTarget.text }}</blockquote>
+        <el-radio-group v-model="reviewDecision">
+          <el-radio-button value="passed">符合金句标准</el-radio-button>
+          <el-radio-button value="rejected">退回</el-radio-button>
+        </el-radio-group>
+        <el-form label-position="top" class="review-form">
+          <el-form-item label="退回原因（至少选一项，或填写说明）">
+            <el-checkbox-group v-model="reviewReasons" class="reason-group">
+              <el-checkbox-button v-for="option in rejectionReasonOptions" :key="option.value" :value="option.value">{{ option.label }}</el-checkbox-button>
+            </el-checkbox-group>
+          </el-form-item>
+          <el-form-item label="补充说明"><el-input v-model="reviewNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+        </el-form>
+      </template>
+      <template #footer><el-button @click="reviewVisible = false">取消</el-button><el-button type="primary" :loading="reviewSaving" @click="submitReview">保存复核</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import * as api from '@/api/dailyQuotes'
@@ -117,11 +175,32 @@ const auth = useAuthStore()
 const canWrite = computed(() => auth.hasPermission('rmrb:write'))
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date())
 const components = ['开头点题', '分论点标题', '论证句', '结尾升华']
+const selectionDate = ref(today)
 const status = ref('')
 const search = ref('')
 const page = ref(1)
 const total = ref(0)
 const items = ref<api.DailyQuote[]>([])
+const tableRef = ref()
+const selection = ref<api.DailyQuote[]>([])
+const hasExistingSelection = ref(false)
+const selectionReasons = ref<string[]>([])
+const notSelectedReasons = ref<string[]>([])
+const selectionReasonOptions = [
+  { value: 'student_perspective', label: '贴近考生' },
+  { value: 'actionable', label: '具体可落地' },
+  { value: 'memorable', label: '有亮点易记' },
+  { value: 'theme_balance', label: '主题互补' },
+]
+const rejectionReasonOptions = [
+  { value: 'too_abstract', label: '过于宏观/抽象' },
+  { value: 'too_narrow', label: '主题过窄/术语多' },
+  { value: 'context_dependent', label: '依赖上下文' },
+  { value: 'ordinary_expression', label: '表达普通/亮点不足' },
+  { value: 'weak_argument', label: '论证价值弱' },
+  { value: 'repetitive', label: '与已选句重复' },
+  { value: 'evidence_concern', label: '出处/证据有疑问' },
+]
 const loading = ref(false)
 const saving = ref(false)
 const running = ref(false)
@@ -130,6 +209,12 @@ const jobConfig = ref<{enabled:boolean;llmConfigured:boolean;schedule:string} | 
 const jobActive = computed(() => ['queued', 'running'].includes(job.value?.status || ''))
 let jobPollTimer: ReturnType<typeof setInterval> | undefined
 const editing = ref(false)
+const reviewVisible = ref(false)
+const reviewSaving = ref(false)
+const reviewTarget = ref<api.DailyQuote | null>(null)
+const reviewDecision = ref<'passed' | 'rejected'>('passed')
+const reviewReasons = ref<string[]>([])
+const reviewNote = ref('')
 const draft = ref<api.DailyQuote | null>(null)
 const topicsInput = ref('')
 const highlightsInput = ref('')
@@ -141,9 +226,13 @@ function split(s: string) {
 async function load() {
   loading.value = true
   try {
-    const data = await api.listQuotes({ q: search.value, status: status.value, page: page.value })
+    const data = await api.listQuotes({ q: search.value, status: status.value, start: selectionDate.value, end: selectionDate.value, selection_date: selectionDate.value, page: page.value, page_size: 100 })
     items.value = data.items
     total.value = data.total
+    const selectedIds = await api.getSelection(selectionDate.value)
+    hasExistingSelection.value = selectedIds.length > 0
+    await nextTick()
+    for (const row of items.value) tableRef.value?.toggleRowSelection(row, selectedIds.includes(row.id))
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
   } finally {
@@ -223,22 +312,76 @@ async function refreshJob() {
 }
 
 async function audit(row: api.DailyQuote) {
+  reviewTarget.value = row
+  reviewDecision.value = row.auditStatus === 'rejected' ? 'rejected' : 'passed'
+  reviewReasons.value = []
+  reviewNote.value = ''
+  reviewVisible.value = true
+}
+
+async function submitReview() {
+  if (!reviewTarget.value) return
+  reviewSaving.value = true
   try {
-    await ElMessageBox.confirm('这条是否符合金句素材？', '审核', {
-      confirmButtonText: '符合',
-      cancelButtonText: '不符合',
-      distinguishCancelAndClose: true,
-    })
-    await api.saveQuote({ ...row, auditStatus: 'passed', enabled: row.enabled })
+    await api.reviewQuote(reviewTarget.value.id, { decision: reviewDecision.value, reason_codes: reviewReasons.value, note: reviewNote.value })
+    reviewVisible.value = false
+    await load()
+    ElMessage.success(reviewDecision.value === 'passed' ? '已记录复核通过' : '已记录退回原因')
   } catch (e) {
-    if (e === 'cancel') {
-      await api.saveQuote({ ...row, auditStatus: 'rejected', enabled: false, reviewStatus: 'pending' })
-    } else if (e !== 'close') {
-      ElMessage.error(e instanceof Error ? e.message : '审核失败')
-      return
-    } else return
+    ElMessage.error(e instanceof Error ? e.message : '保存复核失败')
+  } finally {
+    reviewSaving.value = false
   }
-  await load()
+}
+
+function canSelect(row: api.DailyQuote) {
+  return row.reviewStatus === 'confirmed' && row.enabled && row.auditStatus === 'passed'
+}
+
+function scoreSummary(scores: Record<string, number>) {
+  const labels: Record<string, string> = { memory: '记', logic: '论', transfer: '迁', spark: '亮', roleFit: '考生适配' }
+  return Object.entries(labels).filter(([key]) => Number.isFinite(scores[key])).map(([key, label]) => `${label}${scores[key]}`).join(' · ')
+}
+
+function categoryLabel(category?: string) {
+  return ({ core: '评论核心', extended: '扩展观点', unknown: '待正文复核', uncertain: '待正文复核', exclude: '非评论' } as Record<string, string>)[category || ''] || category || '未分类'
+}
+
+function processStatusLabel(status?: string, included?: boolean) {
+  const labels: Record<string, string> = { running: '处理中', completed: '已处理', candidate_saved: '候选已入库', duplicate: '候选重复', candidate_rejected: '候选未通过校验', no_candidate: '文章未选出金句', not_comment: '正文判为非评论', processed_partial: '部分处理失败', failed: '处理失败' }
+  return labels[status || ''] || (included ? '等待正文处理' : '未进入正文处理')
+}
+
+function directorySummary(items?: api.DailyQuoteJob['directory']) {
+  return items?.filter(item => item.included).length || 0
+}
+
+function feedbackReasonLabels(reasons: string[]) {
+  const labels = Object.fromEntries([...selectionReasonOptions, ...rejectionReasonOptions].map(x => [x.value, x.label]))
+  return [...new Set(reasons)].map(reason => labels[reason] || reason).join('、')
+}
+
+async function saveDailySelection() {
+  const perArticle = new Map<string, number>()
+  const perTopic = new Map<string, number>()
+  for (const row of selection.value) perArticle.set(row.articleTitle, (perArticle.get(row.articleTitle) || 0) + 1)
+  for (const row of selection.value) {
+    const topic = row.topics[0]
+    if (topic) perTopic.set(topic, (perTopic.get(topic) || 0) + 1)
+  }
+  const concentrated = [...perArticle.values()].some(count => count > 2) || [...perTopic.values()].some(count => count > 2)
+  if (concentrated) {
+    try { await ElMessageBox.confirm('当前同一篇文章或同一主题选中了3句或更多。仍可保存，但建议检查整组来源与主题是否过于集中。', '精选组合提醒', { confirmButtonText: '仍然保存', cancelButtonText: '返回调整', type: 'warning' }) }
+    catch { return }
+  }
+  try {
+    await api.saveSelection(selectionDate.value, selection.value.map(row => row.id), selectionReasons.value, notSelectedReasons.value)
+    hasExistingSelection.value = selection.value.length > 0
+    await load()
+    ElMessage.success('当日精选与人工选择理由已记录')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '保存精选失败')
+  }
 }
 
 async function enable(row: api.DailyQuote) {
@@ -297,6 +440,12 @@ header p { margin: 4px 0 0; color: var(--el-text-color-secondary); }
 .filters .el-input { width: 220px; }
 .quote { line-height: 1.6; }
 .meta { margin-top: 4px; color: var(--el-text-color-secondary); font-size: 12px; }
+.feedback { color: var(--el-color-primary); }
+.directory-inspection { margin-top: 8px; }
+.selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-fill-color-lighter); }
+.reason-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.review-quote { margin: 0 0 18px; padding: 12px 16px; border-left: 3px solid var(--el-color-primary); background: var(--el-fill-color-lighter); line-height: 1.8; }
+.review-form { margin-top: 18px; }
 .example { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
 .save { margin-top: 16px; }
 </style>

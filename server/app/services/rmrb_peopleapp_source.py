@@ -1,7 +1,8 @@
-"""人民日报客户端网页首屏列表解析。失败时由上层降级，不阻断电子报采集。"""
+"""人民日报客户端评论频道分页解析。失败时由上层降级，不阻断电子报采集。"""
 from datetime import date, datetime, timedelta
 import re
 from zoneinfo import ZoneInfo
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -84,6 +85,70 @@ def fetch_channel_items(channel: str, window_start: datetime, window_end: dateti
     import json
 
     state = _decode_nuxt_payload(json.loads(state_tag.string))
+
+    # 评论页 SSR 只带首屏10条。客户端使用同一 compInfo 接口分页，需逐页
+    # 读到发布时间早于窗口起点，否则“最近24/48小时”实际上只是首屏采集。
+    # AppCode 是页面公开运行配置，动态读取以兼容版本轮换，不写入仓库。
+    if channel == "peopleapp_opinion":
+        app_code_match = re.search(r'VITE_APP_CODE:"([^"\\]+)', response.text)
+        stage_match = re.search(r'VITE_X_CA_STAGE:"([^"\\]+)', response.text)
+        query = parse_qs(urlparse(url).query)
+        channel_id = (query.get("param1") or [None])[0]
+        channel_strategy = (query.get("param2") or [None])[0]
+        if not (app_code_match and stage_match and channel_id and channel_strategy):
+            raise RuntimeError("评论页分页配置未识别")
+        api_url = "https://www.peopleapp.com/api/rmrb-bff-display-zh/display/zh/c/pc/compInfo"
+        api_headers = {
+            "User-Agent": USER_AGENT,
+            "Authorization": f"AppCode {app_code_match.group(1)}",
+            "X-Ca-Stage": stage_match.group(1),
+            "plat": "web",
+            "system": "PC",
+            "versionCode": "7422",
+            "Referer": url,
+        }
+        # 该频道接口 pageSize 上限为20，超过上限会返回业务码0000400。
+        page_size = 20
+        page_num = 1
+        total_count = None
+        refresh_time = None
+        paged_candidates = []
+        max_pages = 100  # 仅扫描截至窗口边界的近期页，异常排序时设硬上限。
+        while page_num <= max_pages:
+            params = {"channelId": channel_id, "channelStrategy": channel_strategy,
+                      "pageNum": page_num, "pageSize": page_size}
+            if refresh_time is not None:
+                params["refreshTime"] = refresh_time
+            page_response = httpx.get(api_url, params=params, timeout=25,
+                                      headers=api_headers, follow_redirects=True)
+            page_response.raise_for_status()
+            try:
+                payload = page_response.json()
+            except ValueError as exc:
+                raise RuntimeError("评论页分页接口返回格式异常") from exc
+            if str(payload.get("code")) != "0" or not isinstance(payload.get("data"), dict):
+                raise RuntimeError("评论页分页接口未返回文章目录")
+            data = payload["data"]
+            page_items = data.get("list") if isinstance(data.get("list"), list) else []
+            if total_count is None:
+                total_count = int(data.get("totalCount") or 0)
+                refresh_time = data.get("refreshTime")
+            if not page_items:
+                break
+            # 与评论页前端一致，排除仅用于版式展示的 appStyle=27 条目。
+            paged_candidates.extend(item for item in page_items
+                                    if isinstance(item, dict) and str(item.get("appStyle")) != "27")
+            times = [_parse_publish_datetime(item.get("publishTime")) for item in page_items]
+            valid_times = [value for value in times if value]
+            # 频道按发布时间倒序。整页已早于窗口且至少已取到第一页后即可结束。
+            if valid_times and max(valid_times) < window_start:
+                break
+            if page_num * page_size >= total_count:
+                break
+            page_num += 1
+        if page_num > max_pages:
+            raise RuntimeError("评论页分页超过安全扫描上限")
+        state = {"pagedArticles": paged_candidates}
     candidates = []
 
     def walk(value):

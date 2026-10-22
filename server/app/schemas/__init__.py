@@ -98,5 +98,5 @@ from app.schemas.wechat_reply import (
 )
 from app.schemas.image_style import ImageModelConfig, ImageModelConfigOut, ImageModelConfigUpdate, ImageStyleConfigOut, ImageStylePreset
 from app.schemas.photography import PhotographyCaseInput, PhotographyLessonInput, PhotographyStageInput
-from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest
+from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest, QuoteReviewRequest
 from app.schemas.shenlun_materials import ShenlunMaterialImport, ShenlunMaterialSave

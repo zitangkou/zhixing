@@ -46,7 +46,7 @@ from app.models.image_generation import ImageGenerationJob
 from app.models.rmrb_archive import RmrbArchiveArticle, RmrbArchiveBatch, RmrbArchiveIssue, RmrbArchivePage, RmrbArchiveRevision, RmrbArchiveSource, RmrbCommentArticle, RmrbArticleEvaluation, RmrbCommentQuote, RmrbCommentExclusionRule, RmrbQuoteOpsPackage, RmrbQuoteOpsPackageItem
 from app.models.english import EnglishScene, EnglishStudyRecord, EnglishUnit
 from app.models.photography import PhotographyCase, PhotographyLesson, PhotographyStage
-from app.models.daily_quote import DailyQuote, DailyQuoteSelection, DailyQuoteJob
+from app.models.daily_quote import DailyQuote, DailyQuoteSelection, DailyQuoteFeedback, DailyQuoteJob
 from app.models.shenlun_material import ShenlunMaterial
 
 from app.models.rmrb_vocabulary import RmrbVocabulary, RmrbVocabularyJob

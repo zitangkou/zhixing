@@ -29,6 +29,21 @@ class DailyQuoteSelection(Base):
     position: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class DailyQuoteFeedback(Base):
+    """按刊期保存人工精选/淘汰反馈，供日后复盘与稳定规则迭代。"""
+    __tablename__ = 'daily_quote_feedback'
+    __table_args__ = (UniqueConstraint('issue_date', 'quote_id'),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id('dqf'))
+    issue_date: Mapped[date] = mapped_column(Date, index=True)
+    quote_id: Mapped[str] = mapped_column(ForeignKey('daily_quotes.id', ondelete='CASCADE'), index=True)
+    decision: Mapped[str] = mapped_column(String(24), index=True)  # selected | not_selected | rejected
+    reason_codes_json: Mapped[str] = mapped_column(Text, default='[]')
+    note: Mapped[str] = mapped_column(Text, default='')
+    reviewer: Mapped[str] = mapped_column(String(128), default='')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class DailyQuoteJob(Base):
     __tablename__ = 'daily_quote_jobs'
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id('dqj'))
