@@ -3,14 +3,14 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models import DailyQuote, DailyQuoteSelection, DailyQuoteJob
+from app.models import DailyQuote, DailyQuoteSelection, DailyQuoteFeedback, DailyQuoteJob
 from app.services.daily_quote_service import import_items, listing, normalize, save, preview_import
 from app.services import daily_quote_jobs as jobs
 DAY=date(2026,10,13)
 @pytest.fixture
 def db(tmp_path):
     engine=create_engine(f'sqlite:///{tmp_path}/quotes.db')
-    for m in (DailyQuote,DailyQuoteSelection,DailyQuoteJob):m.__table__.create(engine)
+    for m in (DailyQuote,DailyQuoteSelection,DailyQuoteFeedback,DailyQuoteJob):m.__table__.create(engine)
     factory=sessionmaker(bind=engine,autoflush=False)
     with factory() as session:yield session,factory
     engine.dispose()
@@ -53,12 +53,12 @@ def test_partial_retry_no_fulltext(db,monkeypatch):
     articles=[{'url':item()['url'],'scope':'core'},{'url':item()['url'].replace('_1.html','_2.html'),'scope':'core'}]
     monkeypatch.setattr(jobs,'discover',lambda _: (articles,[]))
     full='全文标记不应持久化'*30
-    monkeypatch.setattr(jobs,'original',lambda a: ([item()['text'],full],{'sourceUrl':a['url'],'articleTitle':'文章','source':'人民日报'}))
+    monkeypatch.setattr(jobs,'original',lambda a: ([item()['text'],full],{'sourceUrl':a['url'],'articleTitle':'第二篇文章' if '_2.html' in a['url'] else '第一篇文章','source':'人民日报'}))
     calls=[]
     def ai(*_, **__):
         calls.append(1)
         if len(calls)==2:raise RuntimeError(full)
-        candidate=item();candidate['scores']={'memory':4,'logic':4,'transfer':4,'spark':4}
+        candidate=item();candidate['url']=articles[1]['url'] if len(calls)==3 else articles[0]['url'];candidate['scores']={'memory':4,'logic':4,'transfer':4,'spark':4,'roleFit':4};candidate['roleFitReason']='社区工作者可用于论述从日常需求中发现服务改进点'
         return {'isComment':True,'items':[candidate]}
     monkeypatch.setattr(jobs,'chat_json',ai)
     j=jobs.enqueue(s,DAY);jid=j.id;jobs.worker(jid);s.expire_all();j=s.get(DailyQuoteJob,jid)

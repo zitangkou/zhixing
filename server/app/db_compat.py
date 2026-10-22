@@ -471,6 +471,8 @@ def run_compat_migrations() -> None:
     _ensure_rmrb_vocabulary_attempts()
     _ensure_rmrb_daily_pool_columns()
     _ensure_shenlun_exercise_quality_columns()
+    _ensure_shenlun_exercise_fact_material_columns()
+    _ensure_shenlun_exercise_attempt_work_column()
     _ensure_shenlun_material_nullable_score()
 
 
@@ -493,6 +495,38 @@ def _ensure_shenlun_exercise_quality_columns() -> None:
         for column, statement in alters.items():
             if column not in cols:
                 conn.execute(text(statement))
+
+
+def _ensure_shenlun_exercise_attempt_work_column() -> None:
+    """保存单素材论证训练分步答案，兼容已有记录。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("shenlun_exercise_attempts"):
+        return
+    cols = {c["name"] for c in insp.get_columns("shenlun_exercise_attempts")}
+    if "work_json" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE shenlun_exercise_attempts ADD COLUMN work_json TEXT DEFAULT '{}'"))
+
+
+def _ensure_shenlun_exercise_fact_material_columns() -> None:
+    """为申论练习保存其引用的已审核事实素材快照。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if not insp.has_table("shenlun_exercises"):
+        return
+    cols = {c["name"] for c in insp.get_columns("shenlun_exercises")}
+    with engine.begin() as conn:
+        if "source_material_id" not in cols:
+            conn.execute(text("ALTER TABLE shenlun_exercises ADD COLUMN source_material_id VARCHAR(32)"))
+        if "fact_material_summary" not in cols:
+            conn.execute(text("ALTER TABLE shenlun_exercises ADD COLUMN fact_material_summary TEXT DEFAULT ''"))
+        if "fact_material_limit" not in cols:
+            conn.execute(text("ALTER TABLE shenlun_exercises ADD COLUMN fact_material_limit TEXT DEFAULT ''"))
+        if "fact_training_json" not in cols:
+            conn.execute(text("ALTER TABLE shenlun_exercises ADD COLUMN fact_training_json TEXT DEFAULT '{}'"))
 
 
 def _ensure_shenlun_material_nullable_score() -> None:

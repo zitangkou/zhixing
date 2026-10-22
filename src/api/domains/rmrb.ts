@@ -2,11 +2,16 @@ import * as d from '../_shared'
 
 export interface ShenlunExerciseCard {
   id: string; question_type: 'summary' | 'countermeasure' | 'implementation' | 'essay'; title: string
+  source_material_id?: string | null; fact_material_summary: string; fact_material_limit: string
+  fact_training: {
+    related_materials?: Array<{id:string;text:string;fact:string;result:string;proves:string;evidence:string;source_title:string;source_url:string;source_date:string;theme:string;relation_reason:string}>
+    themes?: Array<{id:string;theme:string;fit_reason:string;task_prompt:string;point?:string;analysis?:string;paragraph?:string;citations?:Array<{material_id:string;exact_evidence:string}>}>
+  }
   source_title: string; source_url: string; source_date: string; source_excerpt: string; prompt: string
   requirements: string; max_chars: number; hint: string; difficulty: string; estimated_minutes: number
   is_featured: boolean; key_points: {point:string;evidence:string}[]; rubric: {name:string;description:string}[]
   sample_answer: string; analysis: string; related_assets: {type:string;id:string;title:string}[]
-  attempt: {id:string;answer:string;revision:string;reflection:string} | null
+  attempt: {id:string;answer:string;work?:Record<string,string>;revision:string;reflection:string} | null
 }
 
 export const apiRmrb = {
@@ -24,10 +29,10 @@ export const apiRmrb = {
       : d.request(`/api/rmrb/exercises/${id}`)
   },
 
-  submitShenlunExercise(id: string, answer: string): Promise<d.ApiRes<ShenlunExerciseCard>> {
+  submitShenlunExercise(id: string, answer: string, work: Record<string, string> = {}): Promise<d.ApiRes<ShenlunExerciseCard>> {
     return d.isMock
       ? Promise.resolve({ code: 404, data: null as unknown as ShenlunExerciseCard, message: '暂无可用练习' })
-      : d.request(`/api/rmrb/exercises/${id}/answers`, { method: 'POST', data: { answer } })
+      : d.request(`/api/rmrb/exercises/${id}/answers`, { method: 'POST', data: { answer, work } })
   },
 
   reviseShenlunExercise(id: string, attemptId: string, revision: string, reflection = ''): Promise<d.ApiRes<ShenlunExerciseCard>> {

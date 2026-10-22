@@ -100,3 +100,4 @@ from app.schemas.image_style import ImageModelConfig, ImageModelConfigOut, Image
 from app.schemas.photography import PhotographyCaseInput, PhotographyLessonInput, PhotographyStageInput
 from app.schemas.daily_quotes import QuoteImportRequest, QuoteSaveRequest, QuoteRunRequest, QuoteSelectionRequest, QuoteReviewRequest
 from app.schemas.shenlun_materials import ShenlunMaterialImport, ShenlunMaterialSave
+from app.schemas.creative import IdeaCreate, IdeaPatch, TransitionBody, CaptureBody, MaterialIn, PracticeIn, TagIn

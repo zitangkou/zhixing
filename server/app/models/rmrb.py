@@ -75,6 +75,10 @@ class ShenlunExercise(Base):
     question_type: Mapped[str] = mapped_column(String(32), index=True)
     title: Mapped[str] = mapped_column(String(256))
     source_article_id: Mapped[str | None] = mapped_column(ForeignKey("rmrb_articles.id"), nullable=True, index=True)
+    source_material_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    fact_material_summary: Mapped[str] = mapped_column(Text, default="")
+    fact_material_limit: Mapped[str] = mapped_column(Text, default="")
+    fact_training_json: Mapped[str] = mapped_column(Text, default="{}")
     source_title: Mapped[str] = mapped_column(String(256), default="")
     source_url: Mapped[str] = mapped_column(String(512), default="")
     source_date: Mapped[str] = mapped_column(String(10), default="")
@@ -105,13 +109,14 @@ class ShenlunExercise(Base):
 
 
 class ShenlunExerciseAttempt(Base):
-    """学员的首次作答与订正记录；只向本人展示。"""
+    """学员的首次作答、分步论证过程与订正记录；只向本人展示。"""
     __tablename__ = "shenlun_exercise_attempts"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: gen_id("sea"))
     exercise_id: Mapped[str] = mapped_column(ForeignKey("shenlun_exercises.id"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("app_users.id"), index=True)
     answer: Mapped[str] = mapped_column(Text, default="")
+    work_json: Mapped[str] = mapped_column(Text, default="{}")
     revision: Mapped[str] = mapped_column(Text, default="")
     reflection: Mapped[str] = mapped_column(Text, default="")
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

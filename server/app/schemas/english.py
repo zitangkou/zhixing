@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -18,3 +20,8 @@ class EnglishUnitInput(BaseModel):
     content: dict = Field(default_factory=dict)
     sort_order: int = 0
     is_published: bool = False
+
+
+class EnglishStudySubmission(BaseModel):
+    attempt_id: str = Field(min_length=8, max_length=64)
+    result: Literal["independent", "hinted", "not_yet", "unknown"] = "independent"

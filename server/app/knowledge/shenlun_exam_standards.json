@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17-v5",
+  "version": "2026-10-20-v6",
   "title": "申论真题与教材教研规范",
   "purpose": "将历年国考设问、教材方法与每日人民日报材料分层使用。真题和教材约束题型及评价标准；人民日报只作为当期练习材料。",
   "sources": [
@@ -44,13 +44,13 @@
   ],
   "source_selection": {
     "exam_relevance_material_types": [
+      "case",
       "problem_line",
-      "policy_phrase",
-      "template",
       "countermeasure",
       "implementation"
     ],
-    "exam_relevance_rule": "候选至少包含一种有原文证据的考试相关材料类型；纯人物故事、旅行见闻、生活方式建议或金句修辞类材料，即使联合分析分数高，也不能单独进入日常申论出题候选。",
+    "supporting_material_types": ["policy_phrase", "template"],
+    "exam_relevance_rule": "文章的评论/观点类别不决定其是否适合申论命题。候选必须至少包含一种原文可核验的具体问题、事实案例、对策或执行行动锚点；规范表达和模板句只能作为辅助证据，不能单独使文章入围。纯人物故事、旅行见闻、生活方式建议或金句修辞，若没有具体公共事务任务，不进入命题候选。",
     "prefer": [
       "有明确问题或任务背景",
       "存在可提炼的并列做法、问题、原因、变化、成效或观点",
@@ -59,6 +59,7 @@
     ],
     "reject_or_rewrite": [
       "只有宏观政策口号、没有具体材料证据",
+      "题干仅把文章宏观主题改写成问题，未限定材料对象、场景和作答范围",
       "纯成就综述或多案例堆叠，无法聚焦单一任务",
       "原文主体和事实复杂到无法在不改变事实的前提下裁剪",
       "主要依靠材料外知识才能作答"
@@ -232,6 +233,7 @@
   },
   "daily_generation": {
     "max_candidate_articles_per_job": 3,
+    "max_candidate_articles_per_day": 12,
     "max_exercises_per_article": 2,
     "min_source_chars": 500,
     "min_excerpt_chars": 500,
@@ -240,6 +242,8 @@
     "min_rubric_items": 3,
     "min_analysis_chars": 160,
     "min_semantic_review_score": 8,
+    "min_task_focus_chars": 8,
+    "min_task_anchor_chars": 12,
     "min_quality_score": 8,
       "preferred_key_points_min": 4,
       "preferred_key_points_max": 6,

@@ -23,6 +23,10 @@ class ShenlunExerciseIn(BaseModel):
     question_type: QuestionType
     title: str = Field(min_length=2, max_length=256)
     source_article_id: str | None = None
+    source_material_id: str | None = Field(default=None, max_length=32)
+    fact_material_summary: str = Field(default='', max_length=2000)
+    fact_material_limit: str = Field(default='', max_length=2000)
+    fact_training: dict = Field(default_factory=dict)
     source_title: str = Field(default='', max_length=256)
     source_url: str = Field(default='', max_length=512)
     source_date: str = Field(default='', max_length=10)
@@ -45,6 +49,17 @@ class ShenlunExerciseIn(BaseModel):
 
     @model_validator(mode='after')
     def validate_publication(self):
+        if self.fact_training and not self.source_material_id:
+            raise ValueError('主题训练包必须绑定主事实素材')
+        if self.source_material_id:
+            if self.question_type != 'essay':
+                raise ValueError('事实素材论证训练仅用于申发论述题')
+            if len(self.fact_material_summary.strip()) < 10:
+                raise ValueError('关联事实素材后须保留事实摘要')
+            if self.status == 'published' and not self.fact_training.get('themes'):
+                raise ValueError('发布事实素材论证训练前，须完成人工审核的主题训练包')
+            if self.status == 'published' and self.human_review.decision != 'approved':
+                raise ValueError('事实素材训练包须先由教研审核通过，再发布')
         if self.status == 'published':
             if self.human_review.decision in ('revision_required', 'rejected'):
                 raise ValueError('审核结论为退回或拒绝时不能发布')
@@ -82,6 +97,16 @@ class ShenlunExerciseIn(BaseModel):
 
 class ShenlunExerciseAnswerIn(BaseModel):
     answer: str = Field(min_length=1, max_length=12000)
+    work: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode='after')
+    def validate_work(self):
+        allowed = {'fact', 'theme', 'theme_id', 'point', 'analysis', 'paragraph'}
+        if set(self.work) - allowed:
+            raise ValueError('训练过程包含未知步骤')
+        if any(len(value) > 5000 for value in self.work.values()):
+            raise ValueError('单步训练内容不能超过5000字')
+        return self
 
 class ShenlunExerciseRevisionIn(BaseModel):
     revision: str = Field(min_length=1, max_length=12000)

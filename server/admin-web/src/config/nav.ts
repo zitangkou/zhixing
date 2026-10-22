@@ -42,9 +42,16 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/today', title: '今日学员端', icon: Calendar, permissions: ['article:read', 'rmrb:read'] },
       { path: '/articles', title: '文章管理', icon: Document, permissions: ['article:read'] },
       { path: '/theory-briefs', title: '时政要点', icon: Tickets, permissions: ['article:read'] },
+      { path: '/theory-workflow', title: '时政出题工作台', icon: Cpu, permissions: ['article:read', 'question:read'] },
       { path: '/categories', title: '分类管理', icon: Folder, permissions: ['article:read', 'article:write'] },
     ],
   },
+  { key: 'creative', title: '创意平台', icon: Promotion, children: [
+    { path: '/creative', title: '创意工作台', icon: DataAnalysis, permissions: ['creative:read'] },
+    { path: '/creative/ideas', title: '创意库', icon: Collection, permissions: ['creative:read'] },
+    { path: '/creative/materials', title: '参考物料', icon: Folder, permissions: ['creative:read'] },
+    { path: '/creative/recycle-bin', title: '回收站', icon: Tickets, permissions: ['creative:read'] },
+  ] },
   {
     key: 'rmrb-archive',
     title: '人民日报',
@@ -158,9 +165,14 @@ export const FLAT_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.children)
 export const NAV_ITEMS: NavItem[] = FLAT_NAV_ITEMS
 
 export const ROUTE_TITLES: Record<string, string> = {
+  '/creative': '创意工作台',
+  '/creative/ideas': '创意库',
+  '/creative/materials': '参考物料',
+  '/creative/recycle-bin': '创意回收站',
   '/today': '今日学员端',
   '/articles': '文章管理',
   '/theory-briefs': '时政要点',
+  '/theory-workflow': '时政出题工作台',
   '/articles/new': '新建文章',
   '/content-ops': '账号运营',
   '/wechat-replies': '公众号消息回复',

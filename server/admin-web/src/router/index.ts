@@ -35,6 +35,12 @@ const router = createRouter({
           meta: { title: '时政要点', permissions: ['article:read'] },
         },
         {
+          path: 'theory-workflow',
+          name: 'theory-workflow',
+          component: () => import('@/views/theoryWorkflow/Index.vue'),
+          meta: { title: '时政出题工作台', permissions: ['article:read', 'question:read'] },
+        },
+        {
           path: 'articles/new',
           name: 'article-new',
           component: () => import('@/views/articles/Edit.vue'),
@@ -46,6 +52,11 @@ const router = createRouter({
           component: () => import('@/views/articles/Edit.vue'),
           meta: { title: '编辑文章', permissions: ['article:read'] },
         },
+        { path: 'creative', name: 'creative-workbench', component: () => import('@/views/creative/Index.vue'), meta: { title: '创意工作台', permissions: ['creative:read'] } },
+        { path: 'creative/ideas', name: 'creative-ideas', component: () => import('@/views/creative/Index.vue'), meta: { title: '创意库', permissions: ['creative:read'] } },
+        { path: 'creative/ideas/:id', name: 'creative-detail', component: () => import('@/views/creative/Index.vue'), meta: { title: '创意详情', permissions: ['creative:read'] } },
+        { path: 'creative/materials', name: 'creative-materials', component: () => import('@/views/creative/Index.vue'), meta: { title: '参考物料', permissions: ['creative:read'] } },
+        { path: 'creative/recycle-bin', name: 'creative-recycle-bin', component: () => import('@/views/creative/Index.vue'), meta: { title: '创意回收站', permissions: ['creative:read'] } },
         {
           path: 'content-ops',
           name: 'content-ops',

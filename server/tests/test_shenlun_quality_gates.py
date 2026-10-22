@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+
+from app.services import shenlun_exercise_generation as generation
 from app.services.shenlun_exercise_generation import _apply_semantic_review, quality_check
 
 
@@ -12,6 +15,11 @@ def _payload():
         "source_url": "https://paper.people.com.cn/example.html",
         "source_excerpt": excerpt,
         "prompt": "请概括材料中完善基层公共服务的主要做法。",
+        "task_card": {
+            "focus": "基层服务体系的具体完善做法",
+            "scene": "围绕基层公共服务能力提升的实际工作",
+            "anchor": "完善基层服务体系，提升公共服务能力。",
+        },
         "requirements": "分条作答，概括准确，答案不超过200字。",
         "max_chars": 200,
         "key_points": points,
@@ -34,6 +42,10 @@ def _review(**overrides):
         "pass": True,
         "score": 9,
         "task_fits": True,
+        "task_specificity": True,
+        "material_dependence": True,
+        "candidate_answerability": True,
+        "scope_bounded": True,
         "answer_faithful": True,
         "answer_within_limit": True,
         "analysis_faithful": True,
@@ -94,3 +106,45 @@ def test_quality_gate_rejects_overfragmented_point_count():
     report = quality_check(payload, payload["source_excerpt"])
     assert report["pass"] is False
     assert any("参考要点数量" in error for error in report["errors"])
+
+
+def test_quality_gate_requires_verifiable_specific_task_card():
+    payload = _payload()
+    payload["task_card"]["anchor"] = "基层治理要加强"
+    report = quality_check(payload, payload["source_excerpt"])
+    assert report["pass"] is False
+    assert any("事实锚点" in error for error in report["errors"])
+
+
+def test_semantic_review_blocks_macro_theme_only_question():
+    result = _apply_semantic_review(_payload(), _report(), _review(task_specificity=False))
+    assert result["pass"] is False
+    assert any("具体度检查" in error for error in result["errors"])
+
+
+def test_candidate_selection_does_not_hard_filter_commentary_category(monkeypatch):
+    body = "建设社区服务站，协调解决老旧小区停车和养老服务问题。" * 40
+    url = "https://paper.people.com.cn/concrete.html"
+    articles = [{"url": url, "body": body, "title": "社区服务实践", "pageNo": "07", "pageName": "民生"}]
+    analysis = {
+        "category": "exclude",
+        "shenlunMaterials": [{
+            "type": "case", "source_evidence": "建设社区服务站，协调解决老旧小区停车和养老服务问题。",
+            "quality_score": 9,
+        }],
+    }
+    monkeypatch.setattr(generation, "get_full_articles", lambda _date: (articles, [], 1))
+    monkeypatch.setattr(generation, "get_analysis", lambda *_args: analysis)
+    selected = generation._candidate_articles(None, __import__("datetime").date(2026, 10, 20))
+    assert len(selected) == 1
+    assert selected[0][2]["category"] == "exclude"
+
+
+def test_scheduler_continuation_budget_and_failure_gates():
+    progress = {"remainingCandidates": 4, "failures": [], "processedArticleUrls": ["a", "b", "c"]}
+    job = SimpleNamespace(status="partial", progress_json=__import__("json").dumps(progress))
+    assert generation._should_continue_scheduled_job(job, daily_processed_count=3, daily_limit=12)
+    assert not generation._should_continue_scheduled_job(job, daily_processed_count=12, daily_limit=12)
+    progress["failures"] = [{"errors": ["upstream error"]}]
+    job.progress_json = __import__("json").dumps(progress)
+    assert not generation._should_continue_scheduled_job(job, daily_processed_count=3, daily_limit=12)

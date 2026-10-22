@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     llm_input_price_per_million: float = Field(0, ge=0)
     llm_output_price_per_million: float = Field(0, ge=0)
 
+    # 言遇英语素材转写：OpenAI-compatible audio/transcriptions endpoint。
+    yanyu_english_asr_api_key: str = ""
+    yanyu_english_asr_base_url: str = "https://api.openai.com/v1"
+    yanyu_english_asr_model: str = "whisper-1"
+    yanyu_english_asr_timeout_seconds: int = Field(180, ge=15, le=600)
+
     # Image generation provider credentials. Values are server-only and must never be returned by admin APIs.
     dashscope_api_key: str = ""
     openai_image_api_key: str = ""

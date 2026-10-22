@@ -1,11 +1,11 @@
 <template>
   <page-meta v-if="isWeapp" :page-style="pageMeta.pageStyle" :background-color="pageMeta.backgroundColor" :background-color-top="pageMeta.backgroundColorTop" :background-color-bottom="pageMeta.backgroundColorBottom" :background-text-style="pageMeta.backgroundTextStyle" />
   <view class="se-list-page" :class="themeClass">
-    <view class="se-intro"><text class="se-title">申论题型练习</text><text class="se-subtitle">读材料、按设问作答，提交后对照依据和参考答案。</text></view>
+    <view class="se-intro"><text class="se-title">申论题型练习</text><text class="se-subtitle">读材料、按设问作答；申发论述练习会引导你从事实提取、主题归纳走到论证成段。</text></view>
     <scroll-view class="se-filters" scroll-x :show-scrollbar="false"><view class="se-filter-row"><view v-for="item in filters" :key="item.value" class="se-chip" :class="{active:activeType===item.value}" @tap="selectType(item.value)">{{ item.label }}</view></view></scroll-view>
     <view v-if="loading" class="se-state">正在加载练习…</view>
     <view v-else-if="!items.length" class="se-state"><text class="se-state-title">暂时没有已发布练习</text><text class="se-state-desc">练习经教研审核后会在这里开放。</text></view>
-    <view v-else class="se-cards"><view v-for="item in items" :key="item.id" class="se-card" @tap="open(item.id)"><view class="se-card-top"><text class="se-kind">{{ typeName(item.question_type) }}</text><text v-if="item.is_featured" class="se-featured">今日推荐</text><text class="se-time">约 {{ item.estimated_minutes }} 分钟</text></view><text class="se-card-title">{{ item.title }}</text><text class="se-source">{{ item.source_title }}<text v-if="item.source_date"> · {{ item.source_date }}</text></text><view class="se-card-bottom"><text>{{ item.difficulty }} · {{ item.max_chars ? `${item.max_chars} 字以内` : '不限字数' }}</text><text class="se-arrow">开始练习 ›</text></view></view></view>
+    <view v-else class="se-cards"><view v-for="item in items" :key="item.id" class="se-card" @tap="open(item.id)"><view class="se-card-top"><text class="se-kind">{{ cardTypeName(item) }}</text><text v-if="item.is_featured" class="se-featured">今日推荐</text><text class="se-time">约 {{ item.estimated_minutes }} 分钟</text></view><text class="se-card-title">{{ item.title }}</text><text class="se-source">{{ item.source_title }}<text v-if="item.source_date"> · {{ item.source_date }}</text></text><view class="se-card-bottom"><text>{{ item.difficulty }} · {{ item.max_chars ? `${item.max_chars} 字以内` : '不限字数' }}</text><text class="se-arrow">开始练习 ›</text></view></view></view>
   </view>
 </template>
 <script setup lang="ts">
@@ -20,6 +20,7 @@ const {themeClass}=useThemeClass(),pageMeta=usePageMeta(),isWeapp=process.env.TA
 const filters=[{label:'全部',value:''},{label:'归纳概括',value:'summary'},{label:'提出对策',value:'countermeasure'},{label:'贯彻执行',value:'implementation'},{label:'申发论述',value:'essay'}]
 const activeType=ref(''),items=ref<ShenlunExerciseCard[]>([]),loading=ref(false)
 function typeName(v:string){return filters.find(x=>x.value===v)?.label||'申论练习'}
+function cardTypeName(item:ShenlunExerciseCard){return item.question_type==='essay'&&item.source_material_id?'事实论证训练':typeName(item.question_type)}
 async function load(){loading.value=true;try{const r=await api.listShenlunExercises(activeType.value||undefined);if(r.code===0)items.value=r.data||[];else showToast(r.message||'练习加载失败','error')}catch{showToast('练习加载失败','error')}finally{loading.value=false}}
 function selectType(value:string){activeType.value=value;load()}
 function open(id:string){Taro.navigateTo({url:`/pages/rmrb/exercise?id=${encodeURIComponent(id)}`})}

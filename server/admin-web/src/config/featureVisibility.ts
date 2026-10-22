@@ -1,7 +1,12 @@
 /** 管理端侧栏露出。路由仍注册，直链可进。隐藏项见操作指引。 */
 
 const VISIBLE_PATHS = new Set([
+  '/creative',
+  '/creative/ideas',
+  '/creative/materials',
+  '/creative/recycle-bin',
   '/theory-briefs',
+  '/theory-workflow',
   '/rmrb-archive/quotes',
   '/rmrb-archive/shenlun-materials',
   '/rmrb-archive/vocabulary',

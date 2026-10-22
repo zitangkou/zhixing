@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 import { API_BASE_URL } from '@/config'
 import { ensureWechatLogin, getAccessToken } from '@/auth'
 
-export type Lesson = { id: string; serverId?: string; sceneId?: string; sceneTitle?: string; title: string; level: string; minutes: number; goal: string; mediaType?: 'text' | 'audio' | 'video' | 'video_audio'; audioUrl?: string; videoUrl?: string; posterUrl?: string; sourceUrl?: string; rightsStatus?: string; startSeconds?: number; endSeconds?: number; dialogueAudioUrl?: string; dialogue: { speaker: string; en: string; zh: string; audioUrl?: string; startSeconds?: number }[]; phrases: { en: string; zh: string }[]; prompt: string }
+export type Lesson = { id: string; serverId?: string; sceneId?: string; sceneTitle?: string; title: string; level: string; minutes: number; goal: string; mediaType?: 'text' | 'audio' | 'video' | 'video_audio'; audioUrl?: string; videoUrl?: string; posterUrl?: string; sourceUrl?: string; rightsStatus?: string; startSeconds?: number; endSeconds?: number; dialogueAudioUrl?: string; dialogue: { speaker: string; en: string; zh: string; audioUrl?: string; startSeconds?: number; endSeconds?: number }[]; phrases: { en: string; zh: string }[]; prompt: string }
 
 export const lessons = reactive<Lesson[]>([
   { id: 'coffee-order', title: '在咖啡店点单', level: 'A1 入门', minutes: 8, goal: '点一杯饮品，并说明冷热和大小偏好。', dialogue: [
@@ -40,6 +40,7 @@ export const lessons = reactive<Lesson[]>([
 
 export const progressKey = 'yanyu-progress-v1'
 const learnerKey = 'yanyu-learner-id-v1'
+const pendingAttemptsKey = 'yanyu-pending-attempts-v1'
 export function readProgress(): string[] {
   try { return JSON.parse(Taro.getStorageSync(progressKey) || '[]') as string[] } catch { return [] }
 }
@@ -52,10 +53,9 @@ function getLearnerId(): string {
   return id
 }
 
-/** 本地示例保证接口尚未配置时仍可体验；配置 API 后以后台已发布课程覆盖。 */
+/** 公开课程不依赖登录；接口不可用时使用内置原创样例。 */
 export async function loadLessons(): Promise<void> {
   try {
-    await ensureWechatLogin()
     const token = getAccessToken()
     const response = await Taro.request({ url: `${API_BASE_URL}/english/scenes`, header: { 'X-Product-Key': 'general', ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
     const payload = response.data as { code?: number; data?: Array<{ id: string; title: string; units?: Array<Record<string, any>> }> }
@@ -84,14 +84,74 @@ export async function loadLessons(): Promise<void> {
   }
 }
 
-export async function markLessonComplete(lesson: Lesson): Promise<void> {
-  if (!lesson.serverId) return
+export type StudyResult = 'independent' | 'hinted' | 'not_yet' | 'unknown'
+export type LearnerProgress = { completedUnitIds: string[]; dueReviews: { unitId: string; title: string; level: string; nextReviewAt: string; reviewStage: number }[]; completedUnits: number }
+
+function requestHeaders() {
+  const token = getAccessToken()
+  return { 'X-Product-Key': 'general', ...(token ? { Authorization: `Bearer ${token}` } : { 'X-User-Id': getLearnerId() }) }
+}
+
+export async function loadLearnerProgress(): Promise<LearnerProgress | null> {
   try {
-    await ensureWechatLogin()
-    const token = getAccessToken()
-    await Taro.request({
-      url: `${API_BASE_URL}/english/units/${lesson.serverId}/complete`, method: 'POST',
-      header: { 'X-Product-Key': 'general', ...(token ? { Authorization: `Bearer ${token}` } : { 'X-User-Id': getLearnerId() }) },
+    const response = await Taro.request({ url: `${API_BASE_URL}/english/progress`, header: requestHeaders() })
+    const payload = response.data as { code?: number; data?: LearnerProgress }
+    if (payload.code !== 0 || !payload.data) return null
+    const mapped = payload.data.completedUnitIds.flatMap((id) => {
+      const lesson = lessons.find((item) => item.serverId === id)
+      return lesson ? [lesson.id] : []
     })
-  } catch { /* keep local completion even if the API is temporarily unavailable */ }
+    const merged = new Set([...readProgress(), ...mapped])
+    Taro.setStorageSync(progressKey, JSON.stringify([...merged]))
+    return payload.data
+  } catch { return null }
+}
+
+export async function markLessonComplete(lesson: Lesson, attemptId: string, result: StudyResult): Promise<boolean> {
+  if (!lesson.serverId) return true
+  const attempt = { unitId: lesson.serverId || lesson.id, attemptId, result }
+  const pending = (() => { try { return JSON.parse(Taro.getStorageSync(pendingAttemptsKey) || '[]') as typeof attempt[] } catch { return [] as typeof attempt[] } })()
+  if (!pending.some((item) => item.attemptId === attemptId)) pending.push(attempt)
+  Taro.setStorageSync(pendingAttemptsKey, JSON.stringify(pending))
+  return flushPendingAttempts()
+}
+
+export async function flushPendingAttempts(): Promise<boolean> {
+  let pending: { unitId: string; attemptId: string; result: StudyResult }[]
+  try { pending = JSON.parse(Taro.getStorageSync(pendingAttemptsKey) || '[]') } catch { pending = [] }
+  if (!pending.length) return true
+  try { await ensureWechatLogin() } catch { /* the local learner identity can still store anonymous progress */ }
+  const remaining = [] as typeof pending
+  for (const attempt of pending) {
+    const lesson = lessons.find((item) => item.serverId === attempt.unitId || item.id === attempt.unitId)
+    if (!lesson?.serverId) { remaining.push(attempt); continue }
+    try {
+      const response = await Taro.request({
+        url: `${API_BASE_URL}/english/units/${lesson.serverId}/complete`, method: 'POST',
+        data: { attempt_id: attempt.attemptId, result: attempt.result }, header: requestHeaders(),
+      })
+      const payload = response.data as { code?: number }
+      if (response.statusCode < 200 || response.statusCode >= 300 || payload.code !== 0) remaining.push(attempt)
+    } catch { remaining.push(attempt) }
+  }
+  Taro.setStorageSync(pendingAttemptsKey, JSON.stringify(remaining))
+  return remaining.length === 0
+}
+
+export async function syncProgressAfterLogin(): Promise<void> {
+  try { await ensureWechatLogin() } catch { return }
+  const remote = await loadLearnerProgress()
+  const syncedIds = new Set(remote?.completedUnitIds || [])
+  // Carry forward locally completed lessons once the learner has an account.
+  for (const localId of readProgress()) {
+    const lesson = lessons.find((item) => item.id === localId)
+    if (!lesson?.serverId) continue
+    const migrationId = `local-sync-${lesson.serverId}`
+    if (syncedIds.has(lesson.serverId)) continue
+    const ok = await markLessonComplete(lesson, migrationId, 'unknown')
+    if (!ok) break
+    syncedIds.add(lesson.serverId)
+  }
+  await flushPendingAttempts()
+  await loadLearnerProgress()
 }

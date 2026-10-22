@@ -12,7 +12,7 @@ from app.database import SessionLocal
 from app.models import DailyQuoteJob, DailyQuote
 from app.models.base import utcnow
 from app.services.ai.llm_client import chat_json
-from app.services.daily_quote_service import dump, parse, normalize, save, feedback_prompt, duplicate_exists
+from app.services.daily_quote_service import dump, parse, normalize, save, feedback_prompt
 from app.services.rmrb_daily_pool import get_metadata, get_article_content, get_analysis, save_analysis, ANALYSIS_RULE_VERSION
 
 RULE_VERSION = '2026-10-22-v4'
@@ -440,7 +440,7 @@ def worker(job_id):
                     # 独立savepoint隔离单条写入失败，去重不更改现有审核数据。
                     try:
                         with db.begin_nested():
-                            if not duplicate_exists(db, item, row.issue_date, fp):
+                            if db.query(DailyQuote.id).filter_by(fingerprint=fp).first() is None:
                                 save(db, item, row.issue_date, commit=False)
                                 saved_this_article += 1
                             else:
@@ -564,7 +564,7 @@ def worker(job_id):
                             for quote, fp, removed in prepared:
                                 try:
                                     with db.begin_nested():
-                                        if not duplicate_exists(db, quote, row.issue_date, fp):
+                                        if db.query(DailyQuote.id).filter_by(fingerprint=fp).first() is None:
                                             save(db, quote, row.issue_date, commit=False)
                                             saved_this_article += 1
                                         else:

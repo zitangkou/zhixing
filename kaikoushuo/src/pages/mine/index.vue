@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { lessons, loadLessons, readProgress } from '@/data'
+import { lessons, loadLessons, readProgress, syncProgressAfterLogin } from '@/data'
 import { ensureWechatLogin, getAccessToken, getWechatUser } from '@/auth'
 definePageConfig({ navigationBarTitleText: '我的学习' })
 const done = ref<string[]>([])
@@ -51,6 +51,7 @@ async function refreshLogin() {
     await ensureWechatLogin()
     account.value = getWechatUser() as { nickname?: string } | null
     loginState.value = getAccessToken() ? 'logged-in' : 'failed'
+    if (loginState.value === 'logged-in') await syncProgressAfterLogin()
   } catch (error) {
     loginState.value = 'failed'
     loginError.value = error instanceof Error ? error.message : '微信登录失败，请重试'
@@ -64,6 +65,7 @@ async function handleWechatLogin() {
     await ensureWechatLogin(true)
     account.value = getWechatUser() as { nickname?: string } | null
     loginState.value = getAccessToken() ? 'logged-in' : 'failed'
+    if (loginState.value === 'logged-in') await syncProgressAfterLogin()
   } catch (error) {
     loginState.value = 'failed'
     loginError.value = error instanceof Error ? error.message : '微信登录失败，请重试'

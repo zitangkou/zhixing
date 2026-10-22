@@ -36,30 +36,6 @@ def parse(value, fallback=None):
         return {} if fallback is None else fallback
 
 
-def _article_title_key(value):
-    title = value if isinstance(value, str) else ''
-    title = re.sub(r'^(?:人民日报)?(?:社论|评论员文章|评论员观察)\s*[:：]?\s*', '', title)
-    return re.sub(r'[\s\W_]+', '', title)
-
-
-def duplicate_exists(db, item, collected_date, fingerprint):
-    """兼容新旧指纹，避免规则升级重跑时给旧的跨版重复记录再插入一份。"""
-    if db.query(DailyQuote.id).filter_by(fingerprint=fingerprint).first() is not None:
-        return True
-    title_key = _article_title_key(item.get('articleTitle')) if isinstance(item, dict) else ''
-    if not title_key or not isinstance(item.get('text'), str):
-        return False
-    article_date = item.get('articleDate', collected_date.isoformat())
-    rows = db.query(DailyQuote.attributes_json).filter_by(
-        collected_date=collected_date, text=item['text']).all()
-    for (raw,) in rows:
-        attrs = parse(raw)
-        if (isinstance(attrs, dict) and _article_title_key(attrs.get('articleTitle')) == title_key and
-                attrs.get('articleDate', collected_date.isoformat()) == article_date):
-            return True
-    return False
-
-
 def string(value, limit=1000):
     if not isinstance(value, str):
         raise ValueError('文本字段必须是字符串')
@@ -135,7 +111,8 @@ def normalize(item, collected_date):
     # 人民日报同一篇社论可能以不同版面链接重复发布。优先用刊发日期、规范化标题
     # 与原句去重；缺少标题时退回来源URL。页面原文与链接仍完整保留供核对。
     article_title = attrs['articleTitle']
-    title_key = _article_title_key(article_title)
+    title_key = re.sub(r'^(?:人民日报)?(?:社论|评论员文章|评论员观察)\s*[:：]?\s*', '', article_title)
+    title_key = re.sub(r'[\s\W_]+', '', title_key)
     canonical = (published + '|' + title_key) if title_key else u.netloc.lower() + u.path.rstrip('/')
     fingerprint = hashlib.sha256((canonical + '|' + re.sub(r'[\W_]+', '', text)).encode()).hexdigest()
     return text, attrs, fingerprint
@@ -315,7 +292,7 @@ def preview_import(db, items, collected_date):
     for i, item in enumerate(items):
         try:
             text, attrs, fp = normalize(item, collected_date)
-            duplicate = fp in seen or duplicate_exists(db, item, collected_date, fp)
+            duplicate = fp in seen or db.query(DailyQuote.id).filter_by(fingerprint=fp).first() is not None
             seen.add(fp)
             output.append({'index': i, 'text': text, 'status': 'duplicate' if duplicate else 'new', 'evidenceMissing': not bool(attrs['evidence'])})
         except (ValueError, TypeError) as exc:

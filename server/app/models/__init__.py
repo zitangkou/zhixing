@@ -44,7 +44,7 @@ from app.models.generation import GenerationBatch, ReviewRecord
 from app.models.library_document import LibraryDocument
 from app.models.image_generation import ImageGenerationJob
 from app.models.rmrb_archive import RmrbArchiveArticle, RmrbArchiveBatch, RmrbArchiveIssue, RmrbArchivePage, RmrbArchiveRevision, RmrbArchiveSource, RmrbCommentArticle, RmrbArticleEvaluation, RmrbCommentQuote, RmrbCommentExclusionRule, RmrbQuoteOpsPackage, RmrbQuoteOpsPackageItem
-from app.models.english import EnglishScene, EnglishStudyRecord, EnglishUnit
+from app.models.english import EnglishASRJob, EnglishScene, EnglishStudyAttempt, EnglishStudyRecord, EnglishUnit, EnglishUnitProgress
 from app.models.photography import PhotographyCase, PhotographyLesson, PhotographyStage
 from app.models.daily_quote import DailyQuote, DailyQuoteSelection, DailyQuoteFeedback, DailyQuoteJob
 from app.models.shenlun_material import ShenlunMaterial
@@ -52,4 +52,7 @@ from app.models.shenlun_material import ShenlunMaterial
 from app.models.rmrb_vocabulary import RmrbVocabulary, RmrbVocabularyJob
 from app.models.shenlun_exercises import ShenlunExerciseJob
 from app.models.llm_usage import LlmUsageLog
+from app.models.theory_workflow import TheorySourceReview, TheoryQuizPaper
 from app.models.rmrb_daily_pool import RmrbDailyPoolIssue, RmrbDailyPoolArticle
+from app.models.creative import CreativeIdea, CreativeTag, CreativeIdeaTag, CreativeMaterial, CreativeIdeaMaterial, CreativeIdeaRelation, CreativePractice, CreativeEvent
+from app.models.creative import CreativeCaptureRequest, CreativeAttachment

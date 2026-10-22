@@ -25,6 +25,9 @@ async def lifespan(_app: FastAPI):
     from app.services.image_generation_jobs import fail_interrupted_image_jobs
 
     fail_interrupted_image_jobs()
+    from app.services.english_asr_service import fail_interrupted_english_asr_jobs
+
+    fail_interrupted_english_asr_jobs()
     from app.seed import seed_if_empty
 
     db = SessionLocal()
@@ -78,6 +81,8 @@ async def lifespan(_app: FastAPI):
         while True:
             cleanup_expired_image_results()
             prune_old_image_jobs()
+            from app.services.english_asr_service import prune_old_english_asr_jobs
+            prune_old_english_asr_jobs()
             from app.services.rmrb_daily_pool import prune_expired_bodies
             prune_expired_bodies()
             await asyncio.sleep(60 * 60)
@@ -91,6 +96,9 @@ async def lifespan(_app: FastAPI):
     # 申论自动出题复用人民日报共享采集池和词汇联合分析缓存，不恢复已退役的全量档案调度。
     from app.services.shenlun_exercise_generation import scheduler as shenlun_exercise_scheduler
     shenlun_exercise_scheduler_task = asyncio.create_task(shenlun_exercise_scheduler())
+    from app.services.theory_workflow_service import scheduler as theory_workflow_scheduler, recover_interrupted_papers
+    recover_interrupted_papers()
+    theory_workflow_scheduler_task = asyncio.create_task(theory_workflow_scheduler())
     try:
         yield
     finally:
@@ -98,9 +106,10 @@ async def lifespan(_app: FastAPI):
         rmrb_scheduler_task.cancel()
         rmrb_vocabulary_scheduler_task.cancel()
         shenlun_exercise_scheduler_task.cancel()
+        theory_workflow_scheduler_task.cancel()
         try:
             await asyncio.gather(cleanup_task, rmrb_scheduler_task, rmrb_vocabulary_scheduler_task,
-                                 shenlun_exercise_scheduler_task, return_exceptions=True)
+                                 shenlun_exercise_scheduler_task, theory_workflow_scheduler_task, return_exceptions=True)
         except asyncio.CancelledError:
             pass
 
