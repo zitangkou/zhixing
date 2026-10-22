@@ -12,7 +12,7 @@ from app.database import get_db
 from app.models import AdminUser, RmrbArchiveArticle, RmrbArchiveBatch, TheoryQuizPaper, TheorySourceReview
 from app.services.rmrb_archive_service import create_manual_batch, run_collection_batch
 from app.services.theory_workflow_service import (
-    _review_row, ensure_source_body, generate_paper, list_sources, paper_out, publish_paper, review_paper_question,
+    RULES_VERSION, _review_row, ensure_source_body, generate_paper, list_sources, paper_out, publish_paper, review_paper_question,
 )
 from app.timezone import today
 
@@ -40,7 +40,10 @@ class QuestionReviewBody(BaseModel):
     answer: str | None = None
     analysis: str | None = None
     sourceSentence: str | None = None
+    sourceRef: str | None = None
     topic: str | None = None
+    tag: str | None = None
+    distractors: dict | None = None
 
 
 @router.get("/collections")
@@ -124,7 +127,8 @@ def start_generation(article_id: str, body: GenerateBody, tasks: BackgroundTasks
     if latest and latest.status in {"queued", "generating"}:
         return ApiResponse.ok(paper_out(latest), message="该文章已有套题生成任务正在运行")
     version = (latest.version if latest else 0) + 1
-    paper = TheoryQuizPaper(archive_article_id=article_id, version=version, title=body.title.strip(), status="queued")
+    paper = TheoryQuizPaper(archive_article_id=article_id, version=version, title=body.title.strip(), status="queued",
+                            rules_version=RULES_VERSION)
     db.add(paper)
     try:
         db.commit()

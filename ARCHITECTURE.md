@@ -89,7 +89,7 @@ FastAPI 后端 ---- SQLite / data/uploads
 | 菜单 | 职责 |
 | --- | --- |
 | 时政考点 · 文章管理 | 文章 CRUD、Markdown/HTML 导入、审核发布、分类、题目管理、AI 出题 |
-| 时政考点 · 时政出题工作台 | 复用人民日报档案按日采集版面；文章选用审核、按规则生成20题草稿、逐题质检审核、版本化发布至 TheoryPoint；`TheorySourceReview` / `TheoryQuizPaper` 保存审核、质检和版本状态。自动采集每日北京时间06:30启动；套题原文快照存入人民日报档案正文版本。 |
+| 时政考点 · 时政出题工作台 | 复用人民日报档案按日采集版面；文章选用审核、调用配置模型生成20题草稿、逐题质检审核、版本化发布至 TheoryPoint；`TheorySourceReview` / `TheoryQuizPaper` 保存审核、质检和版本状态。自动采集每日北京时间06:30启动；套题原文快照存入人民日报档案正文版本。命题规则版本 `theory-rubric-2026-10-v2` 对齐本机《模拟套题总案》v4、`audit_mock_paper.py`、`assess_difficulty.py`、《考情分类与选题标准》§4.4 与《题型训练方案-01-政治理论》；答案分布、题型、证据、干扰项和难度在生成及发布前校验，报告附题目标签多样性。生产须配置 `LLM_ENABLED=true` 与 `LLM_API_KEY`，模型/地址从服务端 `LLM_MODEL` / `LLM_BASE_URL` 读取。|
 | 时政考点 · 分类管理 | 时政分类树；待收录晋升叶子 |
 | 时评精拆 | 时评原文 HTML、解析 HTML、规范词/骨架/句式/论证方法；词表待收录 |
 | 时政要点 | TheoryPoint 编排已发布原文及题目；管理接口支持分页查询，Article 保存 brief_json / brief_status，学员端仅取已发布要点。时政套题用 ArticleQuizProgress 保存用户进度与最近作答。 |

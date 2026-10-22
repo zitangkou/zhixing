@@ -8,7 +8,7 @@ export interface TheoryPaper {
   status: string
   questionCount: number
   approvedCount: number
-  report: { validCount?: number; typeCounts?: Record<string, number>; answerDistribution?: Record<string, number>; errors?: string[] }
+  report: { validCount?: number; typeCounts?: Record<string, number>; focusTypeCounts?: Record<string, number>; numericRecallCount?: number; answerDistribution?: Record<string, number>; distractorTrickCounts?: Record<string, number>; uniqueTopicCount?: number; uniqueTagCount?: number; rubricSources?: string[]; errors?: string[] }
   error: string
   rulesVersion: string
   pointId?: string
@@ -32,12 +32,18 @@ export interface TheorySource {
 
 export interface TheoryQuestion {
   subtype: 'direct' | 'combo' | 'count'
+  focusType: 'general' | 'core' | 'metric' | 'deployment' | 'background'
+  numericRecall: boolean
   stem: string
   options: string[]
   answer: string
   analysis: string
   sourceSentence: string
+  sourceRef?: string
   topic: string
+  tag?: string
+  difficulty?: number
+  distractors?: Record<string, { type: string; note: string }>
   reviewStatus: 'pending' | 'approved' | 'rejected'
   reviewNote: string
 }

@@ -36,7 +36,7 @@ class TheoryQuizPaper(Base):
     report_json: Mapped[str] = mapped_column(Text, default="{}")
     review_history_json: Mapped[str] = mapped_column(Text, default="[]")
     error: Mapped[str] = mapped_column(Text, default="")
-    rules_version: Mapped[str] = mapped_column(String(64), default="theory-rubric-2026-10-v1")
+    rules_version: Mapped[str] = mapped_column(String(64), default="theory-rubric-2026-10-v2")
     point_id: Mapped[str | None] = mapped_column(ForeignKey("theory_points.id"), nullable=True, index=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     published_by: Mapped[str] = mapped_column(String(64), default="")
